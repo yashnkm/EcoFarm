@@ -1,0 +1,53 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
+import { AppLayout } from "@/components/layout/AppLayout"
+import { LoginPage } from "@/pages/auth/LoginPage"
+import { DashboardPage } from "@/pages/dashboard/DashboardPage"
+import { SitesPage } from "@/pages/sites/SitesPage"
+import { GatewaysPage } from "@/pages/gateways/GatewaysPage"
+import { DevicesPage } from "@/pages/devices/DevicesPage"
+import { DeviceDetailPage } from "@/pages/devices/DeviceDetailPage"
+import { DeviceProfilesPage } from "@/pages/profiles/DeviceProfilesPage"
+import { DeviceProfileDetailPage } from "@/pages/profiles/DeviceProfileDetailPage"
+import { TenantsPage } from "@/pages/tenants/TenantsPage"
+import { UsersPage } from "@/pages/users/UsersPage"
+import { GatewayDriversPage } from "@/pages/drivers/GatewayDriversPage"
+import { BrokersPage } from "@/pages/brokers/BrokersPage"
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="/sites" element={<SitesPage />} />
+            <Route path="/gateways" element={<GatewaysPage />} />
+            <Route path="/devices" element={<DevicesPage />} />
+            <Route path="/devices/:id" element={<DeviceDetailPage />} />
+            <Route path="/profiles" element={<DeviceProfilesPage />} />
+            <Route path="/profiles/:id" element={<DeviceProfileDetailPage />} />
+            <Route path="/gateway-drivers" element={<GatewayDriversPage />} />
+            <Route path="/alerts" element={<Placeholder title="Alerts" />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/admin/brokers" element={<BrokersPage />} />
+            <Route path="/admin/tenants" element={<TenantsPage />} />
+            <Route path="/settings" element={<Placeholder title="Settings" />} />
+          </Route>
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+function Placeholder({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h1 className="text-2xl font-semibold">{title}</h1>
+      <p className="text-sm text-muted-foreground">This page will be built next.</p>
+    </div>
+  )
+}

@@ -1,0 +1,51 @@
+# ── Workspace / IDE / OS ────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ── Claude / agent tooling ──────────────────────────────────────
+.claude/
+.agents/
+.metadata/
+context/
+skills-lock.json
+
+# ── Docs workspace (separate repo) ──────────────────────────────
+ecoFarm-v3/
+
+# ── Scratch / local notes ───────────────────────────────────────
+errors.txt
+*.log
+*.local
+
+# ── Java / Maven ────────────────────────────────────────────────
+**/target/
+**/*.class
+**/.classpath
+**/.project
+**/.settings/
+**/.factorypath
+**/HELP.md
+
+# ── Node / Vite ─────────────────────────────────────────────────
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/.vite/
+
+# ── Secrets / env ───────────────────────────────────────────────
+**/.env
+**/.env.*
+!**/.env.example
+**/application-local.*
+**/application-dev.*
+
+# ── Build artifacts uploaded by CI ──────────────────────────────
+dist.tar.gz

@@ -1,0 +1,117 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [prod]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Backend build ─────────────────────────────────────────
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build backend jar
+        working-directory: ecoFarm
+        run: mvn -B -ntp clean package -DskipTests
+
+      - name: Locate jar
+        id: jar
+        working-directory: ecoFarm
+        run: |
+          JAR=$(ls target/*.jar | grep -v sources | grep -v javadoc | head -1)
+          echo "path=ecoFarm/$JAR" >> "$GITHUB_OUTPUT"
+          echo "Built: $JAR"
+
+      # ── Frontend build ────────────────────────────────────────
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ecofarm-ui/package-lock.json
+
+      - name: Install + build frontend
+        working-directory: ecofarm-ui
+        env:
+          VITE_API_URL: /api/v1
+        run: |
+          npm ci
+          npm run build
+
+      # ── Deploy ────────────────────────────────────────────────
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.VPS_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Upload artifacts
+        env:
+          H: ${{ secrets.VPS_HOST }}
+          U: ${{ secrets.VPS_USER }}
+          P: ${{ secrets.VPS_PORT }}
+        run: |
+          # Upload backend jar to a staging name
+          scp -P "$P" "${{ steps.jar.outputs.path }}" "$U@$H:/opt/ecofarm/app/ecoFarm.jar.new"
+
+          # Upload frontend dist as a tar to preserve perms + atomic swap
+          tar -C ecofarm-ui/dist -czf dist.tar.gz .
+          scp -P "$P" dist.tar.gz "$U@$H:/opt/ecofarm/ui-new.tar.gz"
+
+      - name: Activate new release
+        env:
+          H: ${{ secrets.VPS_HOST }}
+          U: ${{ secrets.VPS_USER }}
+          P: ${{ secrets.VPS_PORT }}
+        run: |
+          ssh -p "$P" "$U@$H" bash -s <<'EOF'
+          set -euo pipefail
+
+          # Swap backend jar
+          mv /opt/ecofarm/app/ecoFarm.jar.new /opt/ecofarm/app/ecoFarm.jar
+
+          # Swap UI atomically via directory rename
+          rm -rf /opt/ecofarm/ui-staging
+          mkdir -p /opt/ecofarm/ui-staging
+          tar -xzf /opt/ecofarm/ui-new.tar.gz -C /opt/ecofarm/ui-staging
+          rm -rf /opt/ecofarm/ui-old
+          if [ -d /opt/ecofarm/ui ]; then mv /opt/ecofarm/ui /opt/ecofarm/ui-old; fi
+          mv /opt/ecofarm/ui-staging /opt/ecofarm/ui
+          rm -f /opt/ecofarm/ui-new.tar.gz
+
+          # Restart backend, reload nginx
+          sudo /bin/systemctl restart ecofarm
+          sudo /bin/systemctl reload nginx
+
+          # Wait for health
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/actuator/health > /dev/null; then
+              echo "Backend healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend did not become healthy in 60s" >&2
+          sudo /bin/systemctl status ecofarm --no-pager || true
+          exit 1
+          EOF

@@ -1,0 +1,213 @@
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { toast } from "sonner"
+import {
+  Leaf,
+  LayoutDashboard,
+  MapPin,
+  Radio,
+  Cpu,
+  Package,
+  Bell,
+  Settings,
+  LogOut,
+  ChevronDown,
+  Users,
+  Building2,
+  Cloud,
+} from "lucide-react"
+
+import { useAuthStore } from "@/store/authStore"
+import { authApi } from "@/api/auth"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
+
+const navItems = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/sites", label: "Sites", icon: MapPin },
+  { to: "/gateways", label: "Gateways", icon: Radio },
+  { to: "/devices", label: "Devices", icon: Cpu },
+  { to: "/profiles", label: "Device Profiles", icon: Package },
+  { to: "/alerts", label: "Alerts", icon: Bell },
+]
+
+export function AppLayout() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const refreshToken = useAuthStore((s) => s.refreshToken)
+  const clear = useAuthStore((s) => s.clear)
+
+  const initials =
+    user?.firstName && user?.lastName
+      ? `${user.firstName[0]}${user.lastName[0]}`
+      : user?.email?.[0]?.toUpperCase() ?? "?"
+
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) await authApi.logout(refreshToken)
+    } catch {
+      // ignore errors on logout
+    } finally {
+      clear()
+      toast.success("Logged out")
+      navigate("/login", { replace: true })
+    }
+  }
+
+  return (
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" render={<Link to="/" />}>
+                <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <Leaf className="size-4" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-semibold">EcoFarm</span>
+                  <span className="text-xs text-muted-foreground">SCADA Platform</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.to}>
+                  <SidebarMenuButton
+                    isActive={location.pathname === item.to}
+                    render={<Link to={item.to} />}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+
+          {(user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN") && (
+            <SidebarGroup>
+              <SidebarGroupLabel>Admin</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={location.pathname === "/users"}
+                    render={<Link to="/users" />}
+                  >
+                    <Users />
+                    <span>Users</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {user?.role === "SUPER_ADMIN" && (
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={location.pathname === "/gateway-drivers"}
+                        render={<Link to="/gateway-drivers" />}
+                      >
+                        <Radio />
+                        <span>Gateway Drivers</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={location.pathname === "/admin/brokers"}
+                        render={<Link to="/admin/brokers" />}
+                      >
+                        <Cloud />
+                        <span>Brokers</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={location.pathname === "/admin/tenants"}
+                        render={<Link to="/admin/tenants" />}
+                      >
+                        <Building2 />
+                        <span>Tenants</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
+                )}
+              </SidebarMenu>
+            </SidebarGroup>
+          )}
+        </SidebarContent>
+
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuButton size="lg">
+                      <Avatar className="size-8">
+                        <AvatarFallback>{initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-1 flex-col gap-0.5 leading-none">
+                        <span className="text-sm font-medium">
+                          {user?.firstName ?? user?.email}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{user?.role}</span>
+                      </div>
+                      <ChevronDown className="ml-auto" />
+                    </SidebarMenuButton>
+                  }
+                />
+                <DropdownMenuContent side="top" align="start" className="w-56">
+                  <DropdownMenuItem render={<Link to="/settings" />}>
+                    <Settings />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-2 border-b px-4">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="mx-2 h-4" />
+          <span className="text-sm text-muted-foreground">{user?.tenantName}</span>
+        </header>
+        <main className="flex-1 p-6">
+          <Outlet />
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}

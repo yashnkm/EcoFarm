@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Leaf } from "lucide-react"
+import { Sprout } from "lucide-react"
 
 import { authApi } from "@/api/auth"
 import { useAuthStore } from "@/store/authStore"
@@ -68,7 +68,7 @@ export function LoginPage() {
         <CardHeader>
           <div className="mb-2 flex items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Leaf className="size-4" />
+              <Sprout className="size-4" />
             </div>
             <span className="font-semibold">EcoFarm SCADA</span>
           </div>

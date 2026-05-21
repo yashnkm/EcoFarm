@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import {
-  Leaf,
+  Sprout,
   LayoutDashboard,
   MapPin,
   Radio,
@@ -83,7 +83,7 @@ export function AppLayout() {
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" render={<Link to="/" />}>
                 <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                  <Leaf className="size-4" />
+                  <Sprout className="size-4" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">EcoFarm</span>

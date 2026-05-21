@@ -49,3 +49,8 @@ errors.txt
 
 # ── Build artifacts uploaded by CI ──────────────────────────────
 dist.tar.gz
+
+# ── Scratch files for Claude/IDE interaction ────────────────────
+temp.txt
+claudetemp.txt
+.claudetemp.txt

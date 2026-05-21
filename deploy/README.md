@@ -43,7 +43,9 @@ chmod +x /root/vps-setup.sh
 
 When it prompts for the deploy public key, paste the contents of `ecofarm_deploy.pub` then press Ctrl-D.
 
-The script prints DB / MQTT passwords at the end — they are also saved into `/opt/ecofarm/config/application.yml`. **Note them down** in your password manager.
+The script installs **app dependencies only** (Java 21, PostgreSQL, Nginx, Certbot). MQTT broker (Mosquitto) is intentionally skipped — the backend keeps using your existing external broker until you decide to self-host one.
+
+The script prints the DB password at the end and saves it into `/opt/ecofarm/config/application.yml`. **Note it down** in your password manager.
 
 ### 4. Get an SSL cert
 

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
@@ -64,7 +64,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
-      resolver: zodResolver(schema),
+      resolver: zodResolver(schema) as Resolver<FormValues>,
       defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: true },
     })
   const role = watch("minRole")
@@ -114,7 +114,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       functionCode: c.functionCode,
       value: c.value,
       confirmationRequired: c.confirmationRequired,
-      minRole: c.minRole,
+      minRole: c.minRole as FormValues["minRole"],
     })
     setOpen(true)
   }

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
@@ -49,7 +49,7 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
   })
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
-    useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { intervalSeconds: 10 } })
+    useForm<FormValues>({ resolver: zodResolver(schema) as Resolver<FormValues>, defaultValues: { intervalSeconds: 10 } })
 
   const createMutation = useMutation({
     mutationFn: (body: PollGroupBody) => pollGroupsApi.create(profileId, body),

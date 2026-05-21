@@ -194,7 +194,7 @@ export function TenantsPage() {
                 <FieldLabel>Assigned broker</FieldLabel>
                 <Select
                   value={createForm.watch("mqttBrokerId") ?? ""}
-                  onValueChange={(v) => createForm.setValue("mqttBrokerId", v)}
+                  onValueChange={(v) => createForm.setValue("mqttBrokerId", v ?? undefined)}
                 >
                   <SelectTrigger><SelectValue placeholder="Unassigned (assign later)" /></SelectTrigger>
                   <SelectContent>
@@ -251,7 +251,7 @@ export function TenantsPage() {
                 <FieldLabel>Assigned broker</FieldLabel>
                 <Select
                   value={editForm.watch("mqttBrokerId") ?? ""}
-                  onValueChange={(v) => editForm.setValue("mqttBrokerId", v)}
+                  onValueChange={(v) => editForm.setValue("mqttBrokerId", v ?? undefined)}
                 >
                   <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                   <SelectContent>

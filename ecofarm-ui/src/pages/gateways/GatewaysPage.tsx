@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
@@ -66,7 +66,7 @@ export function GatewaysPage() {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
-      resolver: zodResolver(schema),
+      resolver: zodResolver(schema) as Resolver<FormValues>,
       defaultValues: { baudRate: 9600, parity: "none", stopBits: 1 },
     })
   const driverId = watch("driverId")
@@ -186,7 +186,7 @@ export function GatewaysPage() {
 
               <Field data-invalid={errors.driverId ? true : undefined}>
                 <FieldLabel>Driver</FieldLabel>
-                <Select value={driverId ?? ""} onValueChange={(v) => setValue("driverId", v, { shouldValidate: true })} disabled={!!editing}>
+                <Select value={driverId ?? ""} onValueChange={(v) => setValue("driverId", v ?? "", { shouldValidate: true })} disabled={!!editing}>
                   <SelectTrigger aria-invalid={!!errors.driverId}>
                     <SelectValue placeholder="Select a driver" />
                   </SelectTrigger>
@@ -208,7 +208,7 @@ export function GatewaysPage() {
 
               <Field>
                 <FieldLabel>Site</FieldLabel>
-                <Select value={siteId ?? ""} onValueChange={(v) => setValue("siteId", v)}>
+                <Select value={siteId ?? ""} onValueChange={(v) => setValue("siteId", v ?? undefined)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Unassigned" />
                   </SelectTrigger>

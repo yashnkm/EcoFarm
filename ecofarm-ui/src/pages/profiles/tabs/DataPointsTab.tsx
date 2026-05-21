@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
@@ -74,7 +74,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
-      resolver: zodResolver(schema),
+      resolver: zodResolver(schema) as Resolver<FormValues>,
       defaultValues: {
         dataType: "UINT16", wordCount: 1, byteOrder: "BIG_ENDIAN",
         scaleFactor: 1, offset: 0, displayWidget: "NUMBER", functionCode: 3,
@@ -251,7 +251,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 </Field>
                 <Field>
                   <FieldLabel>Poll group</FieldLabel>
-                  <Select value={pollGroupId ?? ""} onValueChange={(v) => setValue("pollGroupId", v)}>
+                  <Select value={pollGroupId ?? ""} onValueChange={(v) => setValue("pollGroupId", v ?? undefined)}>
                     <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>

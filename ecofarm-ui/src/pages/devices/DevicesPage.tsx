@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
@@ -70,7 +70,7 @@ export function DevicesPage() {
   })
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
-    useForm<FormValues>({ resolver: zodResolver(schema) })
+    useForm<FormValues>({ resolver: zodResolver(schema) as Resolver<FormValues> })
   const gatewayId = watch("gatewayId")
   const profileId = watch("profileId")
 
@@ -166,7 +166,7 @@ export function DevicesPage() {
             <div className="flex flex-col gap-4 py-4">
               <Field data-invalid={errors.gatewayId ? true : undefined}>
                 <FieldLabel>Gateway</FieldLabel>
-                <Select value={gatewayId ?? ""} onValueChange={(v) => setValue("gatewayId", v, { shouldValidate: true })} disabled={!!editing}>
+                <Select value={gatewayId ?? ""} onValueChange={(v) => setValue("gatewayId", v ?? "", { shouldValidate: true })} disabled={!!editing}>
                   <SelectTrigger aria-invalid={!!errors.gatewayId}>
                     <SelectValue placeholder="Select a gateway" />
                   </SelectTrigger>
@@ -183,7 +183,7 @@ export function DevicesPage() {
 
               <Field data-invalid={errors.profileId ? true : undefined}>
                 <FieldLabel>Device profile</FieldLabel>
-                <Select value={profileId ?? ""} onValueChange={(v) => setValue("profileId", v, { shouldValidate: true })} disabled={!!editing}>
+                <Select value={profileId ?? ""} onValueChange={(v) => setValue("profileId", v ?? "", { shouldValidate: true })} disabled={!!editing}>
                   <SelectTrigger aria-invalid={!!errors.profileId}>
                     <SelectValue placeholder="Select a profile" />
                   </SelectTrigger>

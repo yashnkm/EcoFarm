@@ -115,6 +115,10 @@ public class GatewayService {
                 .orElseThrow(() -> ApiException.badRequest("Site not found"));
             gw.setSite(site);
             gw.setZone(null); // zone must match new site
+            // Assigning a site activates a gateway that was registered without one.
+            if (gw.getStatus() == GatewayStatus.UNREGISTERED) {
+                gw.setStatus(GatewayStatus.OFFLINE);
+            }
         }
 
         if (req.zoneId() != null) {

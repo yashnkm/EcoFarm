@@ -52,25 +52,55 @@ public class PollScheduler {
     public void tick() {
         Instant now = Instant.now();
         List<Device> devices = deviceRepository.findAll();
+        log.info("Poll tick: scanning {} device(s)", devices.size());
 
+        int pollsSent = 0;
+        int skipped = 0;
         for (Device device : devices) {
             Gateway gw = device.getGateway();
-            if (gw.getStatus() == GatewayStatus.UNREGISTERED) continue;
-            if (gw.getSerialNumber() == null) continue;
+
+            if (gw.getStatus() == GatewayStatus.UNREGISTERED) {
+                log.info("Poll skip: device '{}' — gateway '{}' is UNREGISTERED "
+                    + "(claim it / assign a site to activate polling)",
+                    device.getName(), gw.getSerialNumber());
+                skipped++;
+                continue;
+            }
+            if (gw.getSerialNumber() == null) {
+                log.info("Poll skip: device '{}' — gateway has no serial number", device.getName());
+                skipped++;
+                continue;
+            }
 
             MqttBroker broker = gw.getTenant().getMqttBroker();
-            if (broker == null) continue;
+            if (broker == null) {
+                log.info("Poll skip: device '{}' — tenant '{}' has no MQTT broker assigned",
+                    device.getName(), gw.getTenant().getName());
+                skipped++;
+                continue;
+            }
 
             List<PollGroup> groups = pollGroupRepository.findByProfileId(device.getProfile().getId());
+            if (groups.isEmpty()) {
+                log.info("Poll skip: device '{}' — profile '{}' has no poll groups defined",
+                    device.getName(), device.getProfile().getName());
+                skipped++;
+                continue;
+            }
+
             for (PollGroup group : groups) {
                 String key = device.getId() + ":" + group.getId();
                 Instant last = lastFired.get(key);
-                if (last != null && last.plusSeconds(group.getIntervalSeconds()).isAfter(now)) continue;
+                if (last != null && last.plusSeconds(group.getIntervalSeconds()).isAfter(now)) {
+                    continue;
+                }
 
                 sendPoll(device, group, broker);
                 lastFired.put(key, now);
+                pollsSent++;
             }
         }
+        log.info("Poll tick done: {} poll(s) sent, {} device(s) skipped", pollsSent, skipped);
     }
 
     private void sendPoll(Device device, PollGroup group, MqttBroker broker) {
@@ -88,7 +118,9 @@ public class PollScheduler {
             group.getCount()
         );
 
-        publisher.publish(broker, driverTopics.requestTopicFor(device.getGateway()), payload);
-        log.debug("Polled {} / group {} (cookie={})", device.getName(), group.getName(), cookie);
+        String topic = driverTopics.requestTopicFor(device.getGateway());
+        publisher.publish(broker, topic, payload);
+        log.info("Poll sent: device '{}' / group '{}' → broker '{}' ({}) topic '{}' (cookie={})",
+            device.getName(), group.getName(), broker.getName(), broker.getBrokerUrl(), topic, cookie);
     }
 }

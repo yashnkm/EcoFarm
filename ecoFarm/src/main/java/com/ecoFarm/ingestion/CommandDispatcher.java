@@ -2,6 +2,7 @@ package com.ecoFarm.ingestion;
 
 import com.ecoFarm.domain.entity.ControlCommand;
 import com.ecoFarm.domain.entity.Device;
+import com.ecoFarm.domain.entity.MqttBroker;
 import com.ecoFarm.domain.enums.CommandStatus;
 import com.ecoFarm.mqtt.DriverTopicResolver;
 import com.ecoFarm.mqtt.ModbusRequestBuilder;
@@ -55,6 +56,13 @@ public class CommandDispatcher {
             return;
         }
 
+        MqttBroker broker = device.getGateway().getTenant().getMqttBroker();
+        if (broker == null) {
+            cmd.setStatus(CommandStatus.FAILED);
+            cmd.setResult("Tenant has no MQTT broker assigned");
+            return;
+        }
+
         long cookie = tracker.nextCookie();
         tracker.trackCommand(cookie, device.getId(), cmd.getId());
 
@@ -67,7 +75,7 @@ public class CommandDispatcher {
             cmd.getValue()
         );
 
-        publisher.publish(driverTopics.requestTopicFor(device.getGateway()), payload);
+        publisher.publish(broker, driverTopics.requestTopicFor(device.getGateway()), payload);
 
         cmd.setStatus(CommandStatus.SENT);
         cmd.setSentAt(Instant.now());

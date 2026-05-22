@@ -1,8 +1,7 @@
 package com.ecoFarm.api.v1.controller;
 
 import com.ecoFarm.api.v1.dto.response.MqttHealthResponse;
-import com.ecoFarm.config.MqttProperties;
-import com.ecoFarm.mqtt.MqttConnectionMonitor;
+import com.ecoFarm.service.MqttBrokerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,17 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class HealthController {
 
-    private final MqttConnectionMonitor monitor;
-    private final MqttProperties mqttProperties;
+    private final MqttBrokerService brokerService;
 
+    /** Live MQTT status for the broker assigned to the calling user's tenant. */
     @GetMapping("/mqtt")
     public MqttHealthResponse mqtt() {
-        return new MqttHealthResponse(
-            monitor.isConnected(),
-            mqttProperties.getBrokerUrl(),
-            monitor.getLastConnectedAt(),
-            monitor.getLastFailureAt(),
-            monitor.getLastError()
-        );
+        return brokerService.healthForCurrentTenant();
     }
 }

@@ -17,5 +17,8 @@ public record MqttBrokerResponse(
     Integer defaultQos,
     BrokerStatus status,
     String brokerUrl,
+    // Live connection state from MqttConnectionManager
+    boolean connected,
+    String lastError,
     Instant createdAt
 ) {}

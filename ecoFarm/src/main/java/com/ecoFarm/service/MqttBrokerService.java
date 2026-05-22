@@ -2,9 +2,14 @@ package com.ecoFarm.service;
 
 import com.ecoFarm.api.v1.dto.request.CreateMqttBrokerRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateMqttBrokerRequest;
+import com.ecoFarm.api.v1.dto.response.MqttHealthResponse;
 import com.ecoFarm.domain.entity.MqttBroker;
+import com.ecoFarm.domain.entity.Tenant;
+import com.ecoFarm.mqtt.MqttConnectionManager;
 import com.ecoFarm.repository.MqttBrokerRepository;
+import com.ecoFarm.repository.TenantRepository;
 import com.ecoFarm.shared.exception.ApiException;
+import com.ecoFarm.shared.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +22,8 @@ import java.util.UUID;
 public class MqttBrokerService {
 
     private final MqttBrokerRepository repository;
+    private final TenantRepository tenantRepository;
+    private final MqttConnectionManager connectionManager;
 
     @Transactional(readOnly = true)
     public List<MqttBroker> findAll() {
@@ -46,7 +53,9 @@ public class MqttBrokerService {
             .defaultQos(req.defaultQos() != null ? req.defaultQos() : 1)
             .build();
 
-        return repository.save(broker);
+        MqttBroker saved = repository.save(broker);
+        connectionManager.connect(saved);
+        return saved;
     }
 
     @Transactional
@@ -62,12 +71,39 @@ public class MqttBrokerService {
         if (req.keepaliveSeconds() != null)  b.setKeepaliveSeconds(req.keepaliveSeconds());
         if (req.defaultQos() != null)        b.setDefaultQos(req.defaultQos());
         if (req.status() != null)            b.setStatus(req.status());
+        connectionManager.reconnect(b);
         return b;
     }
 
     @Transactional
     public void delete(UUID id) {
         MqttBroker b = findById(id);
+        connectionManager.disconnect(id);
         repository.delete(b);
+    }
+
+    /** Live MQTT status for the broker assigned to the current user's tenant. */
+    @Transactional(readOnly = true)
+    public MqttHealthResponse healthForCurrentTenant() {
+        UUID tenantId = SecurityUtil.currentTenantId();
+        Tenant tenant = tenantId != null
+            ? tenantRepository.findById(tenantId).orElse(null)
+            : null;
+        MqttBroker broker = tenant != null ? tenant.getMqttBroker() : null;
+
+        if (broker == null) {
+            return new MqttHealthResponse(false, null, null, null, null,
+                "No MQTT broker assigned to this tenant");
+        }
+
+        MqttConnectionManager.BrokerHealth h = connectionManager.healthFor(broker);
+        return new MqttHealthResponse(
+            h.connected(),
+            broker.getBrokerUrl(),
+            broker.getName(),
+            h.lastConnectedAt(),
+            h.lastFailureAt(),
+            h.lastError()
+        );
     }
 }

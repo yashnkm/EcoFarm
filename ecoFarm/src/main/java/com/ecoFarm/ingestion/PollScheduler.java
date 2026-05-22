@@ -2,6 +2,7 @@ package com.ecoFarm.ingestion;
 
 import com.ecoFarm.domain.entity.Device;
 import com.ecoFarm.domain.entity.Gateway;
+import com.ecoFarm.domain.entity.MqttBroker;
 import com.ecoFarm.domain.entity.PollGroup;
 import com.ecoFarm.domain.enums.GatewayStatus;
 import com.ecoFarm.mqtt.DriverTopicResolver;
@@ -57,19 +58,22 @@ public class PollScheduler {
             if (gw.getStatus() == GatewayStatus.UNREGISTERED) continue;
             if (gw.getSerialNumber() == null) continue;
 
+            MqttBroker broker = gw.getTenant().getMqttBroker();
+            if (broker == null) continue;
+
             List<PollGroup> groups = pollGroupRepository.findByProfileId(device.getProfile().getId());
             for (PollGroup group : groups) {
                 String key = device.getId() + ":" + group.getId();
                 Instant last = lastFired.get(key);
                 if (last != null && last.plusSeconds(group.getIntervalSeconds()).isAfter(now)) continue;
 
-                sendPoll(device, group);
+                sendPoll(device, group, broker);
                 lastFired.put(key, now);
             }
         }
     }
 
-    private void sendPoll(Device device, PollGroup group) {
+    private void sendPoll(Device device, PollGroup group, MqttBroker broker) {
         long cookie = tracker.nextCookie();
         tracker.trackPoll(cookie, device.getId(), group.getId());
 
@@ -84,7 +88,7 @@ public class PollScheduler {
             group.getCount()
         );
 
-        publisher.publish(driverTopics.requestTopicFor(device.getGateway()), payload);
+        publisher.publish(broker, driverTopics.requestTopicFor(device.getGateway()), payload);
         log.debug("Polled {} / group {} (cookie={})", device.getName(), group.getName(), cookie);
     }
 }

@@ -55,6 +55,7 @@ export function BrokersPage() {
   const { data: brokers, isLoading } = useQuery({
     queryKey: ["brokers"],
     queryFn: brokersApi.list,
+    refetchInterval: 10_000,
   })
 
   const createMutation = useMutation({
@@ -242,6 +243,7 @@ export function BrokersPage() {
                 <TableHead>URL</TableHead>
                 <TableHead>TLS</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Connection</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
@@ -254,6 +256,14 @@ export function BrokersPage() {
                   <TableCell className="text-xs">{b.useTls ? "yes" : "no"}</TableCell>
                   <TableCell>
                     <Badge variant={b.status === "ACTIVE" ? "default" : "destructive"}>{b.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={b.connected ? "default" : "destructive"}
+                      title={b.lastError ?? undefined}
+                    >
+                      {b.connected ? "Online" : "Offline"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {formatDistanceToNow(new Date(b.createdAt), { addSuffix: true })}

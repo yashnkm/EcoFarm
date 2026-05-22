@@ -1,29 +1,20 @@
 package com.ecoFarm.mqtt;
 
-import com.ecoFarm.config.MqttConfig;
+import com.ecoFarm.domain.entity.MqttBroker;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.integration.mqtt.support.MqttHeaders;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-/** Thin wrapper to publish messages to the MQTT outbound channel. */
+/** Publishes messages to a tenant's assigned MQTT broker. */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class MqttPublisher {
 
-    private final MessageChannel outboundChannel;
+    private final MqttConnectionManager connectionManager;
 
-    public MqttPublisher(@Qualifier(MqttConfig.OUTBOUND_CHANNEL) MessageChannel outboundChannel) {
-        this.outboundChannel = outboundChannel;
-    }
-
-    public void publish(String topic, String payload) {
-        log.debug("MQTT → {} : {}", topic, payload);
-        outboundChannel.send(MessageBuilder
-            .withPayload(payload)
-            .setHeader(MqttHeaders.TOPIC, topic)
-            .build());
+    /** Publish to {@code broker}. A null broker (tenant has none assigned) is logged and skipped. */
+    public void publish(MqttBroker broker, String topic, String payload) {
+        connectionManager.publish(broker, topic, payload);
     }
 }

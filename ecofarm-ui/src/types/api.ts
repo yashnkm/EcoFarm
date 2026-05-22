@@ -72,6 +72,8 @@ export interface MqttBroker {
   defaultQos: number
   status: BrokerStatus
   brokerUrl: string
+  connected: boolean
+  lastError: string | null
   createdAt: string
 }
 

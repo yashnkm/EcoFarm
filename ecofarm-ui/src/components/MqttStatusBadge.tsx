@@ -35,9 +35,11 @@ export function MqttStatusCard() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
-          <CardTitle className="text-sm font-medium">MQTT Broker</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {data?.brokerName ?? "MQTT Broker"}
+          </CardTitle>
           <CardDescription className="mt-1 font-mono text-xs">
-            {data?.brokerUrl ?? "…"}
+            {data ? (data.brokerUrl ?? "No broker assigned") : "…"}
           </CardDescription>
         </div>
         {isLoading ? (

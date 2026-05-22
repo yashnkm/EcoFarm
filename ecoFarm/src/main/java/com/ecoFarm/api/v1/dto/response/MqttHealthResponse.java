@@ -5,6 +5,7 @@ import java.time.Instant;
 public record MqttHealthResponse(
     boolean connected,
     String brokerUrl,
+    String brokerName,
     Instant lastConnectedAt,
     Instant lastFailureAt,
     String lastError

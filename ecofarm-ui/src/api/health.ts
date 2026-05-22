@@ -2,7 +2,8 @@ import { apiClient } from "@/lib/apiClient"
 
 export interface MqttHealth {
   connected: boolean
-  brokerUrl: string
+  brokerUrl: string | null
+  brokerName: string | null
   lastConnectedAt: string | null
   lastFailureAt: string | null
   lastError: string | null

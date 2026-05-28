@@ -88,8 +88,8 @@ jobs:
           set -euo pipefail
 
           # Run DB migrations before swapping the jar
-          DB_USER=$(grep 'username:' /opt/ecofarm/config/application.yml | awk '{print $2}' | tr -d '"')
-          DB_PASS=$(grep 'password:' /opt/ecofarm/config/application.yml | awk '{print $2}' | tr -d '"')
+          DB_USER=$(awk '/datasource:/{f=1} f && /username:/{gsub(/"/, ""); print $2; exit}' /opt/ecofarm/config/application.yml)
+          DB_PASS=$(awk '/datasource:/{f=1} f && /password:/{gsub(/"/, ""); print $2; exit}' /opt/ecofarm/config/application.yml)
           PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d ecofarm \
             -c "ALTER TABLE poll_groups ADD COLUMN IF NOT EXISTS function_code INTEGER NOT NULL DEFAULT 3;" \
             -c "ALTER TABLE poll_groups ALTER COLUMN function_code DROP DEFAULT;"

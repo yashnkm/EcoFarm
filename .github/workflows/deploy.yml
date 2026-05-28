@@ -30,13 +30,16 @@ jobs:
         working-directory: ecoFarm
         run: mvn -B -ntp clean package -DskipTests
 
-      - name: Locate jar
-        id: jar
+      - name: Extract thin jar + lib
         working-directory: ecoFarm
         run: |
           JAR=$(ls target/*.jar | grep -v sources | grep -v javadoc | head -1)
-          echo "path=ecoFarm/$JAR" >> "$GITHUB_OUTPUT"
-          echo "Built: $JAR"
+          mkdir -p extracted
+          java -Djarmode=tools -jar "$JAR" extract --destination extracted
+          # Rename to stable filename so systemd service reference never changes
+          mv extracted/ecoFarm-*.jar extracted/ecoFarm.jar
+          echo "thin jar : $(du -sh extracted/ecoFarm.jar)"
+          echo "lib dir  : $(du -sh extracted/lib)"
 
       # ── Frontend build ────────────────────────────────────────
       - name: Set up Node
@@ -71,10 +74,11 @@ jobs:
           U: ${{ secrets.VPS_USER }}
           P: ${{ secrets.VPS_PORT }}
         run: |
-          # Upload backend jar to a staging name
-          scp -P "$P" "${{ steps.jar.outputs.path }}" "$U@$H:/opt/ecofarm/app/ecoFarm.jar.new"
+          # rsync backend: lib/ (~66 MB) is skipped when deps haven't changed.
+          # Only the thin ecoFarm.jar (~2 MB) transfers on normal code-only deploys.
+          rsync -az --delete -e "ssh -p $P" ecoFarm/extracted/ "$U@$H:/opt/ecofarm/app/"
 
-          # Upload frontend dist as a tar to preserve perms + atomic swap
+          # Frontend: already a small compressed tar
           tar -C ecofarm-ui/dist -czf dist.tar.gz .
           scp -P "$P" dist.tar.gz "$U@$H:/opt/ecofarm/ui-new.tar.gz"
 
@@ -87,15 +91,12 @@ jobs:
           ssh -p "$P" "$U@$H" bash -s <<'EOF'
           set -euo pipefail
 
-          # Run DB migrations before swapping the jar
+          # Run DB migrations
           DB_USER=$(awk '/datasource:/{f=1} f && /username:/{gsub(/"/, ""); print $2; exit}' /opt/ecofarm/config/application.yml)
           DB_PASS=$(awk '/datasource:/{f=1} f && /password:/{gsub(/"/, ""); print $2; exit}' /opt/ecofarm/config/application.yml)
           PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d ecofarm \
             -c "ALTER TABLE poll_groups ADD COLUMN IF NOT EXISTS function_code INTEGER NOT NULL DEFAULT 3;" \
             -c "ALTER TABLE poll_groups ALTER COLUMN function_code DROP DEFAULT;"
-
-          # Swap backend jar
-          mv /opt/ecofarm/app/ecoFarm.jar.new /opt/ecofarm/app/ecoFarm.jar
 
           # Swap UI atomically via directory rename
           rm -rf /opt/ecofarm/ui-staging

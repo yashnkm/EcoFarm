@@ -1,6 +1,7 @@
 package com.ecoFarm.security;
 
 import com.ecoFarm.config.JwtProperties;
+import com.ecoFarm.domain.entity.Tenant;
 import com.ecoFarm.domain.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -33,14 +34,14 @@ public class JwtUtil {
         return signingKey;
     }
 
-    public String generateAccessToken(User user) {
+    public String generateAccessToken(User user, Tenant activeTenant) {
         Instant now = Instant.now();
         Instant exp = now.plusMillis(props.getExpiryMs());
 
         return Jwts.builder()
             .subject(user.getId().toString())
             .claim("email", user.getEmail())
-            .claim("tenantId", user.getTenant().getId().toString())
+            .claim("tenantId", activeTenant.getId().toString())
             .claim("role", user.getRole().name())
             .issuedAt(Date.from(now))
             .expiration(Date.from(exp))

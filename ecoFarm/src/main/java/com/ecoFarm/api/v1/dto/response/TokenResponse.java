@@ -17,6 +17,7 @@ public record TokenResponse(
         String lastName,
         Role role,
         UUID tenantId,
-        String tenantName
+        String tenantName,
+        String tenantSlug
     ) {}
 }

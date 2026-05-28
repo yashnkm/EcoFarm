@@ -5,8 +5,11 @@ import com.ecoFarm.api.v1.dto.request.RefreshTokenRequest;
 import com.ecoFarm.api.v1.dto.response.TokenResponse;
 import com.ecoFarm.config.JwtProperties;
 import com.ecoFarm.domain.entity.RefreshToken;
+import com.ecoFarm.domain.entity.Tenant;
 import com.ecoFarm.domain.entity.User;
+import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.repository.RefreshTokenRepository;
+import com.ecoFarm.repository.TenantRepository;
 import com.ecoFarm.repository.UserRepository;
 import com.ecoFarm.security.JwtUtil;
 import com.ecoFarm.shared.exception.ApiException;
@@ -22,6 +25,7 @@ import java.time.Instant;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
@@ -29,6 +33,9 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest req) {
+        Tenant activeTenant = tenantRepository.findBySlug(req.slug())
+            .orElseThrow(() -> ApiException.unauthorized("Invalid credentials"));
+
         User user = userRepository.findByEmail(req.email())
             .orElseThrow(() -> ApiException.unauthorized("Invalid credentials"));
 
@@ -40,7 +47,13 @@ public class AuthService {
             throw ApiException.forbidden("Account is not active");
         }
 
-        return issueTokens(user);
+        // Non-super-admins can only log into their own tenant
+        if (user.getRole() != Role.SUPER_ADMIN
+                && !user.getTenant().getId().equals(activeTenant.getId())) {
+            throw ApiException.unauthorized("Invalid credentials");
+        }
+
+        return issueTokens(user, activeTenant);
     }
 
     @Transactional
@@ -57,9 +70,14 @@ public class AuthService {
             throw ApiException.unauthorized("Refresh token expired");
         }
 
-        // Rotate — revoke the old token and issue a new pair
         stored.setRevokedAt(Instant.now());
-        return issueTokens(stored.getUser());
+
+        // Preserve the tenant context from the original login; fall back to own tenant for old tokens
+        Tenant activeTenant = stored.getActiveTenant() != null
+            ? stored.getActiveTenant()
+            : stored.getUser().getTenant();
+
+        return issueTokens(stored.getUser(), activeTenant);
     }
 
     @Transactional
@@ -68,12 +86,13 @@ public class AuthService {
         refreshTokenRepository.findByTokenHash(hash).ifPresent(t -> t.setRevokedAt(Instant.now()));
     }
 
-    private TokenResponse issueTokens(User user) {
-        String accessToken = jwtUtil.generateAccessToken(user);
+    private TokenResponse issueTokens(User user, Tenant activeTenant) {
+        String accessToken = jwtUtil.generateAccessToken(user, activeTenant);
         String refreshTokenRaw = jwtUtil.generateRefreshToken();
 
         RefreshToken rt = RefreshToken.builder()
             .user(user)
+            .activeTenant(activeTenant)
             .tokenHash(jwtUtil.hashToken(refreshTokenRaw))
             .expiresAt(Instant.now().plusMillis(jwtUtil.getRefreshExpiryMs()))
             .build();
@@ -89,8 +108,9 @@ public class AuthService {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getRole(),
-                user.getTenant().getId(),
-                user.getTenant().getName()
+                activeTenant.getId(),
+                activeTenant.getName(),
+                activeTenant.getSlug()
             )
         );
     }

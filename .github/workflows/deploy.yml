@@ -96,7 +96,8 @@ jobs:
           DB_PASS=$(awk '/datasource:/{f=1} f && /password:/{gsub(/"/, ""); print $2; exit}' /opt/ecofarm/config/application.yml)
           PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d ecofarm \
             -c "ALTER TABLE poll_groups ADD COLUMN IF NOT EXISTS function_code INTEGER NOT NULL DEFAULT 3;" \
-            -c "ALTER TABLE poll_groups ALTER COLUMN function_code DROP DEFAULT;"
+            -c "ALTER TABLE poll_groups ALTER COLUMN function_code DROP DEFAULT;" \
+            -c "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS active_tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL;"
 
           # Swap UI atomically via directory rename
           rm -rf /opt/ecofarm/ui-staging

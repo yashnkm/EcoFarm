@@ -18,10 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field"
+import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 
 const schema = z.object({
+  slug: z.string().min(1, "Organisation is required"),
   email: z.string().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
 })
@@ -40,7 +41,7 @@ export function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "admin@ecofarm.local", password: "admin123" },
+    defaultValues: { slug: "", email: "", password: "" },
   })
 
   if (authenticated) return <Navigate to="/" replace />
@@ -48,14 +49,14 @@ export function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setSubmitting(true)
     try {
-      const res = await authApi.login(data.email, data.password)
+      const res = await authApi.login(data.slug, data.email, data.password)
       setAuth(res.accessToken, res.refreshToken, res.user)
-      toast.success(`Welcome back, ${res.user.firstName ?? res.user.email}`)
+      toast.success(`Welcome back, ${res.user.firstName ?? res.user.email} · ${res.user.tenantName}`)
       navigate("/", { replace: true })
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-        "Login failed"
+        "Invalid credentials"
       toast.error(msg)
     } finally {
       setSubmitting(false)
@@ -73,18 +74,29 @@ export function LoginPage() {
             <span className="font-semibold">EcoFarm SCADA</span>
           </div>
           <CardTitle>Sign in</CardTitle>
-          <CardDescription>Access your industrial monitoring dashboard.</CardDescription>
+          <CardDescription>Enter your organisation and credentials to continue.</CardDescription>
         </CardHeader>
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="flex flex-col gap-4">
+            <Field data-invalid={errors.slug ? true : undefined}>
+              <FieldLabel htmlFor="slug">Organisation</FieldLabel>
+              <Input
+                id="slug"
+                placeholder="e.g. chandrama"
+                autoComplete="organization"
+                autoFocus
+                {...register("slug")}
+              />
+              {errors.slug && <FieldError>{errors.slug.message}</FieldError>}
+            </Field>
+
             <Field data-invalid={errors.email ? true : undefined}>
               <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
-                aria-invalid={!!errors.email}
                 {...register("email")}
               />
               {errors.email && <FieldError>{errors.email.message}</FieldError>}
@@ -96,13 +108,9 @@ export function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                aria-invalid={!!errors.password}
                 {...register("password")}
               />
               {errors.password && <FieldError>{errors.password.message}</FieldError>}
-              <FieldDescription>
-                Default credentials are pre-filled for development.
-              </FieldDescription>
             </Field>
           </CardContent>
 

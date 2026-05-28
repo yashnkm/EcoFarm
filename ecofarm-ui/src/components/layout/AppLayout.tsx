@@ -230,7 +230,10 @@ export function AppLayout() {
         <header className="flex h-14 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <Separator orientation="vertical" className="mx-2 h-4" />
-          <span className="text-sm text-muted-foreground">{user?.tenantName}</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-medium">{user?.tenantName}</span>
+            <span className="text-xs text-muted-foreground">{user?.tenantSlug}</span>
+          </div>
         </header>
         <main className="flex-1 p-6">
           <Outlet />

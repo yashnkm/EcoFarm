@@ -23,6 +23,7 @@ export interface UserSummary {
   role: Role
   tenantId: string
   tenantName: string
+  tenantSlug: string
 }
 
 export interface TokenResponse {

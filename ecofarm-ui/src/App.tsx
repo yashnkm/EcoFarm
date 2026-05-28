@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom"
 
+import { useAuthStore } from "@/store/authStore"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { LoginPage } from "@/pages/auth/LoginPage"
@@ -28,8 +29,10 @@ export default function App() {
             <Route path="/gateways" element={<GatewaysPage />} />
             <Route path="/devices" element={<DevicesPage />} />
             <Route path="/devices/:id" element={<DeviceDetailPage />} />
-            <Route path="/profiles" element={<DeviceProfilesPage />} />
-            <Route path="/profiles/:id" element={<DeviceProfileDetailPage />} />
+            <Route element={<SuperAdminRoute />}>
+              <Route path="/profiles" element={<DeviceProfilesPage />} />
+              <Route path="/profiles/:id" element={<DeviceProfileDetailPage />} />
+            </Route>
             <Route path="/gateway-drivers" element={<GatewayDriversPage />} />
             <Route path="/alerts" element={<Placeholder title="Alerts" />} />
             <Route path="/users" element={<UsersPage />} />
@@ -41,6 +44,12 @@ export default function App() {
       </Routes>
     </BrowserRouter>
   )
+}
+
+function SuperAdminRoute() {
+  const role = useAuthStore((s) => s.user?.role)
+  if (role !== "SUPER_ADMIN") return <Navigate to="/" replace />
+  return <Outlet />
 }
 
 function Placeholder({ title }: { title: string }) {

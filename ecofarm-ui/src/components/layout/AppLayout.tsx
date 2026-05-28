@@ -47,7 +47,6 @@ const navItems = [
   { to: "/sites", label: "Sites", icon: MapPin },
   { to: "/gateways", label: "Gateways", icon: Radio },
   { to: "/devices", label: "Devices", icon: Cpu },
-  { to: "/profiles", label: "Device Profiles", icon: Package },
   { to: "/alerts", label: "Alerts", icon: Bell },
 ]
 
@@ -127,6 +126,15 @@ export function AppLayout() {
                 </SidebarMenuItem>
                 {user?.role === "SUPER_ADMIN" && (
                   <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={location.pathname.startsWith("/profiles")}
+                        render={<Link to="/profiles" />}
+                      >
+                        <Package />
+                        <span>Device Profiles</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={location.pathname === "/gateway-drivers"}

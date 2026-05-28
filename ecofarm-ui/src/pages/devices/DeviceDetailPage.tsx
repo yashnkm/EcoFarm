@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Activity, Play, History } from "lucide-react"
+import { ArrowLeft, Activity, Play, History, ChevronLeft, ChevronRight } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 
@@ -40,6 +40,8 @@ export function DeviceDetailPage() {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const [confirmCommand, setConfirmCommand] = useState<CommandTemplate | null>(null)
+  const [historyPage, setHistoryPage] = useState(0)
+  const HISTORY_PAGE_SIZE = 15
 
   const canRecord = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
 
@@ -200,47 +202,79 @@ export function DeviceDetailPage() {
       )}
 
       {/* Command history */}
-      {history && history.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="size-4" />
-              Command history
-            </CardTitle>
-            <CardDescription>Last commands sent to this device.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Issued</TableHead>
-                    <TableHead>Register</TableHead>
-                    <TableHead>FC</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Result</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.slice(0, 20).map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{c.registerNumber}</TableCell>
-                      <TableCell>{c.functionCode}</TableCell>
-                      <TableCell>{c.value}</TableCell>
-                      <TableCell><CommandStatusBadge status={c.status} /></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.result ?? "—"}</TableCell>
+      {history && history.length > 0 && (() => {
+        const totalPages = Math.ceil(history.length / HISTORY_PAGE_SIZE)
+        const page = Math.min(historyPage, totalPages - 1)
+        const pageItems = history.slice(page * HISTORY_PAGE_SIZE, (page + 1) * HISTORY_PAGE_SIZE)
+        return (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="size-4" />
+                    Command history
+                  </CardTitle>
+                  <CardDescription>Commands sent to this device · {history.length} total</CardDescription>
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHistoryPage((p) => Math.max(0, p - 1))}
+                      disabled={page === 0}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {page + 1} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHistoryPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={page === totalPages - 1}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Issued</TableHead>
+                      <TableHead>Register</TableHead>
+                      <TableHead>FC</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Result</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  </TableHeader>
+                  <TableBody>
+                    {pageItems.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{c.registerNumber}</TableCell>
+                        <TableCell>{c.functionCode}</TableCell>
+                        <TableCell>{c.value}</TableCell>
+                        <TableCell><CommandStatusBadge status={c.status} /></TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{c.result ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Confirmation dialog */}
       <AlertDialog open={!!confirmCommand} onOpenChange={(o) => !o && setConfirmCommand(null)}>

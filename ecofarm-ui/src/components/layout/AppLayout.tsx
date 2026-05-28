@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { useEffect } from "react"
 import { toast } from "sonner"
 import {
   Sprout,
@@ -42,6 +43,20 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 
+const PAGE_TITLES: { prefix: string; title: string }[] = [
+  { prefix: "/profiles",        title: "Device Profiles" },
+  { prefix: "/devices",         title: "Devices" },
+  { prefix: "/gateways",        title: "Gateways" },
+  { prefix: "/sites",           title: "Sites" },
+  { prefix: "/gateway-drivers", title: "Gateway Drivers" },
+  { prefix: "/admin/brokers",   title: "Brokers" },
+  { prefix: "/admin/tenants",   title: "Tenants" },
+  { prefix: "/users",           title: "Users" },
+  { prefix: "/alerts",          title: "Alerts" },
+  { prefix: "/settings",        title: "Settings" },
+  { prefix: "/",                title: "Dashboard" },
+]
+
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/sites", label: "Sites", icon: MapPin },
@@ -56,6 +71,11 @@ export function AppLayout() {
   const user = useAuthStore((s) => s.user)
   const refreshToken = useAuthStore((s) => s.refreshToken)
   const clear = useAuthStore((s) => s.clear)
+
+  useEffect(() => {
+    const match = PAGE_TITLES.find((p) => location.pathname.startsWith(p.prefix))
+    document.title = match ? `${match.title} | EcoFarm` : "EcoFarm"
+  }, [location.pathname])
 
   const initials =
     user?.firstName && user?.lastName

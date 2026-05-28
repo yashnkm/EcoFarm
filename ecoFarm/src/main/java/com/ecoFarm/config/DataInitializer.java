@@ -156,6 +156,7 @@ public class DataInitializer implements CommandLineRunner {
             .intervalSeconds(10)
             .startRegister(3000)
             .count(6)
+            .functionCode(3)
             .build());
 
         dataPointRepository.save(DataPoint.builder()
@@ -228,6 +229,7 @@ public class DataInitializer implements CommandLineRunner {
             .intervalSeconds(10)
             .startRegister(3002)
             .count(1)
+            .functionCode(3)
             .build());
 
         dataPointRepository.save(DataPoint.builder()

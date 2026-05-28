@@ -45,6 +45,7 @@ public class PollGroupService {
             .intervalSeconds(req.intervalSeconds())
             .startRegister(req.startRegister())
             .count(req.count())
+            .functionCode(req.functionCode())
             .build();
         return repo.save(g);
     }
@@ -57,6 +58,7 @@ public class PollGroupService {
         g.setIntervalSeconds(req.intervalSeconds());
         g.setStartRegister(req.startRegister());
         g.setCount(req.count());
+        g.setFunctionCode(req.functionCode());
         return g;
     }
 

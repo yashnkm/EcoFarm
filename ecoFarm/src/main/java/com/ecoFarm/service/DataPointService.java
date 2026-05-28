@@ -51,13 +51,14 @@ public class DataPointService {
             throw ApiException.conflict("A data point with this key already exists in the profile");
         }
 
+        PollGroup pollGroup = requirePollGroup(profileId, req.pollGroupId());
         DataPoint dp = DataPoint.builder()
             .profile(profile)
-            .pollGroup(resolvePollGroup(profileId, req.pollGroupId()))
+            .pollGroup(pollGroup)
             .key(req.key())
             .label(req.label())
             .registerNumber(req.registerNumber())
-            .functionCode(req.functionCode())
+            .functionCode(pollGroup.getFunctionCode())
             .dataType(req.dataType() != null ? req.dataType() : DataType.UINT16)
             .wordCount(req.wordCount() != null ? req.wordCount() : 1)
             .byteOrder(req.byteOrder() != null ? req.byteOrder() : ByteOrder.BIG_ENDIAN)
@@ -84,10 +85,12 @@ public class DataPointService {
             throw ApiException.conflict("A data point with this key already exists");
         }
 
+        PollGroup pollGroup = requirePollGroup(profileId, req.pollGroupId());
         dp.setKey(req.key());
         dp.setLabel(req.label());
         dp.setRegisterNumber(req.registerNumber());
-        dp.setFunctionCode(req.functionCode());
+        dp.setPollGroup(pollGroup);
+        dp.setFunctionCode(pollGroup.getFunctionCode());
         if (req.dataType() != null)      dp.setDataType(req.dataType());
         if (req.wordCount() != null)     dp.setWordCount(req.wordCount());
         if (req.byteOrder() != null)     dp.setByteOrder(req.byteOrder());
@@ -100,8 +103,6 @@ public class DataPointService {
         if (req.displayed() != null)     dp.setDisplayed(req.displayed());
         if (req.displayWidget() != null) dp.setDisplayWidget(req.displayWidget());
 
-        dp.setPollGroup(resolvePollGroup(profileId, req.pollGroupId()));
-
         return dp;
     }
 
@@ -112,8 +113,8 @@ public class DataPointService {
         repo.delete(dp);
     }
 
-    private PollGroup resolvePollGroup(UUID profileId, UUID pollGroupId) {
-        if (pollGroupId == null) return null;
+    private PollGroup requirePollGroup(UUID profileId, UUID pollGroupId) {
+        if (pollGroupId == null) throw ApiException.badRequest("Poll group is required");
         PollGroup g = pollGroupRepository.findById(pollGroupId)
             .orElseThrow(() -> ApiException.badRequest("Poll group not found"));
         if (!g.getProfile().getId().equals(profileId)) {

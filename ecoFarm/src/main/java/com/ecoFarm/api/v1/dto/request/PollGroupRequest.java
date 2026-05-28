@@ -8,5 +8,6 @@ public record PollGroupRequest(
     @NotBlank String name,
     @NotNull @Min(1) Integer intervalSeconds,
     @NotNull Integer startRegister,
-    @NotNull @Min(1) Integer count
+    @NotNull @Min(1) Integer count,
+    @NotNull Integer functionCode
 ) {}

@@ -18,6 +18,14 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -30,11 +38,28 @@ import { DeleteConfirm } from "@/components/DeleteConfirm"
 import { EditButton } from "@/components/EditButton"
 import type { PollGroup } from "@/types/api"
 
+const FC_OPTIONS = [
+  { code: 1,  label: "01 – Read coils",                         description: "Read coils" },
+  { code: 2,  label: "02 – Read input coils",                   description: "Read input coils" },
+  { code: 3,  label: "03 – Read holding registers",             description: "Read holding registers" },
+  { code: 4,  label: "04 – Read input registers",               description: "Read input registers" },
+  { code: 5,  label: "05 – Set single coil",                    description: "Set single coil" },
+  { code: 6,  label: "06 – Write to a single holding register", description: "Write to a single holding register" },
+  { code: 15, label: "15 – Set multiple coils",                 description: "Set multiple coils" },
+  { code: 16, label: "16 – Write to multiple holding registers", description: "Write to multiple holding registers" },
+] as const
+
+const VALID_FC_CODES = FC_OPTIONS.map((o) => o.code)
+
 const schema = z.object({
   name: z.string().min(1),
   intervalSeconds: z.coerce.number().int().min(1),
   startRegister: z.coerce.number().int().min(0),
   count: z.coerce.number().int().min(1),
+  functionCode: z.coerce.number().int().refine(
+    (v) => VALID_FC_CODES.includes(v as typeof VALID_FC_CODES[number]),
+    { message: "Select a valid function code" }
+  ),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -48,8 +73,11 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
     queryFn: () => pollGroupsApi.list(profileId),
   })
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
-    useForm<FormValues>({ resolver: zodResolver(schema) as Resolver<FormValues>, defaultValues: { intervalSeconds: 10 } })
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
+    useForm<FormValues>({ resolver: zodResolver(schema) as Resolver<FormValues>, defaultValues: { intervalSeconds: 10, functionCode: 3 } })
+
+  const functionCode = watch("functionCode")
+  const selectedFc = FC_OPTIONS.find((o) => o.code === Number(functionCode))
 
   const createMutation = useMutation({
     mutationFn: (body: PollGroupBody) => pollGroupsApi.create(profileId, body),
@@ -84,12 +112,18 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ name: "", intervalSeconds: 10, startRegister: 0, count: 1 })
+    reset({ name: "", intervalSeconds: 10, startRegister: 0, count: 1, functionCode: 3 })
     setOpen(true)
   }
   const openEdit = (g: PollGroup) => {
     setEditing(g)
-    reset({ name: g.name, intervalSeconds: g.intervalSeconds, startRegister: g.startRegister, count: g.count })
+    reset({
+      name: g.name,
+      intervalSeconds: g.intervalSeconds,
+      startRegister: g.startRegister,
+      count: g.count,
+      functionCode: g.functionCode,
+    })
     setOpen(true)
   }
   const closeDialog = () => {
@@ -121,6 +155,31 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
                 <FieldLabel htmlFor="pg-name">Name</FieldLabel>
                 <Input id="pg-name" placeholder="Electrical readings" {...register("name")} />
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
+              </Field>
+
+              <Field data-invalid={errors.functionCode ? true : undefined}>
+                <FieldLabel>Function code</FieldLabel>
+                <Select
+                  value={String(functionCode ?? 3)}
+                  onValueChange={(v) => setValue("functionCode", Number(v), { shouldValidate: true })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select function code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {FC_OPTIONS.map((o) => (
+                        <SelectItem key={o.code} value={String(o.code)}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {selectedFc && (
+                  <p className="text-xs text-muted-foreground">{selectedFc.description}</p>
+                )}
+                {errors.functionCode && <FieldError>{errors.functionCode.message}</FieldError>}
               </Field>
 
               <div className="grid grid-cols-3 gap-4">
@@ -159,6 +218,7 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>FC</TableHead>
                 <TableHead>Interval</TableHead>
                 <TableHead>Start register</TableHead>
                 <TableHead>Count</TableHead>
@@ -169,6 +229,9 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
               {groups.map((g) => (
                 <TableRow key={g.id}>
                   <TableCell className="font-medium">{g.name}</TableCell>
+                  <TableCell className="text-xs">
+                    {String(g.functionCode).padStart(2, "0")} – {FC_OPTIONS.find((o) => o.code === g.functionCode)?.description ?? g.functionCode}
+                  </TableCell>
                   <TableCell>{g.intervalSeconds}s</TableCell>
                   <TableCell className="font-mono text-xs">{g.startRegister}</TableCell>
                   <TableCell>{g.count}</TableCell>

@@ -14,7 +14,8 @@ public class PollGroupMapper {
             g.getName(),
             g.getIntervalSeconds(),
             g.getStartRegister(),
-            g.getCount()
+            g.getCount(),
+            g.getFunctionCode()
         );
     }
 }

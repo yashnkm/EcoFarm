@@ -14,7 +14,6 @@ public record DataPointRequest(
     @NotBlank @Size(max = 100) String key,
     @NotBlank String label,
     @NotNull Integer registerNumber,
-    @NotNull Integer functionCode,
     DataType dataType,
     Integer wordCount,
     ByteOrder byteOrder,
@@ -26,5 +25,5 @@ public record DataPointRequest(
     Boolean writable,
     Boolean displayed,
     DisplayWidget displayWidget,
-    UUID pollGroupId
+    @NotNull UUID pollGroupId
 ) {}

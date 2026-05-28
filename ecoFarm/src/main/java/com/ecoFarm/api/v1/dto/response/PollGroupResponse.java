@@ -8,5 +8,6 @@ public record PollGroupResponse(
     String name,
     Integer intervalSeconds,
     Integer startRegister,
-    Integer count
+    Integer count,
+    Integer functionCode
 ) {}

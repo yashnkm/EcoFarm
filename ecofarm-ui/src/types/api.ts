@@ -152,7 +152,7 @@ export interface DeviceProfile {
 export interface DataPoint {
   id: string
   profileId: string
-  pollGroupId: string | null
+  pollGroupId: string
   key: string
   label: string
   registerNumber: number
@@ -177,6 +177,7 @@ export interface PollGroup {
   intervalSeconds: number
   startRegister: number
   count: number
+  functionCode: number
 }
 
 export interface CommandTemplate {

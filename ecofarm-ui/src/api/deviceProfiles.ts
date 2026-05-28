@@ -35,6 +35,7 @@ export interface PollGroupBody {
   intervalSeconds: number
   startRegister: number
   count: number
+  functionCode: number
 }
 
 export const pollGroupsApi = {
@@ -65,7 +66,7 @@ export interface DataPointBody {
   key: string
   label: string
   registerNumber: number
-  functionCode: number
+  pollGroupId: string
   dataType?: string
   wordCount?: number
   byteOrder?: string
@@ -77,7 +78,6 @@ export interface DataPointBody {
   writable?: boolean
   displayed?: boolean
   displayWidget?: string
-  pollGroupId?: string | null
 }
 
 export const dataPointsApi = {

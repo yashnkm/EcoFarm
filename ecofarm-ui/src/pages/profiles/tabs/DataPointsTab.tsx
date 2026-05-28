@@ -46,7 +46,6 @@ const schema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
   registerNumber: z.coerce.number().int().min(0),
-  functionCode: z.coerce.number().int().min(1).max(127),
   dataType: z.enum(DATA_TYPES),
   wordCount: z.coerce.number().int().min(1).max(4),
   byteOrder: z.enum(BYTE_ORDERS),
@@ -54,7 +53,7 @@ const schema = z.object({
   offset: z.coerce.number(),
   unit: z.string().optional(),
   displayWidget: z.enum(WIDGETS),
-  pollGroupId: z.string().optional(),
+  pollGroupId: z.string().min(1, "Poll group is required"),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -77,7 +76,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       resolver: zodResolver(schema) as Resolver<FormValues>,
       defaultValues: {
         dataType: "UINT16", wordCount: 1, byteOrder: "BIG_ENDIAN",
-        scaleFactor: 1, offset: 0, displayWidget: "NUMBER", functionCode: 3,
+        scaleFactor: 1, offset: 0, displayWidget: "NUMBER",
       },
     })
   const dataType = watch("dataType")
@@ -119,7 +118,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   const openCreate = () => {
     setEditing(null)
     reset({
-      key: "", label: "", registerNumber: 0, functionCode: 3,
+      key: "", label: "", registerNumber: 0,
       dataType: "UINT16", wordCount: 1, byteOrder: "BIG_ENDIAN",
       scaleFactor: 1, offset: 0, unit: "", displayWidget: "NUMBER",
       pollGroupId: "",
@@ -130,7 +129,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     setEditing(dp)
     reset({
       key: dp.key, label: dp.label,
-      registerNumber: dp.registerNumber, functionCode: dp.functionCode,
+      registerNumber: dp.registerNumber,
       dataType: dp.dataType as FormValues["dataType"],
       wordCount: dp.wordCount,
       byteOrder: dp.byteOrder as FormValues["byteOrder"],
@@ -138,7 +137,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       offset: Number(dp.offset),
       unit: dp.unit ?? "",
       displayWidget: dp.displayWidget as FormValues["displayWidget"],
-      pollGroupId: dp.pollGroupId ?? "",
+      pollGroupId: dp.pollGroupId,
     })
     setOpen(true)
   }
@@ -148,12 +147,10 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     reset()
   }
 
-  const onSubmit = (d: FormValues) => {
-    const body = { ...d, pollGroupId: d.pollGroupId || undefined }
-    return editing
-      ? updateMutation.mutateAsync({ id: editing.id, body })
-      : createMutation.mutateAsync(body)
-  }
+  const onSubmit = (d: FormValues) =>
+    editing
+      ? updateMutation.mutateAsync({ id: editing.id, body: d })
+      : createMutation.mutateAsync(d)
 
   return (
     <div className="mt-4 flex flex-col gap-4">
@@ -182,16 +179,27 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Field data-invalid={errors.registerNumber ? true : undefined}>
-                  <FieldLabel htmlFor="reg">Register</FieldLabel>
-                  <Input id="reg" type="number" {...register("registerNumber")} />
-                </Field>
-                <Field data-invalid={errors.functionCode ? true : undefined}>
-                  <FieldLabel htmlFor="fc">Function code</FieldLabel>
-                  <Input id="fc" type="number" {...register("functionCode")} />
-                </Field>
-              </div>
+              <Field data-invalid={errors.registerNumber ? true : undefined}>
+                <FieldLabel htmlFor="reg">Register</FieldLabel>
+                <Input id="reg" type="number" {...register("registerNumber")} />
+              </Field>
+
+              <Field data-invalid={errors.pollGroupId ? true : undefined}>
+                <FieldLabel>Poll group</FieldLabel>
+                <Select value={pollGroupId ?? ""} onValueChange={(v) => setValue("pollGroupId", v, { shouldValidate: true })}>
+                  <SelectTrigger><SelectValue placeholder="Select poll group" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {groups?.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {errors.pollGroupId && <FieldError>{errors.pollGroupId.message}</FieldError>}
+              </Field>
 
               <div className="grid grid-cols-3 gap-4">
                 <Field>
@@ -237,30 +245,17 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel>Display widget</FieldLabel>
-                  <Select value={widget} onValueChange={(v) => setValue("displayWidget", v as FormValues["displayWidget"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {WIDGETS.map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Poll group</FieldLabel>
-                  <Select value={pollGroupId ?? ""} onValueChange={(v) => setValue("pollGroupId", v ?? undefined)}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {groups?.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
+              <Field>
+                <FieldLabel>Display widget</FieldLabel>
+                <Select value={widget} onValueChange={(v) => setValue("displayWidget", v as FormValues["displayWidget"])}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {WIDGETS.map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
 
             <DialogFooter>
@@ -282,7 +277,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 <TableHead>Key</TableHead>
                 <TableHead>Label</TableHead>
                 <TableHead>Register</TableHead>
-                <TableHead>FC</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Scale</TableHead>
                 <TableHead>Unit</TableHead>
@@ -295,7 +289,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                   <TableCell className="font-mono text-xs">{dp.key}</TableCell>
                   <TableCell>{dp.label}</TableCell>
                   <TableCell className="font-mono text-xs">{dp.registerNumber}</TableCell>
-                  <TableCell>{dp.functionCode}</TableCell>
                   <TableCell className="text-xs">{dp.dataType}</TableCell>
                   <TableCell>{dp.scaleFactor}</TableCell>
                   <TableCell>{dp.unit ?? "—"}</TableCell>

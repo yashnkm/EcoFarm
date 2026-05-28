@@ -87,6 +87,13 @@ jobs:
           ssh -p "$P" "$U@$H" bash -s <<'EOF'
           set -euo pipefail
 
+          # Run DB migrations before swapping the jar
+          DB_USER=$(grep 'username:' /opt/ecofarm/config/application.yml | awk '{print $2}' | tr -d '"')
+          DB_PASS=$(grep 'password:' /opt/ecofarm/config/application.yml | awk '{print $2}' | tr -d '"')
+          PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d ecofarm \
+            -c "ALTER TABLE poll_groups ADD COLUMN IF NOT EXISTS function_code INTEGER NOT NULL DEFAULT 3;" \
+            -c "ALTER TABLE poll_groups ALTER COLUMN function_code DROP DEFAULT;"
+
           # Swap backend jar
           mv /opt/ecofarm/app/ecoFarm.jar.new /opt/ecofarm/app/ecoFarm.jar
 

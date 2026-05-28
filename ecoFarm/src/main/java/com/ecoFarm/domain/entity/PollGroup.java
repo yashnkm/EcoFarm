@@ -34,4 +34,7 @@ public class PollGroup {
 
     @Column(nullable = false)
     private Integer count;
+
+    @Column(name = "function_code", nullable = false)
+    private Integer functionCode;
 }

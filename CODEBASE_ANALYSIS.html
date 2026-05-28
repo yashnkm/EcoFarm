@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoFarm SCADA - Codebase Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        .card h3 {
+            color: #764ba2;
+            font-size: 1.3em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .api-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .api-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .api-table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .method-get {
+            background: #d4edda;
+            color: #155724;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .method-post {
+            background: #cfe2ff;
+            color: #084298;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .method-patch {
+            background: #fff3cd;
+            color: #664d03;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .method-delete {
+            background: #f8d7da;
+            color: #842029;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .architecture-diagram {
+            background: #f9f9f9;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        .feature-list li {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+
+        .feature-list li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .entity-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .entity-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        footer {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: #666;
+            margin-top: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-divider {
+            margin: 40px 0;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            color: #664d03;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚜 EcoFarm SCADA Platform</h1>
+            <p>IoT/SCADA Platform for Industrial Monitoring and Control</p>
+            <div class="tech-stack" style="margin-top: 20px;">
+                <span class="badge">Java 21</span>
+                <span class="badge">Spring Boot 4</span>
+                <span class="badge">React 19</span>
+                <span class="badge">TypeScript</span>
+                <span class="badge">PostgreSQL</span>
+                <span class="badge">MQTT</span>
+                <span class="badge">WebSocket</span>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <!-- PROJECT OVERVIEW -->
+            <div class="card">
+                <h2>📋 Project Overview</h2>
+                <h3>Project Type</h3>
+                <p>Full-stack web application for Industrial IoT (IIoT) monitoring and control platform</p>
+
+                <h3>Purpose</h3>
+                <p>EcoFarm is a comprehensive SCADA (Supervisory Control and Data Acquisition) platform designed to:
+                <ul class="feature-list">
+                    <li>Monitor IoT devices and sensors in real-time</li>
+                    <li>Collect and store time-series data (readings)</li>
+                    <li>Control industrial equipment through gateways</li>
+                    <li>Manage multi-tenant environments with role-based access</li>
+                    <li>Generate alerts and rules for anomaly detection</li>
+                    <li>Provide a user-friendly dashboard for visualization</li>
+                </ul>
+
+                <h3>Target Users</h3>
+                <ul class="feature-list">
+                    <li>Industrial facility managers</li>
+                    <li>IoT system administrators</li>
+                    <li>Equipment operators</li>
+                    <li>System integrators</li>
+                </ul>
+            </div>
+
+            <!-- ARCHITECTURE OVERVIEW -->
+            <div class="card">
+                <h2>🏗️ Architecture Overview</h2>
+                <div class="architecture-diagram">Backend (Spring Boot)
+     Port 8080
+     ↓
+├─ REST API (v1)
+├─ WebSocket/STOMP
+├─ JWT Authentication
+├─ Business Logic Layer
+├─ Data Access Layer
+└─ PostgreSQL Database
+
+Frontend (React + Vite)
+     Port 5173 (Dev)
+     ↓
+├─ React Router
+├─ TanStack Query
+├─ Zustand Store
+├─ Tailwind CSS
+└─ WebSocket Client
+                </div>
+
+                <h3>Communication</h3>
+                <ul class="feature-list">
+                    <li>REST APIs for CRUD operations</li>
+                    <li>WebSocket (STOMP) for real-time updates</li>
+                    <li>MQTT for device communication</li>
+                    <li>JWT tokens for authentication</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- BACKEND STACK -->
+        <div class="card section-divider">
+            <h2>🔧 Backend Stack (ecoFarm/)</h2>
+
+            <div class="grid-3">
+                <div>
+                    <h3>Core Framework</h3>
+                    <ul class="feature-list">
+                        <li>Spring Boot 4.0.5</li>
+                        <li>Java 21</li>
+                        <li>Maven (mvnw)</li>
+                        <li>Spring Security</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Database & ORM</h3>
+                    <ul class="feature-list">
+                        <li>PostgreSQL</li>
+                        <li>Spring Data JPA (Hibernate)</li>
+                        <li>Flyway Migrations</li>
+                        <li>UUID Primary Keys</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Authentication & Security</h3>
+                    <ul class="feature-list">
+                        <li>Spring Security</li>
+                        <li>JWT (JJWT 0.12.6)</li>
+                        <li>Token Refresh</li>
+                        <li>Role-Based Access Control</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Real-Time Communication</h3>
+                    <ul class="feature-list">
+                        <li>Spring WebSocket</li>
+                        <li>STOMP Protocol</li>
+                        <li>MQTT Integration</li>
+                        <li>Spring Integration</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>IoT & Device Communication</h3>
+                    <ul class="feature-list">
+                        <li>Eclipse Paho MQTT Client</li>
+                        <li>Spring Integration MQTT</li>
+                        <li>Custom Gateway Drivers</li>
+                        <li>Device Profiles</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Utilities</h3>
+                    <ul class="feature-list">
+                        <li>MapStruct (Mappers)</li>
+                        <li>Lombok (Annotations)</li>
+                        <li>Jakarta Validation</li>
+                        <li>Jackson (JSON)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 30px;">Key Configuration</h3>
+            <div class="code-block">
+# Application Configuration
+spring.application.name=ecoFarm
+server.port=8080
+
+# Database
+spring.datasource.url=jdbc:postgresql://localhost:5432/ecofarm
+spring.datasource.username=postgres
+spring.datasource.password=root
+
+# JWT
+app.jwt.secret=[configured]
+app.jwt.expiry-ms=900000        # 15 minutes
+app.jwt.refresh-expiry-ms=604800000  # 7 days
+
+# MQTT Broker (seed values)
+app.mqtt.broker-url=tcp://77.37.47.14:1884
+app.mqtt.client-id=ecofarm-backend
+app.mqtt.qos=1
+
+# CORS
+app.cors.allowed-origins=http://localhost:5173
+            </div>
+        </div>
+
+        <!-- BACKEND STRUCTURE -->
+        <div class="card section-divider">
+            <h2>📁 Backend Directory Structure</h2>
+
+            <h3>Package Organization</h3>
+            <div class="code-block">
+com.ecoFarm/
+├── EcoFarmApplication.java      # Spring Boot Entry Point
+├── api/v1/
+│   ├── controller/              # REST Endpoints
+│   │   ├── AuthController
+│   │   ├── DeviceProfileController
+│   │   ├── DeviceController
+│   │   ├── GatewayController
+│   │   ├── SiteController
+│   │   ├── TenantController
+│   │   ├── UserController
+│   │   ├── MqttBrokerController
+│   │   ├── ReadingController
+│   │   └── ... (20+ controllers)
+│   ├── dto/
+│   │   ├── request/             # Request DTOs
+│   │   └── response/            # Response DTOs
+│   └── mapper/                  # MapStruct Mappers
+├── config/                      # Configuration Classes
+│   ├── SecurityConfig
+│   ├── CorsConfig
+│   ├── WebSocketConfig
+│   └── MqttConfig
+├── domain/
+│   ├── entity/                  # JPA Entities
+│   │   ├── Device
+│   │   ├── Gateway
+│   │   ├── Site
+│   │   ├── Tenant
+│   │   ├── User
+│   │   ├── Alert
+│   │   ├── AlertRule
+│   │   ├── Reading
+│   │   ├── DataPoint
+│   │   ├── CommandTemplate
+│   │   └── ... (more entities)
+│   └── enums/                   # Type Enumerations
+│       ├── DeviceCategory
+│       ├── DeviceProtocol
+│       ├── GatewayStatus
+│       ├── AlertSeverity
+│       └── ... (15+ enums)
+├── ingestion/                   # Data Ingestion Logic
+├── mqtt/                        # MQTT Integration
+├── repository/                  # Spring Data JPA Repositories
+├── security/                    # Security Components
+│   ├── JwtProvider
+│   ├── CustomUserDetailsService
+│   └── SecurityFilter
+├── service/                     # Business Logic Services
+│   ├── AuthService
+│   ├── DeviceService
+│   ├── GatewayService
+│   ├── SiteService
+│   ├── TenantService
+│   ├── ReadingService
+│   ├── AlertService
+│   └── ... (15+ services)
+└── shared/                      # Shared Utilities
+
+resources/
+├── application.properties       # Configuration
+└── db/migration/               # Flyway SQL Migrations
+    ├── V1__create_tenants.sql
+    ├── V10__create_readings.sql
+    ├── V11__create_alerts.sql
+    └── ... (more migrations)
+            </div>
+        </div>
+
+        <!-- FRONTEND STACK -->
+        <div class="card section-divider">
+            <h2>⚛️ Frontend Stack (ecofarm-ui/)</h2>
+
+            <div class="grid-3">
+                <div>
+                    <h3>Core Framework</h3>
+                    <ul class="feature-list">
+                        <li>React 19</li>
+                        <li>TypeScript 5.9</li>
+                        <li>Vite 7 (Build Tool)</li>
+                        <li>React Router 7</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>State Management</h3>
+                    <ul class="feature-list">
+                        <li>Zustand (Global State)</li>
+                        <li>TanStack Query 5 (Server State)</li>
+                        <li>React Hook Form</li>
+                        <li>Zod (Validation)</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Styling & UI</h3>
+                    <ul class="feature-list">
+                        <li>Tailwind CSS 4</li>
+                        <li>shadcn/ui Components</li>
+                        <li>Lucide Icons</li>
+                        <li>CVA (Class Variance Authority)</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Real-Time & Data</h3>
+                    <ul class="feature-list">
+                        <li>@stomp/stompjs</li>
+                        <li>Axios (HTTP Client)</li>
+                        <li>TanStack Query DevTools</li>
+                        <li>Recharts (Charting)</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Developer Tools</h3>
+                    <ul class="feature-list">
+                        <li>ESLint</li>
+                        <li>Prettier</li>
+                        <li>TypeScript Strict Mode</li>
+                        <li>next-themes (Dark Mode)</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Utilities</h3>
+                    <ul class="feature-list">
+                        <li>date-fns (Dates)</li>
+                        <li>sonner (Toast Notifications)</li>
+                        <li>clsx (Conditional Classes)</li>
+                        <li>tailwind-merge</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- FRONTEND PAGES -->
+        <div class="card section-divider">
+            <h2>📄 Frontend Pages & Routes</h2>
+
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Page</th>
+                        <th>Route</th>
+                        <th>Purpose</th>
+                        <th>Protected</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>LoginPage</td>
+                        <td>/login</td>
+                        <td>User authentication</td>
+                        <td>❌ No</td>
+                    </tr>
+                    <tr>
+                        <td>DashboardPage</td>
+                        <td>/</td>
+                        <td>Overview & statistics (Sites, Gateways, Devices online)</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>SitesPage</td>
+                        <td>/sites</td>
+                        <td>List & manage sites/facilities</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>GatewaysPage</td>
+                        <td>/gateways</td>
+                        <td>List & manage IoT gateways</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>DevicesPage</td>
+                        <td>/devices</td>
+                        <td>List & manage connected devices</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>DeviceDetailPage</td>
+                        <td>/devices/:id</td>
+                        <td>View device details & readings</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>DeviceProfilesPage</td>
+                        <td>/profiles</td>
+                        <td>List & manage device profiles (templates)</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>DeviceProfileDetailPage</td>
+                        <td>/profiles/:id</td>
+                        <td>View profile with DataPoints, Commands, PollGroups tabs</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>GatewayDriversPage</td>
+                        <td>/gateway-drivers</td>
+                        <td>List & manage communication drivers</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>AlertsPage</td>
+                        <td>/alerts</td>
+                        <td>View system alerts & notifications (In Development)</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>UsersPage</td>
+                        <td>/users</td>
+                        <td>Manage system users & permissions</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>BrokersPage</td>
+                        <td>/admin/brokers</td>
+                        <td>Configure MQTT brokers</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>TenantsPage</td>
+                        <td>/admin/tenants</td>
+                        <td>Manage multi-tenants</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td>SettingsPage</td>
+                        <td>/settings</td>
+                        <td>System configuration (In Development)</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- API ENDPOINTS -->
+        <div class="card section-divider">
+            <h2>🔌 REST API Endpoints</h2>
+
+            <h3>Authentication APIs</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/auth/login</td>
+                        <td>User login with credentials</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/auth/refresh</td>
+                        <td>Refresh JWT token</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/auth/logout</td>
+                        <td>Logout and invalidate token</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Device Management APIs</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/devices</td>
+                        <td>List all devices</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/devices/{id}</td>
+                        <td>Get device details</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/devices</td>
+                        <td>Create new device</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-patch">PATCH</span></td>
+                        <td>/api/v1/devices/{id}</td>
+                        <td>Update device</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-delete">DELETE</span></td>
+                        <td>/api/v1/devices/{id}</td>
+                        <td>Delete device</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Gateway APIs</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/gateways</td>
+                        <td>List all gateways</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/gateways</td>
+                        <td>Create new gateway</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-patch">PATCH</span></td>
+                        <td>/api/v1/gateways/{id}</td>
+                        <td>Update gateway</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/gateways/{id}/devices</td>
+                        <td>List devices in gateway</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Device Profiles & Data Points APIs</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/device-profiles</td>
+                        <td>List device profiles</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/device-profiles</td>
+                        <td>Create device profile</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/data-points</td>
+                        <td>List data points</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/data-points</td>
+                        <td>Create data point</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Readings & Telemetry APIs</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/readings</td>
+                        <td>Get readings (time-series data)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/sites/{id}/readings</td>
+                        <td>Get site readings</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/readings/ingest</td>
+                        <td>Ingest new readings (IoT data)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Admin APIs</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/tenants</td>
+                        <td>List tenants</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/tenants</td>
+                        <td>Create tenant</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/users</td>
+                        <td>List users</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-post">POST</span></td>
+                        <td>/api/v1/mqtt-brokers</td>
+                        <td>Configure MQTT broker</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/gateway-drivers</td>
+                        <td>List available drivers</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Health & Status</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/api/v1/health</td>
+                        <td>API health status</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method-get">GET</span></td>
+                        <td>/actuator/health</td>
+                        <td>Spring Boot Actuator health probe</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- DATABASE ENTITIES -->
+        <div class="card section-divider">
+            <h2>💾 Database Entities & Data Models</h2>
+
+            <h3>Core Entities</h3>
+            <div class="entity-list">
+                <div class="entity-item">Tenant</div>
+                <div class="entity-item">User</div>
+                <div class="entity-item">Site/Zone</div>
+                <div class="entity-item">Gateway</div>
+                <div class="entity-item">Device</div>
+                <div class="entity-item">DataPoint</div>
+                <div class="entity-item">Reading</div>
+                <div class="entity-item">Alert</div>
+                <div class="entity-item">AlertRule</div>
+                <div class="entity-item">CommandTemplate</div>
+                <div class="entity-item">CommunicationLog</div>
+                <div class="entity-item">AuditLog</div>
+            </div>
+
+            <h3>Entity Relationships</h3>
+            <div class="code-block">
+Tenant (Organization)
+  ├─ Users (many)
+  ├─ Sites (many)
+      ├─ Zones (many)
+      ├─ Gateways (many)
+      │   ├─ Devices (many)
+      │   │   ├─ DataPoints (many)
+      │   │   ├─ Readings (many)
+      │   │   └─ Alerts (many)
+      │   ├─ CommunicationLogs (many)
+      │   └─ GatewayDriver (one)
+      ├─ Readings (many)
+      └─ Alerts (many)
+
+DeviceProfile (Template)
+  ├─ DataPoints (many)
+  ├─ CommandTemplates (many)
+  └─ PollGroups (many)
+
+Alert
+  ├─ AlertRule (one)
+  ├─ Device (one)
+  └─ AckUser (optional)
+
+AuditLog
+  └─ User (one)
+            </div>
+
+            <h3>Key Enums</h3>
+            <div class="grid-3">
+                <div>
+                    <strong>Device Status</strong>
+                    <ul class="feature-list">
+                        <li>ONLINE</li>
+                        <li>OFFLINE</li>
+                        <li>ERROR</li>
+                        <li>DISCONNECTED</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>Gateway Status</strong>
+                    <ul class="feature-list">
+                        <li>ONLINE</li>
+                        <li>OFFLINE</li>
+                        <li>CONNECTING</li>
+                        <li>ERROR</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>Alert Severity</strong>
+                    <ul class="feature-list">
+                        <li>CRITICAL</li>
+                        <li>HIGH</li>
+                        <li>MEDIUM</li>
+                        <li>LOW</li>
+                        <li>INFO</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>Alert Condition</strong>
+                    <ul class="feature-list">
+                        <li>EQUALS</li>
+                        <li>NOT_EQUALS</li>
+                        <li>GREATER_THAN</li>
+                        <li>LESS_THAN</li>
+                        <li>IN_RANGE</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>Device Protocol</strong>
+                    <ul class="feature-list">
+                        <li>MODBUS</li>
+                        <li>MQTT</li>
+                        <li>OPC_UA</li>
+                        <li>BACNET</li>
+                        <li>DNAP3</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>Data Type</strong>
+                    <ul class="feature-list">
+                        <li>BOOLEAN</li>
+                        <li>BYTE</li>
+                        <li>INTEGER</li>
+                        <li>FLOAT</li>
+                        <li>DOUBLE</li>
+                        <li>STRING</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- FRONTEND ARCHITECTURE -->
+        <div class="card section-divider">
+            <h2>🎨 Frontend Architecture</h2>
+
+            <h3>Directory Structure</h3>
+            <div class="code-block">
+src/
+├── App.tsx                      # Main routing & layout
+├── main.tsx                     # Entry point
+├── api/                         # API Client
+│   ├── auth.ts
+│   ├── devices.ts
+│   ├── gateways.ts
+│   ├── sites.ts
+│   ├── readings.ts
+│   ├── tenants.ts
+│   ├── users.ts
+│   ├── brokers.ts
+│   ├── deviceProfiles.ts
+│   ├── gatewayDrivers.ts
+│   └── health.ts
+├── components/
+│   ├── DeleteConfirm.tsx
+│   ├── EditButton.tsx
+│   ├── MqttStatusBadge.tsx
+│   ├── theme-provider.tsx
+│   ├── layout/
+│   │   ├── AppLayout.tsx        # Main app wrapper
+│   │   └── ProtectedRoute.tsx   # Auth guard
+│   └── ui/                      # shadcn/ui Components
+│       ├── alert-dialog.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── dialog.tsx
+│       ├── table.tsx
+│       ├── tabs.tsx
+│       └── ... (more UI primitives)
+├── hooks/
+│   ├── use-mobile.ts            # Responsive design
+│   └── useLiveReadings.ts       # WebSocket data hook
+├── lib/
+│   ├── apiClient.ts             # Axios instance
+│   └── utils.ts                 # Helpers
+├── pages/
+│   ├── auth/
+│   │   └── LoginPage.tsx
+│   ├── dashboard/
+│   │   └── DashboardPage.tsx
+│   ├── devices/
+│   │   ├── DevicesPage.tsx
+│   │   └── DeviceDetailPage.tsx
+│   ├── gateways/
+│   │   └── GatewaysPage.tsx
+│   ├── profiles/
+│   │   ├── DeviceProfilesPage.tsx
+│   │   ├── DeviceProfileDetailPage.tsx
+│   │   └── tabs/
+│   │       ├── DataPointsTab.tsx
+│   │       ├── CommandsTab.tsx
+│   │       └── PollGroupsTab.tsx
+│   ├── sites/
+│   │   └── SitesPage.tsx
+│   ├── users/
+│   │   └── UsersPage.tsx
+│   ├── tenants/
+│   │   └── TenantsPage.tsx
+│   ├── drivers/
+│   │   └── GatewayDriversPage.tsx
+│   └── brokers/
+│       └── BrokersPage.tsx
+├── store/
+│   └── authStore.ts             # Zustand auth state
+├── types/
+│   └── api.ts                   # TypeScript interfaces
+├── assets/
+├── index.css                    # Global styles
+└── index.html
+            </div>
+
+            <h3>State Management Pattern</h3>
+            <div class="code-block">
+Server State (TanStack Query)
+  ├─ Device data
+  ├─ Gateway status
+  ├─ Site information
+  ├─ Users & Tenants
+  └─ Real-time readings (with caching)
+
+Client State (Zustand - authStore)
+  ├─ Current user
+  ├─ Auth token
+  ├─ User permissions/roles
+  └─ Refresh token
+
+Local Component State
+  └─ Form inputs, modals, UI toggles
+            </div>
+
+            <h3>Data Flow</h3>
+            <ul class="feature-list">
+                <li>API Client (lib/apiClient.ts) → Axios with interceptors for JWT</li>
+                <li>API Modules (api/*.ts) → Organized endpoints by resource</li>
+                <li>React Query → Data fetching, caching, background updates</li>
+                <li>Zustand Store → Global auth state</li>
+                <li>Components → Use hooks to consume data</li>
+                <li>WebSocket (useLiveReadings) → Real-time telemetry updates</li>
+            </ul>
+        </div>
+
+        <!-- KEY FEATURES -->
+        <div class="card section-divider">
+            <h2>✨ Key Features & Capabilities</h2>
+
+            <div class="grid-3">
+                <div>
+                    <h3>🏗️ Multi-Tenancy</h3>
+                    <ul class="feature-list">
+                        <li>Isolated tenant data</li>
+                        <li>Tenant-specific databases</li>
+                        <li>Role-based access control</li>
+                        <li>Audit logging per tenant</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>📡 IoT Integration</h3>
+                    <ul class="feature-list">
+                        <li>MQTT broker connection</li>
+                        <li>Multiple protocols (Modbus, MQTT, OPC-UA)</li>
+                        <li>Configurable gateways</li>
+                        <li>Custom drivers</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>⚡ Real-Time Updates</h3>
+                    <ul class="feature-list">
+                        <li>WebSocket/STOMP messaging</li>
+                        <li>Live device status</li>
+                        <li>Real-time readings ingestion</li>
+                        <li>Push notifications</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>📊 Data Monitoring</h3>
+                    <ul class="feature-list">
+                        <li>Time-series data storage</li>
+                        <li>Historical readings</li>
+                        <li>Charting & visualization</li>
+                        <li>Trend analysis</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>🚨 Alert System</h3>
+                    <ul class="feature-list">
+                        <li>Rule-based alerts</li>
+                        <li>Severity levels</li>
+                        <li>Alert acknowledgment</li>
+                        <li>Notification history</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>🔒 Security</h3>
+                    <ul class="feature-list">
+                        <li>JWT authentication</li>
+                        <li>Refresh token rotation</li>
+                        <li>Role-based authorization</li>
+                        <li>Audit trails</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECURITY & ROLES -->
+        <div class="card section-divider">
+            <h2>🔐 Authentication & Authorization</h2>
+
+            <h3>Authentication Flow</h3>
+            <div class="code-block">
+User Login (LoginPage)
+  ↓
+POST /api/v1/auth/login
+  ├─ Credentials validation
+  ├─ JWT token generation
+  └─ Refresh token issued
+  ↓
+Store in Zustand (authStore)
+  ├─ Access Token (15 min expiry)
+  ├─ Refresh Token (7 days)
+  └─ User Profile
+  ↓
+Include JWT in Authorization header
+  ↓
+Interceptor on 401 → Refresh token
+            </div>
+
+            <h3>Role-Based Access Control</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Responsibilities</th>
+                        <th>Permissions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>SUPER_ADMIN</strong></td>
+                        <td>System administrator</td>
+                        <td>✅ All operations, tenant management, broker config</td>
+                    </tr>
+                    <tr>
+                        <td><strong>TENANT_ADMIN</strong></td>
+                        <td>Organization admin</td>
+                        <td>✅ Manage tenant resources, users, devices, gateways</td>
+                    </tr>
+                    <tr>
+                        <td><strong>OPERATOR</strong></td>
+                        <td>Equipment operator</td>
+                        <td>✅ View data, control devices, acknowledge alerts</td>
+                    </tr>
+                    <tr>
+                        <td><strong>VIEWER</strong></td>
+                        <td>Read-only access</td>
+                        <td>✅ View dashboards & data only</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Protected Routes (Frontend)</h3>
+            <ul class="feature-list">
+                <li>ProtectedRoute component checks authentication</li>
+                <li>Redirects to login if no valid token</li>
+                <li>Validates role-based access to pages</li>
+                <li>Handles token refresh automatically</li>
+            </ul>
+        </div>
+
+        <!-- DEPLOYMENT -->
+        <div class="card section-divider">
+            <h2>🚀 Deployment & DevOps</h2>
+
+            <h3>Development Setup</h3>
+            <div class="code-block">
+# Backend
+cd ecoFarm
+./mvnw spring-boot:run      # Runs on :8080
+
+# Frontend (separate terminal)
+cd ecofarm-ui
+npm install
+npm run dev                 # Runs on :5173
+            </div>
+
+            <h3>Production Deployment</h3>
+            <div class="code-block">
+Infrastructure
+├── VPS Hosting (Hostinger)
+├── GitHub Actions CI/CD
+├── PostgreSQL Database
+└── MQTT Broker (external)
+
+Deployment Pipeline
+├─ Push to 'prod' branch
+├─ GitHub Actions triggers
+├─ Maven build & test
+├─ Frontend build (Vite)
+├─ Docker containerization (optional)
+└─ Deploy to VPS
+            </div>
+
+            <h3>Configuration Files</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>pom.xml</td>
+                        <td>Maven dependencies & build configuration</td>
+                    </tr>
+                    <tr>
+                        <td>application.properties</td>
+                        <td>Spring Boot configuration (DB, JWT, MQTT, CORS)</td>
+                    </tr>
+                    <tr>
+                        <td>vite.config.ts</td>
+                        <td>Frontend build & dev server config</td>
+                    </tr>
+                    <tr>
+                        <td>tsconfig.json</td>
+                        <td>TypeScript compiler options</td>
+                    </tr>
+                    <tr>
+                        <td>eslint.config.js</td>
+                        <td>Linting rules for code quality</td>
+                    </tr>
+                    <tr>
+                        <td>.github/workflows</td>
+                        <td>GitHub Actions CI/CD pipeline</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Database Migrations</h3>
+            <ul class="feature-list">
+                <li>Flyway SQL migrations in src/main/resources/db/migration/</li>
+                <li>Versioned migration files (V1__*.sql, V10__*.sql, etc.)</li>
+                <li>Create tables for: Tenants, Users, Sites, Gateways, Devices, DataPoints, Readings, Alerts, CommandTemplates</li>
+                <li>Automatic execution on application startup</li>
+            </ul>
+        </div>
+
+        <!-- TECHNOLOGY DEPENDENCIES -->
+        <div class="card section-divider">
+            <h2>📦 Technology Stack Summary</h2>
+
+            <div class="grid-3">
+                <div>
+                    <h3>Backend Core</h3>
+                    <ul class="feature-list">
+                        <li>Java 21</li>
+                        <li>Spring Boot 4.0.5</li>
+                        <li>Spring Security</li>
+                        <li>Spring WebSocket</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Database Layer</h3>
+                    <ul class="feature-list">
+                        <li>PostgreSQL</li>
+                        <li>Spring Data JPA</li>
+                        <li>Hibernate ORM</li>
+                        <li>Flyway Migrations</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Security & Auth</h3>
+                    <ul class="feature-list">
+                        <li>JWT (JJWT)</li>
+                        <li>Spring Security</li>
+                        <li>OAuth2 Ready</li>
+                        <li>CORS Configuration</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>IoT & Real-Time</h3>
+                    <ul class="feature-list">
+                        <li>MQTT (Paho)</li>
+                        <li>Spring Integration</li>
+                        <li>WebSocket/STOMP</li>
+                        <li>Event-driven</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Frontend Framework</h3>
+                    <ul class="feature-list">
+                        <li>React 19</li>
+                        <li>TypeScript 5.9</li>
+                        <li>Vite 7</li>
+                        <li>React Router 7</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Frontend State & Data</h3>
+                    <ul class="feature-list">
+                        <li>TanStack Query 5</li>
+                        <li>Zustand</li>
+                        <li>React Hook Form</li>
+                        <li>Zod Validation</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>UI & Styling</h3>
+                    <ul class="feature-list">
+                        <li>Tailwind CSS 4</li>
+                        <li>shadcn/ui</li>
+                        <li>Lucide Icons</li>
+                        <li>CVA Components</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Charting & Data Viz</h3>
+                    <ul class="feature-list">
+                        <li>Recharts</li>
+                        <li>Date-fns</li>
+                        <li>Data aggregation</li>
+                        <li>Trend visualization</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3>Developer Tools</h3>
+                    <ul class="feature-list">
+                        <li>ESLint</li>
+                        <li>Prettier</li>
+                        <li>Maven</li>
+                        <li>npm/Node.js</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- DEVELOPMENT WORKFLOW -->
+        <div class="card section-divider">
+            <h2>🔄 Development Workflow</h2>
+
+            <h3>Code Organization Best Practices</h3>
+            <ul class="feature-list">
+                <li><strong>Controllers</strong> → Handle HTTP requests, validate input, delegate to services</li>
+                <li><strong>Services</strong> → Contain business logic, orchestrate repositories</li>
+                <li><strong>Repositories</strong> → Spring Data JPA interfaces for database access</li>
+                <li><strong>Mappers</strong> → MapStruct for entity ↔ DTO conversion</li>
+                <li><strong>DTOs</strong> → Request/Response objects for API contracts</li>
+                <li><strong>Entities</strong> → JPA domain models with relationships</li>
+                <li><strong>Enums</strong> → Type-safe constants for status, protocols, etc.</li>
+            </ul>
+
+            <h3>Frontend Code Organization</h3>
+            <ul class="feature-list">
+                <li><strong>Pages</strong> → Full page components (routes)</li>
+                <li><strong>Components</strong> → Reusable UI components (buttons, cards, dialogs)</li>
+                <li><strong>Hooks</strong> → Custom React hooks (useLiveReadings, use-mobile)</li>
+                <li><strong>API Modules</strong> → Organized API client methods by resource</li>
+                <li><strong>Store</strong> → Zustand global state (auth)</li>
+                <li><strong>Types</strong> → TypeScript interfaces & types</li>
+                <li><strong>Lib</strong> → Utilities & helpers</li>
+            </ul>
+
+            <h3>Common Workflows</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Steps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Add New API Endpoint</strong></td>
+                        <td>1. Create DTO (request/response) 2. Create Entity 3. Add Repository 4. Create Service 5. Add Controller with @PreAuthorize</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Add New Page</strong></td>
+                        <td>1. Create page component 2. Add API client method 3. Use TanStack Query hook 4. Add route in App.tsx 5. Add sidebar link</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Connect Real-Time Data</strong></td>
+                        <td>1. Use useLiveReadings hook 2. Subscribe to WebSocket topic 3. Update component on message 4. Unsubscribe on unmount</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Add Validation</strong></td>
+                        <td>1. Backend: @Valid annotations + constraint annotations 2. Frontend: Zod schema 3. React Hook Form integration</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Add Role-Based Access</strong></td>
+                        <td>1. Backend: @PreAuthorize("hasAnyRole('ROLE1', 'ROLE2')") 2. Frontend: Conditional rendering based on authStore.user.role</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- CURRENT STATUS -->
+        <div class="card section-divider">
+            <h2>📌 Development Status</h2>
+
+            <h3>✅ Implemented Features</h3>
+            <ul class="feature-list">
+                <li>Multi-tenant architecture with isolation</li>
+                <li>User authentication & role-based access control</li>
+                <li>Site & Zone management</li>
+                <li>Gateway & Device management</li>
+                <li>Device Profiles with DataPoints & Commands</li>
+                <li>MQTT broker integration & configuration</li>
+                <li>Real-time readings ingestion & storage</li>
+                <li>WebSocket/STOMP for live updates</li>
+                <li>Alert rules & alert management</li>
+                <li>Communication logging & audit trails</li>
+                <li>RESTful API (v1) with JWT auth</li>
+                <li>Responsive dashboard UI</li>
+                <li>Data visualization (Recharts)</li>
+            </ul>
+
+            <h3>🚧 In Progress / Planned</h3>
+            <ul class="feature-list">
+                <li>Alerts page implementation</li>
+                <li>Settings page implementation</li>
+                <li>Command execution interface</li>
+                <li>Poll Groups & scheduling</li>
+                <li>Advanced reporting</li>
+                <li>Mobile responsiveness optimization</li>
+                <li>Performance monitoring</li>
+            </ul>
+
+            <div class="warning">
+                <strong>⚠️ Development Note:</strong> Some pages (Alerts, Settings) show placeholder text "This page will be built next" - these are in active development.
+            </div>
+        </div>
+
+        <!-- QUICK START GUIDE -->
+        <div class="card section-divider">
+            <h2>🚀 Quick Start Guide</h2>
+
+            <h3>Prerequisites</h3>
+            <ul class="feature-list">
+                <li>Java 21 JDK</li>
+                <li>PostgreSQL 12+</li>
+                <li>Node.js 18+ & npm</li>
+                <li>Maven (or use mvnw)</li>
+                <li>MQTT Broker (for full functionality)</li>
+            </ul>
+
+            <h3>Backend Setup</h3>
+            <div class="code-block">
+# 1. Navigate to backend directory
+cd ecoFarm
+
+# 2. Configure database (application.properties)
+# Update spring.datasource.url, username, password
+
+# 3. Configure MQTT (application.properties)
+# Update app.mqtt.broker-url, credentials
+
+# 4. Run the application
+./mvnw spring-boot:run
+
+# Application starts on http://localhost:8080
+# API docs available at /swagger-ui.html (if enabled)
+            </div>
+
+            <h3>Frontend Setup</h3>
+            <div class="code-block">
+# 1. Navigate to frontend directory
+cd ecofarm-ui
+
+# 2. Install dependencies
+npm install
+
+# 3. Start development server
+npm run dev
+
+# Application runs on http://localhost:5173
+
+# 4. For production build
+npm run build
+npm run preview
+            </div>
+
+            <h3>First Steps</h3>
+            <ol style="padding-left: 20px;">
+                <li>Access frontend at <span class="highlight">http://localhost:5173</span></li>
+                <li>Login with test credentials (set up in database)</li>
+                <li>Navigate to Dashboard</li>
+                <li>Configure MQTT Broker (/admin/brokers)</li>
+                <li>Create a Site</li>
+                <li>Create a Gateway within the Site</li>
+                <li>Add Devices to the Gateway</li>
+                <li>View real-time readings on Dashboard</li>
+            </ol>
+        </div>
+
+        <!-- PROJECT INSIGHTS -->
+        <div class="card section-divider">
+            <h2>💡 Project Insights & Architecture Patterns</h2>
+
+            <h3>Design Patterns Used</h3>
+            <div class="grid-3">
+                <div>
+                    <h4>MVC Pattern</h4>
+                    <p>Controller → Service → Repository → Database</p>
+                </div>
+                <div>
+                    <h4>Dependency Injection</h4>
+                    <p>Spring IoC container manages dependencies</p>
+                </div>
+                <div>
+                    <h4>Data Transfer Objects</h4>
+                    <p>Separate API contracts from database models</p>
+                </div>
+                <div>
+                    <h4>Event-Driven</h4>
+                    <p>MQTT & WebSocket for real-time updates</p>
+                </div>
+                <div>
+                    <h4>Repository Pattern</h4>
+                    <p>Spring Data JPA abstracts database queries</p>
+                </div>
+                <div>
+                    <h4>Observer Pattern</h4>
+                    <p>React Query & Zustand for state updates</p>
+                </div>
+            </div>
+
+            <h3>Scalability Considerations</h3>
+            <ul class="feature-list">
+                <li><strong>Multi-Tenancy:</strong> Isolated data per tenant for horizontal scaling</li>
+                <li><strong>Connection Pooling:</strong> PostgreSQL with connection pooling for concurrent users</li>
+                <li><strong>Caching:</strong> React Query caching reduces API calls</li>
+                <li><strong>WebSocket:</strong> Efficient real-time updates vs polling</li>
+                <li><strong>MQTT QoS:</strong> Configurable quality of service for message delivery</li>
+                <li><strong>Database Indexing:</strong> Consider indexes on Tenant, Device, Readings tables</li>
+                <li><strong>Microservices Ready:</strong> Service layer can be extracted to separate services</li>
+            </ul>
+
+            <h3>Security Best Practices Implemented</h3>
+            <ul class="feature-list">
+                <li>JWT with refresh token rotation</li>
+                <li>Role-based access control (RBAC)</li>
+                <li>Spring Security with PreAuthorize annotations</li>
+                <li>CORS configuration for frontend</li>
+                <li>Password hashing (Spring Security UserDetailsService)</li>
+                <li>Audit logging for user actions</li>
+                <li>Tenant data isolation</li>
+                <li>Input validation (Jakarta Bean Validation)</li>
+            </ul>
+        </div>
+
+        <!-- KEY FILES REFERENCE -->
+        <div class="card section-divider">
+            <h2>📚 Key Files Reference</h2>
+
+            <h3>Backend Critical Files</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>pom.xml</td>
+                        <td>Maven dependencies, Spring Boot version, plugin configuration</td>
+                    </tr>
+                    <tr>
+                        <td>application.properties</td>
+                        <td>Database, JWT, MQTT, CORS configuration</td>
+                    </tr>
+                    <tr>
+                        <td>src/config/SecurityConfig.java</td>
+                        <td>Spring Security configuration, JWT filter setup</td>
+                    </tr>
+                    <tr>
+                        <td>src/api/v1/controller/*.java</td>
+                        <td>REST API endpoints (20+ controllers)</td>
+                    </tr>
+                    <tr>
+                        <td>src/service/*.java</td>
+                        <td>Business logic for each domain (15+ services)</td>
+                    </tr>
+                    <tr>
+                        <td>src/domain/entity/*.java</td>
+                        <td>JPA entities with relationships</td>
+                    </tr>
+                    <tr>
+                        <td>src/repository/*.java</td>
+                        <td>Spring Data JPA interfaces</td>
+                    </tr>
+                    <tr>
+                        <td>db/migration/V*.sql</td>
+                        <td>Flyway SQL migration scripts</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Frontend Critical Files</h3>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>package.json</td>
+                        <td>Dependencies: React, Vite, TanStack Query, Zustand, Tailwind</td>
+                    </tr>
+                    <tr>
+                        <td>vite.config.ts</td>
+                        <td>Vite build configuration, proxy setup</td>
+                    </tr>
+                    <tr>
+                        <td>tsconfig.json</td>
+                        <td>TypeScript compiler options</td>
+                    </tr>
+                    <tr>
+                        <td>App.tsx</td>
+                        <td>Main routing with React Router</td>
+                    </tr>
+                    <tr>
+                        <td>src/store/authStore.ts</td>
+                        <td>Zustand global authentication state</td>
+                    </tr>
+                    <tr>
+                        <td>src/api/*.ts</td>
+                        <td>API client methods organized by resource</td>
+                    </tr>
+                    <tr>
+                        <td>src/pages/*/</td>
+                        <td>Page components for each route</td>
+                    </tr>
+                    <tr>
+                        <td>src/components/layout/ProtectedRoute.tsx</td>
+                        <td>Authentication guard for protected routes</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p><strong>EcoFarm SCADA Codebase Analysis</strong></p>
+            <p>Generated: May 22, 2026 | Full-Stack IoT Platform Documentation</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">For questions or updates, refer to the project README.md files in respective directories</p>
+        </footer>
+    </div>
+</body>
+</html>

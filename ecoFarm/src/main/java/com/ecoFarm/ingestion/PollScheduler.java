@@ -107,13 +107,11 @@ public class PollScheduler {
         long cookie = tracker.nextCookie();
         tracker.trackPoll(cookie, device.getId(), group.getId());
 
-        // Use FC 3 (Read Holding Registers) as a sensible default for a poll group.
-        // Individual data points can still belong to different FCs when looked up on response.
         String payload = requestBuilder.buildSerialRead(
             cookie,
             device.getTimeoutSeconds() != null ? device.getTimeoutSeconds() : 5,
             device.getSlaveId(),
-            3,
+            group.getFunctionCode(),
             group.getStartRegister(),
             group.getCount()
         );

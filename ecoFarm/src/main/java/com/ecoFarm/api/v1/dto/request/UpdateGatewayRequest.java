@@ -8,6 +8,7 @@ public record UpdateGatewayRequest(
     @Size(max = 255) String name,
     UUID siteId,
     UUID zoneId,
+    UUID mqttBrokerId,
     Integer baudRate,
     String parity,
     Integer stopBits

@@ -14,8 +14,6 @@ public class TenantMapper {
             t.getSlug(),
             t.getStatus(),
             t.getPlan(),
-            t.getMqttBroker() != null ? t.getMqttBroker().getId() : null,
-            t.getMqttBroker() != null ? t.getMqttBroker().getName() : null,
             t.getCreatedAt()
         );
     }

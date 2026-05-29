@@ -42,7 +42,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { DeleteConfirm } from "@/components/DeleteConfirm"
 import { EditButton } from "@/components/EditButton"
 import { Separator } from "@/components/ui/separator"
-import { brokersApi } from "@/api/brokers"
 import type { Tenant, TenantStatus } from "@/types/api"
 
 const TENANT_STATUSES: TenantStatus[] = ["ACTIVE", "SUSPENDED"]
@@ -54,7 +53,6 @@ const createSchema = z.object({
   adminPassword: z.string().min(8),
   adminFirstName: z.string().optional(),
   adminLastName: z.string().optional(),
-  mqttBrokerId: z.string().optional(),
 })
 type CreateForm = z.infer<typeof createSchema>
 
@@ -62,7 +60,6 @@ const editSchema = z.object({
   name: z.string().min(1),
   status: z.enum(["ACTIVE", "SUSPENDED"]),
   plan: z.string().optional(),
-  mqttBrokerId: z.string().optional(),
 })
 type EditForm = z.infer<typeof editSchema>
 
@@ -73,7 +70,6 @@ export function TenantsPage() {
   const queryClient = useQueryClient()
 
   const { data: tenants, isLoading } = useQuery({ queryKey: ["tenants"], queryFn: tenantsApi.list })
-  const { data: brokers } = useQuery({ queryKey: ["brokers"], queryFn: brokersApi.list })
 
   const createMutation = useMutation({
     mutationFn: tenantsApi.create,
@@ -119,7 +115,6 @@ export function TenantsPage() {
       name: t.name,
       status: t.status,
       plan: t.plan,
-      mqttBrokerId: t.mqttBrokerId ?? "",
     })
     setEditOpen(true)
   }
@@ -187,25 +182,6 @@ export function TenantsPage() {
                 </Field>
               </div>
 
-              <Separator />
-              <p className="-mb-2 text-xs font-medium uppercase text-muted-foreground">MQTT broker</p>
-
-              <Field>
-                <FieldLabel>Assigned broker</FieldLabel>
-                <Select
-                  value={createForm.watch("mqttBrokerId") ?? ""}
-                  onValueChange={(v) => createForm.setValue("mqttBrokerId", v ?? undefined)}
-                >
-                  <SelectTrigger><SelectValue placeholder="Unassigned (assign later)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {brokers?.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
             </div>
 
             <DialogFooter>
@@ -247,22 +223,6 @@ export function TenantsPage() {
                 <FieldLabel htmlFor="e-plan">Plan</FieldLabel>
                 <Input id="e-plan" {...editForm.register("plan")} />
               </Field>
-              <Field>
-                <FieldLabel>Assigned broker</FieldLabel>
-                <Select
-                  value={editForm.watch("mqttBrokerId") ?? ""}
-                  onValueChange={(v) => editForm.setValue("mqttBrokerId", v ?? undefined)}
-                >
-                  <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {brokers?.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
             </div>
 
             <DialogFooter>
@@ -292,7 +252,6 @@ export function TenantsPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Slug</TableHead>
-                <TableHead>Broker</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
@@ -304,9 +263,6 @@ export function TenantsPage() {
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell className="font-mono text-xs">{t.slug}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {t.mqttBrokerName ?? <span className="italic text-destructive">unassigned</span>}
-                  </TableCell>
                   <TableCell className="text-muted-foreground">{t.plan}</TableCell>
                   <TableCell>
                     <Badge variant={t.status === "ACTIVE" ? "default" : "destructive"}>{t.status}</Badge>

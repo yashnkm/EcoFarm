@@ -9,6 +9,8 @@ import { formatDistanceToNow } from "date-fns"
 
 import { gatewaysApi } from "@/api/gateways"
 import { sitesApi } from "@/api/sites"
+import { brokersApi } from "@/api/brokers"
+import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -47,6 +49,7 @@ import type { Gateway } from "@/types/api"
 const schema = z.object({
   serialNumber: z.string().min(1, "Serial number is required"),
   driverId: z.string().min(1, "Driver is required"),
+  mqttBrokerId: z.string().min(1, "Broker is required"),
   name: z.string().optional(),
   siteId: z.string().optional(),
   baudRate: z.coerce.number().int().positive(),
@@ -59,10 +62,13 @@ export function GatewaysPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Gateway | null>(null)
   const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const isSuperAdmin = user?.role === "SUPER_ADMIN"
 
   const { data: gateways, isLoading } = useQuery({ queryKey: ["gateways"], queryFn: gatewaysApi.list })
   const { data: drivers } = useQuery({ queryKey: ["gateway-drivers"], queryFn: gatewaysApi.drivers.list })
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: sitesApi.list })
+  const { data: brokers } = useQuery({ queryKey: ["brokers"], queryFn: brokersApi.list, enabled: isSuperAdmin })
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
@@ -72,6 +78,7 @@ export function GatewaysPage() {
   const driverId = watch("driverId")
   const siteId = watch("siteId")
   const parity = watch("parity")
+  const mqttBrokerId = watch("mqttBrokerId")
 
   const createMutation = useMutation({
     mutationFn: gatewaysApi.register,
@@ -107,7 +114,7 @@ export function GatewaysPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ serialNumber: "", driverId: "", name: "", siteId: "", baudRate: 9600, parity: "none", stopBits: 1 })
+    reset({ serialNumber: "", driverId: "", mqttBrokerId: "", name: "", siteId: "", baudRate: 9600, parity: "none", stopBits: 1 })
     setOpen(true)
   }
   const openEdit = (gw: Gateway) => {
@@ -115,6 +122,7 @@ export function GatewaysPage() {
     reset({
       serialNumber: gw.serialNumber,
       driverId: gw.driverId,
+      mqttBrokerId: gw.mqttBrokerId ?? "",
       name: gw.name ?? "",
       siteId: gw.siteId ?? "",
       baudRate: gw.baudRate,
@@ -136,6 +144,7 @@ export function GatewaysPage() {
         body: {
           name: data.name || undefined,
           siteId: data.siteId || undefined,
+          mqttBrokerId: isSuperAdmin && data.mqttBrokerId ? data.mqttBrokerId : undefined,
           baudRate: data.baudRate,
           parity: data.parity,
           stopBits: data.stopBits,
@@ -145,6 +154,7 @@ export function GatewaysPage() {
     return createMutation.mutateAsync({
       serialNumber: data.serialNumber,
       driverId: data.driverId,
+      mqttBrokerId: data.mqttBrokerId,
       name: data.name || undefined,
       siteId: data.siteId || undefined,
       baudRate: data.baudRate,
@@ -162,7 +172,7 @@ export function GatewaysPage() {
             Edge devices that bridge Modbus field equipment to the cloud.
           </p>
         </div>
-        <Button onClick={openCreate}><Plus data-icon="inline-start" />Register Gateway</Button>
+        {isSuperAdmin && <Button onClick={openCreate}><Plus data-icon="inline-start" />Register Gateway</Button>}
       </div>
 
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
@@ -200,6 +210,25 @@ export function GatewaysPage() {
                 </Select>
                 {errors.driverId && <FieldError>{errors.driverId.message}</FieldError>}
               </Field>
+
+              {isSuperAdmin && (
+                <Field data-invalid={errors.mqttBrokerId ? true : undefined}>
+                  <FieldLabel>MQTT Broker</FieldLabel>
+                  <Select value={mqttBrokerId ?? ""} onValueChange={(v) => setValue("mqttBrokerId", v ?? "", { shouldValidate: true })}>
+                    <SelectTrigger aria-invalid={!!errors.mqttBrokerId}>
+                      <SelectValue placeholder="Select a broker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {brokers?.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {errors.mqttBrokerId && <FieldError>{errors.mqttBrokerId.message}</FieldError>}
+                </Field>
+              )}
 
               <Field>
                 <FieldLabel htmlFor="name">Friendly name</FieldLabel>
@@ -277,6 +306,7 @@ export function GatewaysPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Serial</TableHead>
                 <TableHead>Driver</TableHead>
+                <TableHead>Broker</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last seen</TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -288,6 +318,9 @@ export function GatewaysPage() {
                   <TableCell className="font-medium">{gw.name ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{gw.serialNumber}</TableCell>
                   <TableCell className="text-muted-foreground">{gw.driverName}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {gw.mqttBrokerName ?? <span className="italic text-destructive">unassigned</span>}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={
                       gw.status === "ONLINE" ? "default" :

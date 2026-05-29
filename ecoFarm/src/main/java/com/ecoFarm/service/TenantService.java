@@ -2,12 +2,10 @@ package com.ecoFarm.service;
 
 import com.ecoFarm.api.v1.dto.request.CreateTenantRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateTenantRequest;
-import com.ecoFarm.domain.entity.MqttBroker;
 import com.ecoFarm.domain.entity.Tenant;
 import com.ecoFarm.domain.entity.User;
 import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.domain.enums.UserStatus;
-import com.ecoFarm.repository.MqttBrokerRepository;
 import com.ecoFarm.repository.TenantRepository;
 import com.ecoFarm.repository.UserRepository;
 import com.ecoFarm.shared.exception.ApiException;
@@ -26,7 +24,6 @@ public class TenantService {
 
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
-    private final MqttBrokerRepository brokerRepository;
     private final PasswordEncoder passwordEncoder;
     private final TenantCleanupService cleanupService;
 
@@ -50,15 +47,9 @@ public class TenantService {
             throw ApiException.conflict("Admin email already in use");
         }
 
-        MqttBroker broker = req.mqttBrokerId() != null
-            ? brokerRepository.findById(req.mqttBrokerId())
-                .orElseThrow(() -> ApiException.badRequest("MQTT broker not found"))
-            : null;
-
         Tenant tenant = tenantRepository.save(Tenant.builder()
             .name(req.name())
             .slug(req.slug())
-            .mqttBroker(broker)
             .build());
 
         User admin = User.builder()
@@ -82,11 +73,6 @@ public class TenantService {
         if (req.name() != null)   tenant.setName(req.name());
         if (req.status() != null) tenant.setStatus(req.status());
         if (req.plan() != null)   tenant.setPlan(req.plan());
-        if (req.mqttBrokerId() != null) {
-            MqttBroker broker = brokerRepository.findById(req.mqttBrokerId())
-                .orElseThrow(() -> ApiException.badRequest("MQTT broker not found"));
-            tenant.setMqttBroker(broker);
-        }
         return tenant;
     }
 

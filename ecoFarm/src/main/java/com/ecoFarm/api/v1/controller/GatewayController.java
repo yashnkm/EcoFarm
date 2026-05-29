@@ -42,7 +42,7 @@ public class GatewayController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<GatewayResponse> register(@Valid @RequestBody RegisterGatewayRequest req) {
         return ResponseEntity.status(201).body(mapper.toResponse(service.register(req)));
     }

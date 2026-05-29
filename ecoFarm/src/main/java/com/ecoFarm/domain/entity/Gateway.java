@@ -38,6 +38,10 @@ public class Gateway {
     @JoinColumn(name = "driver_id", nullable = false)
     private GatewayDriver driver;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mqtt_broker_id")
+    private MqttBroker mqttBroker;
+
     @Column(name = "serial_number", nullable = false, unique = true, length = 100)
     private String serialNumber;
 

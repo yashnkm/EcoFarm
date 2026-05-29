@@ -8,6 +8,7 @@ import java.util.UUID;
 public record RegisterGatewayRequest(
     @NotBlank String serialNumber,
     @NotNull UUID driverId,
+    @NotNull UUID mqttBrokerId,
     String name,
     UUID siteId,
     UUID zoneId,

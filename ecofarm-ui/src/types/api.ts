@@ -55,8 +55,6 @@ export interface Tenant {
   slug: string
   status: TenantStatus
   plan: string
-  mqttBrokerId: string | null
-  mqttBrokerName: string | null
   createdAt: string
 }
 
@@ -110,6 +108,8 @@ export interface Gateway {
   zoneId: string | null
   driverId: string
   driverName: string
+  mqttBrokerId: string | null
+  mqttBrokerName: string | null
   serialNumber: string
   mqttClientId: string | null
   name: string | null

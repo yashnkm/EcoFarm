@@ -72,10 +72,10 @@ public class PollScheduler {
                 continue;
             }
 
-            MqttBroker broker = gw.getTenant().getMqttBroker();
+            MqttBroker broker = gw.getMqttBroker();
             if (broker == null) {
-                log.info("Poll skip: device '{}' — tenant '{}' has no MQTT broker assigned",
-                    device.getName(), gw.getTenant().getName());
+                log.info("Poll skip: device '{}' — gateway '{}' has no MQTT broker assigned",
+                    device.getName(), gw.getSerialNumber());
                 skipped++;
                 continue;
             }

@@ -1,7 +1,14 @@
 package com.ecoFarm.domain.entity;
 
 import com.ecoFarm.domain.enums.TenantStatus;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -35,11 +42,6 @@ public class Tenant {
     @Column(nullable = false, length = 50)
     @Builder.Default
     private String plan = "standard";
-
-    /** Assigned by super admin. Determines which broker this tenant's gateways route through. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mqtt_broker_id")
-    private MqttBroker mqttBroker;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

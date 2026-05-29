@@ -5,8 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.UUID;
-
 public record CreateTenantRequest(
     @NotBlank @Size(max = 255) String name,
 
@@ -19,8 +17,5 @@ public record CreateTenantRequest(
     @NotBlank @Size(min = 8, max = 128) String adminPassword,
 
     String adminFirstName,
-    String adminLastName,
-
-    /** Optional — which MQTT broker this tenant's gateways route through. */
-    UUID mqttBrokerId
+    String adminLastName
 ) {}

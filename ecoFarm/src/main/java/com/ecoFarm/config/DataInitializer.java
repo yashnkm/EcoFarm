@@ -44,19 +44,15 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        MqttBroker broker = seedDefaultBroker();
-        seedPlatformTenantAndAdmin(broker);
+        seedDefaultBroker();
+        seedPlatformTenantAndAdmin();
         seedDefaultGatewayDriver();
         seedDemoDeviceProfile();
         seedSingleRegisterTestProfile();
     }
 
-    /**
-     * Seeds an MqttBroker record from application.properties values on first boot.
-     * After that, super admin edits through the UI; this method is a no-op.
-     */
-    private MqttBroker seedDefaultBroker() {
-        return mqttBrokerRepository.findByName(DEFAULT_BROKER_NAME).orElseGet(() -> {
+    private void seedDefaultBroker() {
+        mqttBrokerRepository.findByName(DEFAULT_BROKER_NAME).orElseGet(() -> {
             String url = mqttProperties.getBrokerUrl() != null
                 ? mqttProperties.getBrokerUrl() : "tcp://localhost:1883";
             String host = url.replaceAll("^\\w+://", "").split(":")[0];
@@ -83,19 +79,13 @@ public class DataInitializer implements CommandLineRunner {
         });
     }
 
-    private void seedPlatformTenantAndAdmin(MqttBroker broker) {
+    private void seedPlatformTenantAndAdmin() {
         Tenant tenant = tenantRepository.findBySlug(DEFAULT_TENANT_SLUG).orElseGet(() ->
             tenantRepository.save(Tenant.builder()
                 .name("Platform")
                 .slug(DEFAULT_TENANT_SLUG)
-                .mqttBroker(broker)
                 .build())
         );
-
-        // Back-fill broker reference for tenants created before broker management existed
-        if (tenant.getMqttBroker() == null) {
-            tenant.setMqttBroker(broker);
-        }
 
         if (userRepository.existsByEmail(DEFAULT_ADMIN_EMAIL)) return;
 

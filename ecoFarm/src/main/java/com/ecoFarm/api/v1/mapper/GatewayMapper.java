@@ -15,6 +15,8 @@ public class GatewayMapper {
             gw.getZone() != null ? gw.getZone().getId() : null,
             gw.getDriver().getId(),
             gw.getDriver().getName(),
+            gw.getMqttBroker() != null ? gw.getMqttBroker().getId() : null,
+            gw.getMqttBroker() != null ? gw.getMqttBroker().getName() : null,
             gw.getSerialNumber(),
             gw.getMqttClientId(),
             gw.getName(),

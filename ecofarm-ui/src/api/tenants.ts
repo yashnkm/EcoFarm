@@ -8,14 +8,12 @@ export interface CreateTenantBody {
   adminPassword: string
   adminFirstName?: string
   adminLastName?: string
-  mqttBrokerId?: string
 }
 
 export interface UpdateTenantBody {
   name?: string
   status?: TenantStatus
   plan?: string
-  mqttBrokerId?: string
 }
 
 export const tenantsApi = {

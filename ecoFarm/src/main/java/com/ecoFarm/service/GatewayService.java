@@ -5,6 +5,7 @@ import com.ecoFarm.api.v1.dto.request.RegisterGatewayRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateGatewayRequest;
 import com.ecoFarm.domain.entity.*;
 import com.ecoFarm.domain.enums.GatewayStatus;
+import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.repository.*;
 import com.ecoFarm.shared.exception.ApiException;
 import com.ecoFarm.shared.util.SecurityUtil;
@@ -26,6 +27,7 @@ public class GatewayService {
     private final SiteRepository siteRepository;
     private final ZoneRepository zoneRepository;
     private final TenantRepository tenantRepository;
+    private final MqttBrokerRepository brokerRepository;
 
     @PersistenceContext
     private EntityManager em;
@@ -58,6 +60,9 @@ public class GatewayService {
         GatewayDriver driver = driverRepository.findById(req.driverId())
             .orElseThrow(() -> ApiException.badRequest("Driver not found"));
 
+        MqttBroker broker = brokerRepository.findById(req.mqttBrokerId())
+            .orElseThrow(() -> ApiException.badRequest("MQTT broker not found"));
+
         Site site = req.siteId() != null
             ? siteRepository.findByIdAndTenantId(req.siteId(), tenant.getId())
                 .orElseThrow(() -> ApiException.badRequest("Site not found"))
@@ -68,6 +73,7 @@ public class GatewayService {
         Gateway gw = Gateway.builder()
             .tenant(tenant)
             .driver(driver)
+            .mqttBroker(broker)
             .serialNumber(req.serialNumber())
             .mqttClientId(req.mqttClientId() != null ? req.mqttClientId() : req.serialNumber())
             .name(req.name())
@@ -123,6 +129,15 @@ public class GatewayService {
 
         if (req.zoneId() != null) {
             gw.setZone(resolveZone(req.zoneId(), gw.getSite()));
+        }
+
+        if (req.mqttBrokerId() != null) {
+            if (SecurityUtil.currentUser().getRole() != Role.SUPER_ADMIN) {
+                throw ApiException.forbidden("Only super admin can assign an MQTT broker");
+            }
+            MqttBroker broker = brokerRepository.findById(req.mqttBrokerId())
+                .orElseThrow(() -> ApiException.badRequest("MQTT broker not found"));
+            gw.setMqttBroker(broker);
         }
 
         if (req.baudRate() != null) gw.setBaudRate(req.baudRate());

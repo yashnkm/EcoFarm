@@ -9,6 +9,7 @@ export const gatewaysApi = {
   register: (body: {
     serialNumber: string
     driverId: string
+    mqttBrokerId: string
     name?: string
     siteId?: string
     zoneId?: string

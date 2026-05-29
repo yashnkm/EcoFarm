@@ -56,10 +56,10 @@ public class CommandDispatcher {
             return;
         }
 
-        MqttBroker broker = device.getGateway().getTenant().getMqttBroker();
+        MqttBroker broker = device.getGateway().getMqttBroker();
         if (broker == null) {
             cmd.setStatus(CommandStatus.FAILED);
-            cmd.setResult("Tenant has no MQTT broker assigned");
+            cmd.setResult("Gateway has no MQTT broker assigned");
             return;
         }
 

@@ -12,6 +12,8 @@ public record GatewayResponse(
     UUID zoneId,
     UUID driverId,
     String driverName,
+    UUID mqttBrokerId,
+    String mqttBrokerName,
     String serialNumber,
     String mqttClientId,
     String name,

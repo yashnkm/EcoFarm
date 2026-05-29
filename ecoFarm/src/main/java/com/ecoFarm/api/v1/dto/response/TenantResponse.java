@@ -11,7 +11,5 @@ public record TenantResponse(
     String slug,
     TenantStatus status,
     String plan,
-    UUID mqttBrokerId,
-    String mqttBrokerName,
     Instant createdAt
 ) {}

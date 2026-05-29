@@ -1,16 +1,21 @@
 package com.ecoFarm.service;
 
 import com.ecoFarm.api.v1.dto.response.AdminOverviewResponse;
+import com.ecoFarm.api.v1.dto.response.GatewayResponse;
+import com.ecoFarm.api.v1.mapper.GatewayMapper;
 import com.ecoFarm.domain.entity.Device;
+import com.ecoFarm.domain.entity.Gateway;
 import com.ecoFarm.domain.entity.Tenant;
 import com.ecoFarm.domain.enums.DeviceStatus;
 import com.ecoFarm.repository.DeviceRepository;
+import com.ecoFarm.repository.GatewayRepository;
 import com.ecoFarm.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +23,8 @@ public class AdminOverviewService {
 
     private final TenantRepository tenantRepository;
     private final DeviceRepository deviceRepository;
+    private final GatewayRepository gatewayRepository;
+    private final GatewayMapper gatewayMapper;
 
     @Transactional(readOnly = true)
     public AdminOverviewResponse getOverview() {
@@ -38,5 +45,12 @@ public class AdminOverviewService {
         int totalOffline = summaries.stream().mapToInt(AdminOverviewResponse.TenantSummary::offlineCount).sum();
 
         return new AdminOverviewResponse(summaries, totalDevices, totalOnline, totalOffline);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GatewayResponse> getAllGateways() {
+        return gatewayRepository.findAll().stream()
+            .map(gatewayMapper::toResponse)
+            .toList();
     }
 }

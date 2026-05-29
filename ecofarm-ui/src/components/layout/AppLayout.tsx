@@ -102,7 +102,7 @@ export function AppLayout() {
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" render={<Link to="/" />}>
+              <SidebarMenuButton size="lg" render={<Link to={adminOverview ? "/admin/overview" : "/"} />}>
                 <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <Sprout className="size-4" />
                 </div>

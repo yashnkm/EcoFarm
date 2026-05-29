@@ -149,7 +149,7 @@ export function BrokersPage() {
         <div>
           <h1 className="text-2xl font-semibold">MQTT Brokers</h1>
           <p className="text-sm text-muted-foreground">
-            Message brokers the platform connects to. Assign one to each tenant.
+            Message brokers the platform connects to. Assign one to each gateway.
           </p>
         </div>
         <Button onClick={openCreate}><Plus data-icon="inline-start" />New Broker</Button>

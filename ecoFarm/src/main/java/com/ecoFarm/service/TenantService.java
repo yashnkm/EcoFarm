@@ -9,6 +9,7 @@ import com.ecoFarm.domain.enums.UserStatus;
 import com.ecoFarm.repository.TenantRepository;
 import com.ecoFarm.repository.UserRepository;
 import com.ecoFarm.shared.exception.ApiException;
+import com.ecoFarm.shared.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -79,6 +80,15 @@ public class TenantService {
     @Transactional
     public void delete(UUID id) {
         Tenant tenant = findById(id);
+
+        if ("platform".equals(tenant.getSlug())) {
+            throw ApiException.badRequest("The platform tenant cannot be deleted");
+        }
+
+        if (id.equals(SecurityUtil.currentTenantId())) {
+            throw ApiException.badRequest("Cannot delete the tenant you are currently logged into");
+        }
+
         cleanupService.purgeTenantData(tenant.getId());
         tenantRepository.delete(tenant);
     }

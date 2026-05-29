@@ -21,4 +21,6 @@ public interface GatewayRepository extends JpaRepository<Gateway, UUID> {
     List<Gateway> findByStatus(GatewayStatus status);
 
     Optional<Gateway> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    boolean existsByMqttBrokerId(UUID mqttBrokerId);
 }

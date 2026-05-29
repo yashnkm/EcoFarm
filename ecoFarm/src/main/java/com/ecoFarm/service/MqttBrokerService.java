@@ -80,6 +80,11 @@ public class MqttBrokerService {
     @Transactional
     public void delete(UUID id) {
         MqttBroker b = findById(id);
+        if (gatewayRepository.existsByMqttBrokerId(id)) {
+            throw ApiException.conflict(
+                "Cannot delete broker '" + b.getName() + "' — it is still assigned to one or more gateways. " +
+                "Reassign those gateways to a different broker first.");
+        }
         connectionManager.disconnect(id);
         repository.delete(b);
     }

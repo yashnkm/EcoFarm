@@ -5,6 +5,7 @@ import com.ecoFarm.api.v1.dto.request.UpdateMqttBrokerRequest;
 import com.ecoFarm.api.v1.dto.response.MqttHealthResponse;
 import com.ecoFarm.domain.entity.Gateway;
 import com.ecoFarm.domain.entity.MqttBroker;
+import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.mqtt.MqttConnectionManager;
 import com.ecoFarm.repository.GatewayRepository;
 import com.ecoFarm.repository.MqttBrokerRepository;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -82,32 +84,37 @@ public class MqttBrokerService {
         repository.delete(b);
     }
 
-    /** Live MQTT status for the broker assigned to the first gateway of the current user's tenant. */
+    /**
+     * Live MQTT status for all brokers visible to the current user:
+     * SUPER_ADMIN sees every broker; other roles see only the brokers
+     * assigned to their tenant's gateways.
+     */
     @Transactional(readOnly = true)
-    public MqttHealthResponse healthForCurrentTenant() {
-        UUID tenantId = SecurityUtil.currentTenantId();
-        MqttBroker broker = null;
-        if (tenantId != null) {
-            broker = gatewayRepository.findByTenantId(tenantId).stream()
+    public List<MqttHealthResponse> healthAll() {
+        List<MqttBroker> brokers;
+
+        if (SecurityUtil.currentUser().getRole() == Role.SUPER_ADMIN) {
+            brokers = repository.findAll();
+        } else {
+            UUID tenantId = SecurityUtil.currentTenantId();
+            brokers = gatewayRepository.findByTenantId(tenantId).stream()
                 .map(Gateway::getMqttBroker)
                 .filter(b -> b != null)
-                .findFirst()
-                .orElse(null);
+                .distinct()
+                .collect(Collectors.toList());
         }
 
-        if (broker == null) {
-            return new MqttHealthResponse(false, null, null, null, null,
-                "No MQTT broker assigned to any gateway in this tenant");
-        }
-
-        MqttConnectionManager.BrokerHealth h = connectionManager.healthFor(broker);
-        return new MqttHealthResponse(
-            h.connected(),
-            broker.getBrokerUrl(),
-            broker.getName(),
-            h.lastConnectedAt(),
-            h.lastFailureAt(),
-            h.lastError()
-        );
+        return brokers.stream().map(broker -> {
+            MqttConnectionManager.BrokerHealth h = connectionManager.healthFor(broker);
+            return new MqttHealthResponse(
+                broker.getId(),
+                h.connected(),
+                broker.getBrokerUrl(),
+                broker.getName(),
+                h.lastConnectedAt(),
+                h.lastFailureAt(),
+                h.lastError()
+            );
+        }).collect(Collectors.toList());
     }
 }

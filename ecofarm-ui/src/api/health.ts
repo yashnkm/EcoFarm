@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/apiClient"
 
 export interface MqttHealth {
+  brokerId: string
   connected: boolean
   brokerUrl: string | null
   brokerName: string | null
@@ -10,5 +11,5 @@ export interface MqttHealth {
 }
 
 export const healthApi = {
-  mqtt: () => apiClient.get<MqttHealth>("/health/mqtt").then((r) => r.data),
+  mqtt: () => apiClient.get<MqttHealth[]>("/health/mqtt").then((r) => r.data),
 }

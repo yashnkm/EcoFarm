@@ -47,11 +47,11 @@ public class DataInitializer implements CommandLineRunner {
         seedDefaultBroker();
         seedPlatformTenantAndAdmin();
         seedDefaultGatewayDriver();
-        seedDemoDeviceProfile();
-        seedSingleRegisterTestProfile();
+        // Demo profiles removed — manage profiles via the UI
     }
 
     private void seedDefaultBroker() {
+        if (mqttBrokerRepository.count() > 0) return;
         mqttBrokerRepository.findByName(DEFAULT_BROKER_NAME).orElseGet(() -> {
             String url = mqttProperties.getBrokerUrl() != null
                 ? mqttProperties.getBrokerUrl() : "tcp://localhost:1883";

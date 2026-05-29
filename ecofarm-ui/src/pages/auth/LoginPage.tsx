@@ -43,7 +43,7 @@ export function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setSubmitting(true)
     try {
-      const res = await authApi.login(data.email, data.password)
+      const res = await authApi.login(data.email, data.password, undefined, false)
       setAuth(res.accessToken, res.refreshToken, res.user)
       toast.success(`Welcome back, ${res.user.firstName ?? res.user.email}`)
       navigate("/", { replace: true })

@@ -44,7 +44,7 @@ export function AdminLoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setSubmitting(true)
     try {
-      const res = await authApi.login(data.email, data.password, data.slug)
+      const res = await authApi.login(data.email, data.password, data.slug, true)
       const isOverview = !data.slug?.trim()
       setAuth(res.accessToken, res.refreshToken, res.user, isOverview)
       toast.success(`Welcome, ${res.user.firstName ?? res.user.email} · ${res.user.tenantName}`)

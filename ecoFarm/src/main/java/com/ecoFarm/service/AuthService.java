@@ -44,6 +44,10 @@ public class AuthService {
             throw ApiException.forbidden("Account is not active");
         }
 
+        if (user.getRole() == Role.SUPER_ADMIN && !req.adminPortal()) {
+            throw ApiException.forbidden("Super admin must sign in via the admin portal");
+        }
+
         Tenant activeTenant;
         if (req.slug() == null || req.slug().isBlank()) {
             // No slug — use the user's own tenant

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -38,10 +39,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = header.substring(7);
 
         try {
-            String email = jwtUtil.parse(token).get("email", String.class);
+            var claims = jwtUtil.parse(token);
+            String email = claims.get("email", String.class);
+            String tenantIdStr = claims.get("tenantId", String.class);
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                // Override the tenant with the active tenant from the JWT claim so that
+                // super admin scoped to a client tenant sees only that client's data.
+                if (tenantIdStr != null && userDetails instanceof UserPrincipal principal) {
+                    userDetails = new UserPrincipal(principal.getUser(), UUID.fromString(tenantIdStr));
+                }
 
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities()

@@ -52,9 +52,6 @@ const schema = z.object({
   mqttBrokerId: z.string().min(1, "Broker is required"),
   name: z.string().optional(),
   siteId: z.string().optional(),
-  baudRate: z.coerce.number().int().positive(),
-  parity: z.enum(["none", "even", "odd"]),
-  stopBits: z.coerce.number().int().min(1).max(2),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -73,11 +70,9 @@ export function GatewaysPage() {
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
       resolver: zodResolver(schema) as Resolver<FormValues>,
-      defaultValues: { baudRate: 9600, parity: "none", stopBits: 1 },
     })
   const driverId = watch("driverId")
   const siteId = watch("siteId")
-  const parity = watch("parity")
   const mqttBrokerId = watch("mqttBrokerId")
 
   const createMutation = useMutation({
@@ -114,7 +109,7 @@ export function GatewaysPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ serialNumber: "", driverId: "", mqttBrokerId: "", name: "", siteId: "", baudRate: 9600, parity: "none", stopBits: 1 })
+    reset({ serialNumber: "", driverId: "", mqttBrokerId: "", name: "", siteId: "" })
     setOpen(true)
   }
   const openEdit = (gw: Gateway) => {
@@ -125,9 +120,6 @@ export function GatewaysPage() {
       mqttBrokerId: gw.mqttBrokerId ?? "",
       name: gw.name ?? "",
       siteId: gw.siteId ?? "",
-      baudRate: gw.baudRate,
-      parity: gw.parity as FormValues["parity"],
-      stopBits: gw.stopBits,
     })
     setOpen(true)
   }
@@ -145,9 +137,6 @@ export function GatewaysPage() {
           name: data.name || undefined,
           siteId: data.siteId || undefined,
           mqttBrokerId: isSuperAdmin && data.mqttBrokerId ? data.mqttBrokerId : undefined,
-          baudRate: data.baudRate,
-          parity: data.parity,
-          stopBits: data.stopBits,
         },
       })
     }
@@ -157,9 +146,6 @@ export function GatewaysPage() {
       mqttBrokerId: data.mqttBrokerId,
       name: data.name || undefined,
       siteId: data.siteId || undefined,
-      baudRate: data.baudRate,
-      parity: data.parity,
-      stopBits: data.stopBits,
     })
   }
 
@@ -249,33 +235,6 @@ export function GatewaysPage() {
                 </Select>
               </Field>
 
-              <p className="-mb-2 text-xs font-medium uppercase text-muted-foreground">
-                RS485 bus settings
-              </p>
-
-              <div className="grid grid-cols-3 gap-4">
-                <Field data-invalid={errors.baudRate ? true : undefined}>
-                  <FieldLabel htmlFor="baudRate">Baud rate</FieldLabel>
-                  <Input id="baudRate" type="number" {...register("baudRate")} />
-                </Field>
-                <Field>
-                  <FieldLabel>Parity</FieldLabel>
-                  <Select value={parity} onValueChange={(v) => setValue("parity", v as FormValues["parity"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="none">none</SelectItem>
-                        <SelectItem value="even">even</SelectItem>
-                        <SelectItem value="odd">odd</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field data-invalid={errors.stopBits ? true : undefined}>
-                  <FieldLabel htmlFor="stopBits">Stop bits</FieldLabel>
-                  <Input id="stopBits" type="number" min={1} max={2} {...register("stopBits")} />
-                </Field>
-              </div>
             </div>
 
             <DialogFooter>

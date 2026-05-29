@@ -13,9 +13,6 @@ export const gatewaysApi = {
     name?: string
     siteId?: string
     zoneId?: string
-    baudRate?: number
-    parity?: string
-    stopBits?: number
   }) => apiClient.post<Gateway>("/gateways", body).then((r) => r.data),
   claim: (id: string, body: { name: string; siteId: string; zoneId?: string }) =>
     apiClient.post<Gateway>(`/gateways/${id}/claim`, body).then((r) => r.data),

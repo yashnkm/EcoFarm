@@ -113,9 +113,6 @@ export interface Gateway {
   serialNumber: string
   mqttClientId: string | null
   name: string | null
-  baudRate: number
-  parity: string
-  stopBits: number
   status: GatewayStatus
   lastSeen: string | null
   createdAt: string

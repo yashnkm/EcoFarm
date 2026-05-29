@@ -111,22 +111,13 @@ export function AppLayout() {
     }
   }
 
-  // ── Sidebar content differs between admin portal and client portal ──
-  const sidebarNav = isAdminPortal ? (
+  // ── Sidebar nav ──
+  const sidebarNav = (
     <SidebarGroup>
       <SidebarGroupLabel>Navigation</SidebarGroupLabel>
       <SidebarMenu>
-        {adminOverview ? (
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={location.pathname === "/admin/overview"}
-              render={<Link to="/admin/overview" />}
-            >
-              <BarChart3 />
-              <span>Overview</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ) : (
+        {/* Back to Admin — only in admin portal when inside a client context */}
+        {isAdminPortal && !adminOverview && (
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => backToAdminMutation.mutate()}
@@ -137,23 +128,32 @@ export function AppLayout() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         )}
-      </SidebarMenu>
-    </SidebarGroup>
-  ) : (
-    <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-      <SidebarMenu>
-        {clientNavItems.map((item) => (
-          <SidebarMenuItem key={item.to}>
+
+        {/* Overview — only in admin portal overview mode */}
+        {isAdminPortal && adminOverview ? (
+          <SidebarMenuItem>
             <SidebarMenuButton
-              isActive={location.pathname === item.to}
-              render={<Link to={item.to} />}
+              isActive={location.pathname === "/admin/overview"}
+              render={<Link to="/admin/overview" />}
             >
-              <item.icon />
-              <span>{item.label}</span>
+              <BarChart3 />
+              <span>Overview</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-        ))}
+        ) : !adminOverview && (
+          // Full client nav — shown in client portal OR admin portal inside a client
+          clientNavItems.map((item) => (
+            <SidebarMenuItem key={item.to}>
+              <SidebarMenuButton
+                isActive={location.pathname === item.to}
+                render={<Link to={item.to} />}
+              >
+                <item.icon />
+                <span>{item.label}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))
+        )}
       </SidebarMenu>
     </SidebarGroup>
   )

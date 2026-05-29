@@ -4,6 +4,8 @@ import { useAuthStore } from "@/store/authStore"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { LoginPage } from "@/pages/auth/LoginPage"
+import { AdminLoginPage } from "@/pages/admin/AdminLoginPage"
+import { AdminOverviewPage } from "@/pages/admin/AdminOverviewPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { SitesPage } from "@/pages/sites/SitesPage"
 import { GatewaysPage } from "@/pages/gateways/GatewaysPage"
@@ -16,15 +18,18 @@ import { UsersPage } from "@/pages/users/UsersPage"
 import { GatewayDriversPage } from "@/pages/drivers/GatewayDriversPage"
 import { BrokersPage } from "@/pages/brokers/BrokersPage"
 
+const isAdminPortal = window.location.hostname.startsWith("admin.")
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={isAdminPortal ? <AdminLoginPage /> : <LoginPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="/admin/overview" element={<AdminOverviewPage />} />
             <Route path="/sites" element={<SitesPage />} />
             <Route path="/gateways" element={<GatewaysPage />} />
             <Route path="/devices" element={<DevicesPage />} />

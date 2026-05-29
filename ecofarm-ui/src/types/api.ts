@@ -212,6 +212,24 @@ export interface Device {
   recordedDataPoints: string[]
 }
 
+// ── Admin Overview ────────────────────────
+
+export interface AdminTenantSummary {
+  id: string
+  name: string
+  slug: string
+  deviceCount: number
+  onlineCount: number
+  offlineCount: number
+}
+
+export interface AdminOverview {
+  tenants: AdminTenantSummary[]
+  totalDevices: number
+  totalOnline: number
+  totalOffline: number
+}
+
 // ── Reading ───────────────────────────────
 
 export interface Reading {

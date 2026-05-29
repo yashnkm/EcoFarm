@@ -7,7 +7,8 @@ interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   user: UserSummary | null
-  setAuth: (token: string, refreshToken: string, user: UserSummary) => void
+  adminOverview: boolean
+  setAuth: (token: string, refreshToken: string, user: UserSummary, adminOverview?: boolean) => void
   updateAccessToken: (token: string) => void
   clear: () => void
 }
@@ -18,10 +19,11 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       user: null,
-      setAuth: (accessToken, refreshToken, user) =>
-        set({ accessToken, refreshToken, user }),
+      adminOverview: false,
+      setAuth: (accessToken, refreshToken, user, adminOverview = false) =>
+        set({ accessToken, refreshToken, user, adminOverview }),
       updateAccessToken: (accessToken) => set({ accessToken }),
-      clear: () => set({ accessToken: null, refreshToken: null, user: null }),
+      clear: () => set({ accessToken: null, refreshToken: null, user: null, adminOverview: false }),
     }),
     { name: "ecofarm-auth" },
   ),

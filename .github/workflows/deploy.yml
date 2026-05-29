@@ -100,6 +100,12 @@ jobs:
             -c "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS active_tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL;" \
             -c "ALTER TABLE tenants DROP COLUMN IF EXISTS mqtt_broker_id;"
 
+          # Add admin subdomain to CORS allowed origins if not already present
+          ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"
+          if ! grep -q "$ADMIN_ORIGIN" /opt/ecofarm/config/application.yml; then
+            sed -i "s|allowed-origins:.*|allowed-origins: https://iot.chandramaautomation.com,$ADMIN_ORIGIN|" /opt/ecofarm/config/application.yml
+          fi
+
           # Swap UI atomically via directory rename
           rm -rf /opt/ecofarm/ui-staging
           mkdir -p /opt/ecofarm/ui-staging

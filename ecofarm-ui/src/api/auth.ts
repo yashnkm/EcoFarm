@@ -2,8 +2,11 @@ import { apiClient } from "@/lib/apiClient"
 import type { TokenResponse, User } from "@/types/api"
 
 export const authApi = {
-  login: (slug: string, email: string, password: string) =>
-    apiClient.post<TokenResponse>("/auth/login", { slug, email, password }).then((r) => r.data),
+  login: (email: string, password: string, slug?: string) =>
+    apiClient.post<TokenResponse>("/auth/login", { email, password, slug: slug || undefined }).then((r) => r.data),
+
+  switchTenant: (slug: string) =>
+    apiClient.post<TokenResponse>("/admin/switch-tenant", { slug }).then((r) => r.data),
 
   refresh: (refreshToken: string) =>
     apiClient.post<TokenResponse>("/auth/refresh", { refreshToken }).then((r) => r.data),

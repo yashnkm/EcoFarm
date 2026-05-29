@@ -33,9 +33,6 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest req) {
-        Tenant activeTenant = tenantRepository.findBySlug(req.slug())
-            .orElseThrow(() -> ApiException.unauthorized("Invalid credentials"));
-
         User user = userRepository.findByEmail(req.email())
             .orElseThrow(() -> ApiException.unauthorized("Invalid credentials"));
 
@@ -47,10 +44,18 @@ public class AuthService {
             throw ApiException.forbidden("Account is not active");
         }
 
-        // Non-super-admins can only log into their own tenant
-        if (user.getRole() != Role.SUPER_ADMIN
-                && !user.getTenant().getId().equals(activeTenant.getId())) {
-            throw ApiException.unauthorized("Invalid credentials");
+        Tenant activeTenant;
+        if (req.slug() == null || req.slug().isBlank()) {
+            // No slug — use the user's own tenant
+            activeTenant = user.getTenant();
+        } else {
+            activeTenant = tenantRepository.findBySlug(req.slug())
+                .orElseThrow(() -> ApiException.unauthorized("Invalid credentials"));
+            // Non-super-admins can only log into their own tenant
+            if (user.getRole() != Role.SUPER_ADMIN
+                    && !user.getTenant().getId().equals(activeTenant.getId())) {
+                throw ApiException.unauthorized("Invalid credentials");
+            }
         }
 
         return issueTokens(user, activeTenant);
@@ -84,6 +89,15 @@ public class AuthService {
     public void logout(RefreshTokenRequest req) {
         String hash = jwtUtil.hashToken(req.refreshToken());
         refreshTokenRepository.findByTokenHash(hash).ifPresent(t -> t.setRevokedAt(Instant.now()));
+    }
+
+    @Transactional
+    public TokenResponse switchTenant(String slug, String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> ApiException.unauthorized("User not found"));
+        Tenant tenant = tenantRepository.findBySlug(slug)
+            .orElseThrow(() -> ApiException.badRequest("Organisation not found"));
+        return issueTokens(user, tenant);
     }
 
     private TokenResponse issueTokens(User user, Tenant activeTenant) {

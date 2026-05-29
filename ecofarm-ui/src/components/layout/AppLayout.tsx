@@ -15,6 +15,7 @@ import {
   Users,
   Building2,
   Cloud,
+  BarChart3,
 } from "lucide-react"
 
 import { useAuthStore } from "@/store/authStore"
@@ -69,6 +70,7 @@ export function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const adminOverview = useAuthStore((s) => s.adminOverview)
   const refreshToken = useAuthStore((s) => s.refreshToken)
   const clear = useAuthStore((s) => s.clear)
 
@@ -117,17 +119,29 @@ export function AppLayout() {
           <SidebarGroup>
             <SidebarGroupLabel>Navigation</SidebarGroupLabel>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.to}>
+              {adminOverview ? (
+                <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={location.pathname === item.to}
-                    render={<Link to={item.to} />}
+                    isActive={location.pathname === "/admin/overview"}
+                    render={<Link to="/admin/overview" />}
                   >
-                    <item.icon />
-                    <span>{item.label}</span>
+                    <BarChart3 />
+                    <span>Overview</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+              ) : (
+                navItems.map((item) => (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      isActive={location.pathname === item.to}
+                      render={<Link to={item.to} />}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
             </SidebarMenu>
           </SidebarGroup>
 

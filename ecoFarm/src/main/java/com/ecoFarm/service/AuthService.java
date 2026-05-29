@@ -48,6 +48,10 @@ public class AuthService {
             throw ApiException.forbidden("Super admin must sign in via the admin portal");
         }
 
+        if (user.getRole() != Role.SUPER_ADMIN && req.adminPortal()) {
+            throw ApiException.forbidden("Access denied");
+        }
+
         Tenant activeTenant;
         if (req.slug() == null || req.slug().isBlank()) {
             // No slug — use the user's own tenant

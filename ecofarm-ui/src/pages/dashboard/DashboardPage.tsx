@@ -6,6 +6,8 @@ import { sitesApi } from "@/api/sites"
 import { gatewaysApi } from "@/api/gateways"
 import { devicesApi } from "@/api/devices"
 import { MqttStatusCard } from "@/components/MqttStatusBadge"
+import { LiveOverviewSection } from "@/components/LiveOverviewSection"
+import { useLiveReadingsAll } from "@/hooks/useLiveReadingsAll"
 import {
   Card,
   CardContent,
@@ -22,6 +24,7 @@ export function DashboardPage() {
   const sites = useQuery({ queryKey: ["sites"], queryFn: sitesApi.list })
   const gateways = useQuery({ queryKey: ["gateways"], queryFn: gatewaysApi.list })
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => devicesApi.list() })
+  const liveReadings = useLiveReadingsAll()
 
   const onlineGateways = gateways.data?.filter((g) => g.status === "ONLINE").length ?? 0
   const onlineDevices = devices.data?.filter((d) => d.status === "ONLINE").length ?? 0
@@ -66,6 +69,13 @@ export function DashboardPage() {
       </div>
 
       {user?.role === "SUPER_ADMIN" && <MqttStatusCard />}
+
+      <LiveOverviewSection
+        sites={sites.data ?? []}
+        devices={devices.data ?? []}
+        liveReadings={liveReadings}
+        devicesLoading={devices.isLoading}
+      />
 
       {/* Gateway status overview */}
       {user?.role === "SUPER_ADMIN" && <Card>

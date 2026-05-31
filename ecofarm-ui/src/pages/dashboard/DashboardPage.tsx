@@ -70,13 +70,6 @@ export function DashboardPage() {
 
       {user?.role === "SUPER_ADMIN" && <MqttStatusCard />}
 
-      <LiveOverviewSection
-        sites={sites.data ?? []}
-        devices={devices.data ?? []}
-        liveReadings={liveReadings}
-        devicesLoading={devices.isLoading}
-      />
-
       {/* Gateway status overview */}
       {user?.role === "SUPER_ADMIN" && <Card>
         <CardHeader>
@@ -113,6 +106,13 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>}
+
+      <LiveOverviewSection
+        sites={sites.data ?? []}
+        devices={devices.data ?? []}
+        liveReadings={liveReadings}
+        devicesLoading={devices.isLoading}
+      />
     </div>
   )
 }

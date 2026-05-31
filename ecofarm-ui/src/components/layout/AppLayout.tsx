@@ -18,6 +18,7 @@ import {
   Cloud,
   BarChart3,
   ArrowLeft,
+  Terminal,
 } from "lucide-react"
 
 import { useAuthStore } from "@/store/authStore"
@@ -57,6 +58,7 @@ const PAGE_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/admin/overview",  title: "Overview" },
   { prefix: "/admin/brokers",   title: "Brokers" },
   { prefix: "/admin/tenants",   title: "Tenants" },
+  { prefix: "/admin/ops",       title: "Ops Console" },
   { prefix: "/users",           title: "Users" },
   { prefix: "/alerts",          title: "Alerts" },
   { prefix: "/settings",        title: "Settings" },
@@ -207,6 +209,15 @@ export function AppLayout() {
               >
                 <Building2 />
                 <span>Tenants</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={location.pathname === "/admin/ops"}
+                render={<Link to="/admin/ops" />}
+              >
+                <Terminal />
+                <span>Ops Console</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </>

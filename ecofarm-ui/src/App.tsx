@@ -17,6 +17,7 @@ import { TenantsPage } from "@/pages/tenants/TenantsPage"
 import { UsersPage } from "@/pages/users/UsersPage"
 import { GatewayDriversPage } from "@/pages/drivers/GatewayDriversPage"
 import { BrokersPage } from "@/pages/brokers/BrokersPage"
+import { OpsPage } from "@/pages/admin/OpsPage"
 
 const isAdminPortal = window.location.hostname.startsWith("admin.")
 
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/admin/brokers" element={<BrokersPage />} />
             <Route path="/admin/tenants" element={<TenantsPage />} />
+            <Route path="/admin/ops" element={<OpsPage />} />
             <Route path="/settings" element={<Placeholder title="Settings" />} />
           </Route>
         </Route>

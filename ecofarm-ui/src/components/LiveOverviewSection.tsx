@@ -28,8 +28,10 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
   const { user } = useAuthStore()
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
 
-  const siteDevices = selectedSiteId
-    ? devices.filter((d) => d.siteId === selectedSiteId)
+  const effectiveSiteId = selectedSiteId ?? sites[0]?.id ?? null
+
+  const siteDevices = effectiveSiteId
+    ? devices.filter((d) => d.siteId === effectiveSiteId)
     : []
 
   const profileIds = [...new Set(siteDevices.map((d) => d.profileId))]
@@ -68,7 +70,7 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
           <h2 className="text-base font-semibold">Live Overview</h2>
         </div>
         <Select
-          value={selectedSiteId ?? ""}
+          value={effectiveSiteId ?? ""}
           onValueChange={(v) => setSelectedSiteId(v || null)}
         >
           <SelectTrigger className="w-48">
@@ -86,9 +88,9 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
         </Select>
       </div>
 
-      {!selectedSiteId ? (
+      {!effectiveSiteId ? (
         <p className="text-sm text-muted-foreground">
-          Select a site above to see live readings and actions for its devices.
+          No sites found. Add a site to get started.
         </p>
       ) : devicesLoading || profilesLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

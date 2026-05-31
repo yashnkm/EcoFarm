@@ -65,10 +65,10 @@ export function DashboardPage() {
         />
       </div>
 
-      <MqttStatusCard />
+      {user?.role === "SUPER_ADMIN" && <MqttStatusCard />}
 
       {/* Gateway status overview */}
-      <Card>
+      {user?.role === "SUPER_ADMIN" && <Card>
         <CardHeader>
           <CardTitle>Gateways</CardTitle>
           <CardDescription>Status of all registered gateways</CardDescription>
@@ -102,7 +102,7 @@ export function DashboardPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   )
 }

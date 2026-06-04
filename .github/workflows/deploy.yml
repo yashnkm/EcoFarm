@@ -66,7 +66,15 @@ jobs:
       - name: Add VPS to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p ${{ secrets.VPS_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+          # Use stored host key if provided, otherwise fall back to keyscan
+          if [ -n "${{ secrets.VPS_KNOWN_HOST }}" ]; then
+            echo "${{ secrets.VPS_KNOWN_HOST }}" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p ${{ secrets.VPS_PORT }} -T 15 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+          # Accept new host keys on first connection (covers keyscan misses)
+          printf 'Host *\n  StrictHostKeyChecking accept-new\n  ServerAliveInterval 30\n' >> ~/.ssh/config
 
       - name: Upload artifacts
         env:

@@ -26,7 +26,8 @@ public class DataPointMapper {
             dp.getMaxValue(),
             dp.isWritable(),
             dp.isDisplayed(),
-            dp.getDisplayWidget()
+            dp.getDisplayWidget(),
+            dp.getDisplayGroup()
         );
     }
 }

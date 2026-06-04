@@ -88,4 +88,7 @@ public class DataPoint {
     @Column(name = "display_widget", nullable = false, length = 50)
     @Builder.Default
     private DisplayWidget displayWidget = DisplayWidget.NUMBER;
+
+    @Column(name = "display_group", length = 100)
+    private String displayGroup;
 }

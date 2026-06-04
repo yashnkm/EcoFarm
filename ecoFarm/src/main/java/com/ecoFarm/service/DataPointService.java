@@ -70,6 +70,7 @@ public class DataPointService {
             .writable(Boolean.TRUE.equals(req.writable()))
             .displayed(req.displayed() == null || req.displayed())
             .displayWidget(req.displayWidget() != null ? req.displayWidget() : DisplayWidget.NUMBER)
+            .displayGroup(req.displayGroup())
             .build();
 
         return repo.save(dp);
@@ -102,6 +103,7 @@ public class DataPointService {
         if (req.writable() != null)      dp.setWritable(req.writable());
         if (req.displayed() != null)     dp.setDisplayed(req.displayed());
         if (req.displayWidget() != null) dp.setDisplayWidget(req.displayWidget());
+        dp.setDisplayGroup(req.displayGroup());
 
         return dp;
     }

@@ -25,5 +25,6 @@ public record DataPointRequest(
     Boolean writable,
     Boolean displayed,
     DisplayWidget displayWidget,
-    @NotNull UUID pollGroupId
+    @NotNull UUID pollGroupId,
+    @Size(max = 100) String displayGroup
 ) {}

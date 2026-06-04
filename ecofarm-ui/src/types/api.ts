@@ -166,6 +166,7 @@ export interface DataPoint {
   writable: boolean
   displayed: boolean
   displayWidget: string
+  displayGroup: string | null
 }
 
 export interface PollGroup {

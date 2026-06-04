@@ -36,6 +36,15 @@ export function DeviceLiveCard({ device, dataPoints, commandTemplates, liveReadi
   const [confirmCommand, setConfirmCommand] = useState<CommandTemplate | null>(null)
 
   const displayed = dataPoints.filter((dp) => dp.displayed)
+  const hasGroups = displayed.some((dp) => dp.displayGroup)
+  const groupMap = new Map<string, typeof displayed>()
+  if (hasGroups) {
+    for (const dp of displayed) {
+      const key = dp.displayGroup ?? ""
+      if (!groupMap.has(key)) groupMap.set(key, [])
+      groupMap.get(key)!.push(dp)
+    }
+  }
   const canIssueCommand = userRole === "SUPER_ADMIN" || userRole === "TENANT_ADMIN" || userRole === "OPERATOR"
 
   const issueMutation = useMutation({
@@ -86,29 +95,64 @@ export function DeviceLiveCard({ device, dataPoints, commandTemplates, liveReadi
 
         <CardContent className="flex flex-1 flex-col gap-3">
           {displayed.length > 0 ? (
-            <div className="divide-y rounded-md border text-sm">
-              {displayed.map((dp) => {
-                const r = liveReadings.get(`${device.id}:${dp.key}`)
-                return (
-                  <div key={dp.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                    <span className="truncate text-muted-foreground">{dp.label}</span>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="tabular-nums font-semibold">
-                        {r?.value != null
-                          ? r.value.toFixed(2)
-                          : <span className="font-normal text-muted-foreground">—</span>}
-                      </span>
-                      {(dp.unit ?? r?.unit) && (
-                        <span className="text-xs text-muted-foreground">{dp.unit ?? r?.unit}</span>
-                      )}
-                      {r && r.quality !== "GOOD" && (
-                        <Badge variant="secondary" className="px-1 py-0 text-xs">{r.quality}</Badge>
-                      )}
+            hasGroups ? (
+              <div className="flex flex-col gap-2 text-sm">
+                {[...groupMap.entries()].map(([group, dps]) => (
+                  <div key={group}>
+                    {group && (
+                      <p className="mb-1 text-xs font-medium text-muted-foreground">{group}</p>
+                    )}
+                    <div className="divide-y rounded-md border">
+                      {dps.map((dp) => {
+                        const r = liveReadings.get(`${device.id}:${dp.key}`)
+                        return (
+                          <div key={dp.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                            <span className="truncate text-muted-foreground">{dp.label}</span>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <span className="tabular-nums font-semibold">
+                                {r?.value != null
+                                  ? r.value.toFixed(2)
+                                  : <span className="font-normal text-muted-foreground">—</span>}
+                              </span>
+                              {(dp.unit ?? r?.unit) && (
+                                <span className="text-xs text-muted-foreground">{dp.unit ?? r?.unit}</span>
+                              )}
+                              {r && r.quality !== "GOOD" && (
+                                <Badge variant="secondary" className="px-1 py-0 text-xs">{r.quality}</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-                )
-              })}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y rounded-md border text-sm">
+                {displayed.map((dp) => {
+                  const r = liveReadings.get(`${device.id}:${dp.key}`)
+                  return (
+                    <div key={dp.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                      <span className="truncate text-muted-foreground">{dp.label}</span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className="tabular-nums font-semibold">
+                          {r?.value != null
+                            ? r.value.toFixed(2)
+                            : <span className="font-normal text-muted-foreground">—</span>}
+                        </span>
+                        {(dp.unit ?? r?.unit) && (
+                          <span className="text-xs text-muted-foreground">{dp.unit ?? r?.unit}</span>
+                        )}
+                        {r && r.quality !== "GOOD" && (
+                          <Badge variant="secondary" className="px-1 py-0 text-xs">{r.quality}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
           ) : (
             <p className="text-xs text-muted-foreground">No displayed data points configured.</p>
           )}

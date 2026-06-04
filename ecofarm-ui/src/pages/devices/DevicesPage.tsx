@@ -238,7 +238,7 @@ export function DevicesPage() {
                   <FieldLabel>Zone</FieldLabel>
                   <Select
                     value={zoneId ?? ""}
-                    onValueChange={(v) => setValue("zoneId", v, { shouldValidate: true })}
+                    onValueChange={(v) => setValue("zoneId", v ?? "", { shouldValidate: true })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="No zone" />

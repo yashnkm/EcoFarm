@@ -25,5 +25,6 @@ public record DataPointResponse(
     BigDecimal maxValue,
     boolean writable,
     boolean displayed,
-    DisplayWidget displayWidget
+    DisplayWidget displayWidget,
+    String displayGroup
 ) {}

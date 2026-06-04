@@ -54,6 +54,7 @@ const schema = z.object({
   unit: z.string().optional(),
   displayWidget: z.enum(WIDGETS),
   pollGroupId: z.string().min(1, "Poll group is required"),
+  displayGroup: z.string().max(100).optional(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -121,7 +122,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       key: "", label: "", registerNumber: 0,
       dataType: "UINT16", wordCount: 1, byteOrder: "BIG_ENDIAN",
       scaleFactor: 1, offset: 0, unit: "", displayWidget: "NUMBER",
-      pollGroupId: "",
+      pollGroupId: "", displayGroup: "",
     })
     setOpen(true)
   }
@@ -138,6 +139,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       unit: dp.unit ?? "",
       displayWidget: dp.displayWidget as FormValues["displayWidget"],
       pollGroupId: dp.pollGroupId,
+      displayGroup: dp.displayGroup ?? "",
     })
     setOpen(true)
   }
@@ -147,10 +149,12 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     reset()
   }
 
-  const onSubmit = (d: FormValues) =>
-    editing
-      ? updateMutation.mutateAsync({ id: editing.id, body: d })
-      : createMutation.mutateAsync(d)
+  const onSubmit = (d: FormValues) => {
+    const body: DataPointBody = { ...d, displayGroup: d.displayGroup || undefined }
+    return editing
+      ? updateMutation.mutateAsync({ id: editing.id, body })
+      : createMutation.mutateAsync(body)
+  }
 
   return (
     <div className="mt-4 flex flex-col gap-4">
@@ -246,6 +250,11 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
               </div>
 
               <Field>
+                <FieldLabel htmlFor="displayGroup">Zone / Group</FieldLabel>
+                <Input id="displayGroup" placeholder="e.g. Section-1 (optional)" {...register("displayGroup")} />
+              </Field>
+
+              <Field>
                 <FieldLabel>Display widget</FieldLabel>
                 <Select value={widget} onValueChange={(v) => setValue("displayWidget", v as FormValues["displayWidget"])}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -276,9 +285,9 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
               <TableRow>
                 <TableHead>Key</TableHead>
                 <TableHead>Label</TableHead>
+                <TableHead>Zone/Group</TableHead>
                 <TableHead>Register</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Scale</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
@@ -288,9 +297,9 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 <TableRow key={dp.id}>
                   <TableCell className="font-mono text-xs">{dp.key}</TableCell>
                   <TableCell>{dp.label}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{dp.displayGroup ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{dp.registerNumber}</TableCell>
                   <TableCell className="text-xs">{dp.dataType}</TableCell>
-                  <TableCell>{dp.scaleFactor}</TableCell>
                   <TableCell>{dp.unit ?? "—"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">

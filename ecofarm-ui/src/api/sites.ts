@@ -11,6 +11,10 @@ export const sitesApi = {
 
   listZones: (siteId: string) =>
     apiClient.get<Zone[]>(`/sites/${siteId}/zones`).then((r) => r.data),
-  createZone: (siteId: string, body: Partial<Zone>) =>
+  createZone: (siteId: string, body: { name: string; description?: string }) =>
     apiClient.post<Zone>(`/sites/${siteId}/zones`, body).then((r) => r.data),
+  updateZone: (siteId: string, id: string, body: { name: string; description?: string }) =>
+    apiClient.patch<Zone>(`/sites/${siteId}/zones/${id}`, body).then((r) => r.data),
+  deleteZone: (siteId: string, id: string) =>
+    apiClient.delete(`/sites/${siteId}/zones/${id}`).then(() => undefined),
 }

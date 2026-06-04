@@ -9,6 +9,8 @@ export const sitesApi = {
     apiClient.patch<Site>(`/sites/${id}`, body).then((r) => r.data),
   delete: (id: string) => apiClient.delete(`/sites/${id}`).then(() => undefined),
 
+  listAllZones: () =>
+    apiClient.get<Zone[]>("/zones").then((r) => r.data),
   listZones: (siteId: string) =>
     apiClient.get<Zone[]>(`/sites/${siteId}/zones`).then((r) => r.data),
   createZone: (siteId: string, body: { name: string; description?: string }) =>

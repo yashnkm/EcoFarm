@@ -6,6 +6,7 @@ import com.ecoFarm.domain.entity.Site;
 import com.ecoFarm.domain.entity.Zone;
 import com.ecoFarm.repository.ZoneRepository;
 import com.ecoFarm.shared.exception.ApiException;
+import com.ecoFarm.shared.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,11 @@ public class ZoneService {
 
     private final ZoneRepository zoneRepository;
     private final SiteService siteService;
+
+    @Transactional(readOnly = true)
+    public List<Zone> listForCurrentTenant() {
+        return zoneRepository.findByTenantId(SecurityUtil.currentTenantId());
+    }
 
     @Transactional(readOnly = true)
     public List<Zone> listForSite(UUID siteId) {

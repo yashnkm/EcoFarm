@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { dataPointsApi, pollGroupsApi, type DataPointBody } from "@/api/deviceProfiles"
+import { sitesApi } from "@/api/sites"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -71,6 +72,11 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     queryKey: ["poll-groups", profileId],
     queryFn: () => pollGroupsApi.list(profileId),
   })
+  const { data: allZones = [] } = useQuery({
+    queryKey: ["zones-all"],
+    queryFn: () => sitesApi.listAllZones(),
+    staleTime: 60_000,
+  })
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
@@ -84,6 +90,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   const byteOrder = watch("byteOrder")
   const widget = watch("displayWidget")
   const pollGroupId = watch("pollGroupId")
+  const displayGroup = watch("displayGroup")
 
   const createMutation = useMutation({
     mutationFn: (body: DataPointBody) => dataPointsApi.create(profileId, body),
@@ -250,8 +257,23 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
               </div>
 
               <Field>
-                <FieldLabel htmlFor="displayGroup">Zone / Group</FieldLabel>
-                <Input id="displayGroup" placeholder="e.g. Section-1 (optional)" {...register("displayGroup")} />
+                <FieldLabel>Zone / Group</FieldLabel>
+                <Select
+                  value={displayGroup ?? ""}
+                  onValueChange={(v) => setValue("displayGroup", v ?? "", { shouldValidate: true })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No zone</SelectItem>
+                    {allZones.map((z) => (
+                      <SelectItem key={z.id} value={z.name}>
+                        {z.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field>

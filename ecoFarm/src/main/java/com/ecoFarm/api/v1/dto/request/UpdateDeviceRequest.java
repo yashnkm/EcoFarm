@@ -10,5 +10,6 @@ public record UpdateDeviceRequest(
     String ipAddress,
     Integer port,
     UUID zoneId,
+    Boolean clearZone,
     Integer timeoutSeconds
 ) {}

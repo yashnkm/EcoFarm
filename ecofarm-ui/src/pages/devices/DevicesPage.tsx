@@ -10,6 +10,7 @@ import { formatDistanceToNow } from "date-fns"
 
 import { devicesApi, deviceProfilesApi } from "@/api/devices"
 import { gatewaysApi } from "@/api/gateways"
+import { sitesApi } from "@/api/sites"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -51,6 +52,7 @@ const schema = z.object({
   name: z.string().min(1, "Name is required"),
   slaveId: z.coerce.number().int().min(1).max(255),
   timeoutSeconds: z.coerce.number().int().min(1).max(60),
+  zoneId: z.string().optional(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -73,6 +75,17 @@ export function DevicesPage() {
     useForm<FormValues>({ resolver: zodResolver(schema) as Resolver<FormValues> })
   const gatewayId = watch("gatewayId")
   const profileId = watch("profileId")
+  const zoneId = watch("zoneId")
+
+  const selectedGateway = gateways?.find((g) => g.id === gatewayId)
+  const zoneSiteId = editing?.siteId ?? selectedGateway?.siteId ?? null
+
+  const { data: zones = [] } = useQuery({
+    queryKey: ["zones", zoneSiteId],
+    queryFn: () => sitesApi.listZones(zoneSiteId!),
+    enabled: !!zoneSiteId,
+    staleTime: 60_000,
+  })
 
   const createMutation = useMutation({
     mutationFn: devicesApi.create,
@@ -86,7 +99,8 @@ export function DevicesPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<Device> }) => devicesApi.update(id, body),
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof devicesApi.update>[1] }) =>
+      devicesApi.update(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devices"] })
       toast.success("Device updated")
@@ -108,7 +122,7 @@ export function DevicesPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ gatewayId: "", profileId: "", name: "", slaveId: 1, timeoutSeconds: 5 })
+    reset({ gatewayId: "", profileId: "", name: "", slaveId: 1, timeoutSeconds: 5, zoneId: "" })
     setOpen(true)
   }
   const openEdit = (d: Device) => {
@@ -119,6 +133,7 @@ export function DevicesPage() {
       name: d.name,
       slaveId: d.slaveId,
       timeoutSeconds: d.timeoutSeconds,
+      zoneId: d.zoneId ?? "",
     })
     setOpen(true)
   }
@@ -130,13 +145,27 @@ export function DevicesPage() {
 
   const onSubmit = (data: FormValues) => {
     if (editing) {
-      // Gateway, profile, and slaveId are immutable after creation
-      return updateMutation.mutateAsync({
-        id: editing.id,
-        body: { name: data.name, timeoutSeconds: data.timeoutSeconds },
-      })
+      const body: Parameters<typeof devicesApi.update>[1] = {
+        name: data.name,
+        timeoutSeconds: data.timeoutSeconds,
+      }
+      if (zones.length > 0) {
+        if (data.zoneId) {
+          body.zoneId = data.zoneId
+        } else {
+          body.clearZone = true
+        }
+      }
+      return updateMutation.mutateAsync({ id: editing.id, body })
     }
-    return createMutation.mutateAsync(data)
+    return createMutation.mutateAsync({
+      gatewayId: data.gatewayId,
+      profileId: data.profileId,
+      name: data.name,
+      slaveId: data.slaveId,
+      timeoutSeconds: data.timeoutSeconds,
+      zoneId: data.zoneId || undefined,
+    })
   }
 
   return (
@@ -203,6 +232,26 @@ export function DevicesPage() {
                 <Input id="name" placeholder="Main Meter" aria-invalid={!!errors.name} {...register("name")} />
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
               </Field>
+
+              {zones.length > 0 && (
+                <Field>
+                  <FieldLabel>Zone</FieldLabel>
+                  <Select
+                    value={zoneId ?? ""}
+                    onValueChange={(v) => setValue("zoneId", v, { shouldValidate: true })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No zone</SelectItem>
+                      {zones.map((z) => (
+                        <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <Field data-invalid={errors.slaveId ? true : undefined}>

@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { useQueries } from "@tanstack/react-query"
+import { useQuery, useQueries } from "@tanstack/react-query"
 import { Radio } from "lucide-react"
 
 import { dataPointsApi, commandTemplatesApi } from "@/api/deviceProfiles"
+import { sitesApi } from "@/api/sites"
 import { useAuthStore } from "@/store/authStore"
 import type { Device, Site } from "@/types/api"
 import type { LiveReading } from "@/hooks/useLiveReadings"
@@ -62,6 +63,36 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
   const profilesLoading =
     dataPointQueries.some((q) => q.isLoading) || commandQueries.some((q) => q.isLoading)
 
+  const { data: zones = [] } = useQuery({
+    queryKey: ["zones", effectiveSiteId],
+    queryFn: () => sitesApi.listZones(effectiveSiteId!),
+    enabled: !!effectiveSiteId,
+    staleTime: 60_000,
+  })
+
+  const devicesByZone = new Map<string | null, Device[]>()
+  for (const d of siteDevices) {
+    const key = d.zoneId ?? null
+    if (!devicesByZone.has(key)) devicesByZone.set(key, [])
+    devicesByZone.get(key)!.push(d)
+  }
+  const unassignedDevices = devicesByZone.get(null) ?? []
+
+  const renderDeviceGrid = (devs: Device[]) => (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {devs.map((device) => (
+        <DeviceLiveCard
+          key={device.id}
+          device={device}
+          dataPoints={dataPointsByProfile.get(device.profileId) ?? []}
+          commandTemplates={commandsByProfile.get(device.profileId) ?? []}
+          liveReadings={liveReadings}
+          userRole={user?.role}
+        />
+      ))}
+    </div>
+  )
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -100,19 +131,33 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
         </div>
       ) : siteDevices.length === 0 ? (
         <p className="text-sm text-muted-foreground">No devices found at this site.</p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {siteDevices.map((device) => (
-            <DeviceLiveCard
-              key={device.id}
-              device={device}
-              dataPoints={dataPointsByProfile.get(device.profileId) ?? []}
-              commandTemplates={commandsByProfile.get(device.profileId) ?? []}
-              liveReadings={liveReadings}
-              userRole={user?.role}
-            />
-          ))}
+      ) : zones.length > 0 ? (
+        <div className="flex flex-col gap-6">
+          {zones.map((zone) => {
+            const zoneDevices = devicesByZone.get(zone.id) ?? []
+            if (zoneDevices.length === 0) return null
+            return (
+              <div key={zone.id} className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-muted-foreground">{zone.name}</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                {renderDeviceGrid(zoneDevices)}
+              </div>
+            )
+          })}
+          {unassignedDevices.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground">Unassigned</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              {renderDeviceGrid(unassignedDevices)}
+            </div>
+          )}
         </div>
+      ) : (
+        renderDeviceGrid(siteDevices)
       )}
     </div>
   )

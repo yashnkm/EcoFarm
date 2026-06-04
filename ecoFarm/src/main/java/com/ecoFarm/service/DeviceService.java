@@ -101,7 +101,11 @@ public class DeviceService {
         if (req.protocol() != null)        device.setProtocol(req.protocol());
         if (req.ipAddress() != null)       device.setIpAddress(req.ipAddress());
         if (req.port() != null)            device.setPort(req.port());
-        if (req.zoneId() != null)          device.setZone(resolveZone(req.zoneId(), device.getSite()));
+        if (req.zoneId() != null) {
+            device.setZone(resolveZone(req.zoneId(), device.getSite()));
+        } else if (Boolean.TRUE.equals(req.clearZone())) {
+            device.setZone(null);
+        }
         if (req.timeoutSeconds() != null)  device.setTimeoutSeconds(req.timeoutSeconds());
         return device;
     }

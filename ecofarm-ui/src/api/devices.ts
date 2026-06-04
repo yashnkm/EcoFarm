@@ -35,7 +35,15 @@ export const devicesApi = {
     timeoutSeconds?: number
   }) => apiClient.post<Device>("/devices", body).then((r) => r.data),
 
-  update: (id: string, body: Partial<Device>) =>
+  update: (id: string, body: {
+    name?: string
+    timeoutSeconds?: number
+    zoneId?: string
+    clearZone?: boolean
+    protocol?: string
+    ipAddress?: string
+    port?: number
+  }) =>
     apiClient.patch<Device>(`/devices/${id}`, body).then((r) => r.data),
 
   delete: (id: string) => apiClient.delete(`/devices/${id}`).then(() => undefined),

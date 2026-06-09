@@ -52,4 +52,16 @@ public interface ReadingRepository extends JpaRepository<Reading, Reading.Readin
         ORDER BY device_id, data_point, time DESC
     """, nativeQuery = true)
     List<Reading> findLatestForSite(@Param("siteId") UUID siteId);
+
+    /**
+     * Latest readings for every device in a tenant — used to seed the live dashboard
+     * with last-known values on first load, before WebSocket pushes arrive.
+     */
+    @Query(value = """
+        SELECT DISTINCT ON (device_id, data_point) *
+        FROM readings
+        WHERE tenant_id = :tenantId
+        ORDER BY device_id, data_point, time DESC
+    """, nativeQuery = true)
+    List<Reading> findLatestForTenant(@Param("tenantId") UUID tenantId);
 }

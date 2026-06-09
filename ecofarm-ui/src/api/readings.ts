@@ -7,4 +7,7 @@ export const readingsApi = {
 
   latestForSite: (siteId: string) =>
     apiClient.get<Reading[]>(`/sites/${siteId}/readings/latest`).then((r) => r.data),
+
+  latestForTenant: () =>
+    apiClient.get<Reading[]>("/readings/latest").then((r) => r.data),
 }

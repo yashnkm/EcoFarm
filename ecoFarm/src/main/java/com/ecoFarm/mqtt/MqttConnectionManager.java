@@ -195,12 +195,10 @@ public class MqttConnectionManager {
         }
 
         private void subscribe() {
-            Set<String> subs = driverTopics.allSubscriptions();
-            if (subs.isEmpty()) {
-                subs = DEFAULT_SUBSCRIPTIONS;
-                log.warn("MQTT: no gateway drivers — broker '{}' using default topics",
-                    broker.getName());
-            }
+            // Always include the default catch-all topics (heartbeat, status, errors)
+            // so gateway boot messages arrive even when a driver narrows the response topic.
+            Set<String> subs = new java.util.LinkedHashSet<>(DEFAULT_SUBSCRIPTIONS);
+            subs.addAll(driverTopics.allSubscriptions());
             for (String topic : subs) {
                 try {
                     client.subscribe(topic, qos);

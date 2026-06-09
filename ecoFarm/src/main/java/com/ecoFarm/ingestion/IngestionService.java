@@ -1,10 +1,7 @@
 package com.ecoFarm.ingestion;
 
 import com.ecoFarm.domain.entity.*;
-import com.ecoFarm.domain.enums.CommandStatus;
-import com.ecoFarm.domain.enums.DeviceStatus;
-import com.ecoFarm.domain.enums.GatewayStatus;
-import com.ecoFarm.domain.enums.ReadingQuality;
+import com.ecoFarm.domain.enums.*;
 import com.ecoFarm.mqtt.ModbusResponseParser.ParsedResponse;
 import com.ecoFarm.mqtt.RequestTracker;
 import com.ecoFarm.repository.*;
@@ -29,6 +26,7 @@ public class IngestionService {
     private final PollGroupRepository pollGroupRepository;
     private final ReadingRepository readingRepository;
     private final ControlCommandRepository controlCommandRepository;
+    private final CommunicationLogRepository communicationLogRepository;
     private final RegisterDecoder decoder;
     private final RequestTracker tracker;
     private final LivePushService livePushService;
@@ -64,6 +62,7 @@ public class IngestionService {
             if (device.getStatus() != DeviceStatus.ERROR) {
                 device.setStatus(DeviceStatus.ERROR);
             }
+            saveCommLog(gw, device, null, null, false, response.getErrorMessage());
             return;
         }
 
@@ -107,15 +106,15 @@ public class IngestionService {
         if (device.getStatus() != DeviceStatus.ONLINE) {
             device.setStatus(DeviceStatus.ONLINE);
         }
+
+        saveCommLog(gw, device, group.getFunctionCode(), group.getStartRegister(), true, null);
     }
 
     @Transactional
     public void handleGatewayStatus(String serial, String status) {
         Optional<Gateway> gwOpt = gatewayRepository.findBySerialNumber(serial);
         if (gwOpt.isEmpty()) {
-            // Auto-register unknown gateway
             log.info("Auto-registering unknown gateway: {}", serial);
-            // Can't create here without tenant — logged as unknown event for now
             return;
         }
 
@@ -123,6 +122,8 @@ public class IngestionService {
         boolean online = "online".equalsIgnoreCase(status) || "1".equals(status);
         gw.setStatus(online ? GatewayStatus.ONLINE : GatewayStatus.OFFLINE);
         gw.setLastSeen(Instant.now());
+
+        saveCommLog(gw, null, null, null, true, null);
     }
 
     @Transactional
@@ -132,6 +133,7 @@ public class IngestionService {
             if (gw.getStatus() == GatewayStatus.OFFLINE) {
                 gw.setStatus(GatewayStatus.ONLINE);
             }
+            saveCommLog(gw, null, null, null, true, null);
         });
     }
 
@@ -146,6 +148,24 @@ public class IngestionService {
         } else {
             cmd.setStatus(CommandStatus.FAILED);
             cmd.setResult(response.getErrorMessage());
+        }
+    }
+
+    private void saveCommLog(Gateway gw, Device device, Integer modbusFc, Integer register,
+                              boolean success, String errorMsg) {
+        try {
+            communicationLogRepository.save(CommunicationLog.builder()
+                .tenant(gw.getTenant())
+                .gateway(gw)
+                .device(device)
+                .direction(LogDirection.RESPONSE)
+                .modbusFc(modbusFc)
+                .register(register)
+                .status(success ? LogStatus.OK : LogStatus.ERROR)
+                .errorMessage(errorMsg)
+                .build());
+        } catch (Exception ex) {
+            log.warn("Failed to save communication log: {}", ex.getMessage());
         }
     }
 

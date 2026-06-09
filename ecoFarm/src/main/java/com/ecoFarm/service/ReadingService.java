@@ -5,6 +5,7 @@ import com.ecoFarm.domain.entity.Reading;
 import com.ecoFarm.domain.entity.Site;
 import com.ecoFarm.repository.ReadingRepository;
 import com.ecoFarm.shared.exception.ApiException;
+import com.ecoFarm.shared.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,5 +53,10 @@ public class ReadingService {
     public List<Reading> latestForSite(UUID siteId) {
         Site site = siteService.findInTenant(siteId);
         return readingRepository.findLatestForSite(site.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Reading> latestForTenant() {
+        return readingRepository.findLatestForTenant(SecurityUtil.currentTenantId());
     }
 }

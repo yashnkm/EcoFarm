@@ -1,14 +1,14 @@
 package com.ecoFarm.ingestion;
 
-import com.ecoFarm.domain.entity.Device;
-import com.ecoFarm.domain.entity.Gateway;
-import com.ecoFarm.domain.entity.MqttBroker;
-import com.ecoFarm.domain.entity.PollGroup;
+import com.ecoFarm.domain.entity.*;
 import com.ecoFarm.domain.enums.GatewayStatus;
+import com.ecoFarm.domain.enums.LogDirection;
+import com.ecoFarm.domain.enums.LogStatus;
 import com.ecoFarm.mqtt.DriverTopicResolver;
 import com.ecoFarm.mqtt.ModbusRequestBuilder;
 import com.ecoFarm.mqtt.MqttPublisher;
 import com.ecoFarm.mqtt.RequestTracker;
+import com.ecoFarm.repository.CommunicationLogRepository;
 import com.ecoFarm.repository.DeviceRepository;
 import com.ecoFarm.repository.PollGroupRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -42,13 +41,14 @@ public class PollScheduler {
     private final MqttPublisher publisher;
     private final DriverTopicResolver driverTopics;
     private final RequestTracker tracker;
+    private final CommunicationLogRepository communicationLogRepository;
 
     /** last fire time per (device, poll_group) */
     private final Map<String, Instant> lastFired = new ConcurrentHashMap<>();
 
     /** Run every 5 seconds — cheap, per-group interval is checked per iteration. */
     @Scheduled(fixedDelayString = "5000", initialDelayString = "15000")
-    @Transactional(readOnly = true)
+    @Transactional
     public void tick() {
         Instant now = Instant.now();
         List<Device> devices = deviceRepository.findAll();
@@ -120,5 +120,19 @@ public class PollScheduler {
         publisher.publish(broker, topic, payload);
         log.info("Poll sent: device '{}' / group '{}' → broker '{}' ({}) topic '{}' (cookie={})",
             device.getName(), group.getName(), broker.getName(), broker.getBrokerUrl(), topic, cookie);
+
+        try {
+            communicationLogRepository.save(CommunicationLog.builder()
+                .tenant(device.getTenant())
+                .gateway(device.getGateway())
+                .device(device)
+                .direction(LogDirection.REQUEST)
+                .modbusFc(group.getFunctionCode())
+                .register(group.getStartRegister())
+                .status(LogStatus.OK)
+                .build());
+        } catch (Exception ex) {
+            log.warn("Failed to save communication log for request: {}", ex.getMessage());
+        }
     }
 }

@@ -23,6 +23,11 @@ public class ReadingController {
     private final ReadingService service;
     private final ReadingMapper mapper;
 
+    @GetMapping("/latest")
+    public List<ReadingResponse> latestForTenant() {
+        return service.latestForTenant().stream().map(mapper::toResponse).toList();
+    }
+
     @GetMapping
     public List<ReadingResponse> query(
         @RequestParam UUID deviceId,

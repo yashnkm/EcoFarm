@@ -6,8 +6,6 @@ import { sitesApi } from "@/api/sites"
 import { gatewaysApi } from "@/api/gateways"
 import { devicesApi } from "@/api/devices"
 import { MqttStatusCard } from "@/components/MqttStatusBadge"
-import { LiveOverviewSection } from "@/components/LiveOverviewSection"
-import { useLiveReadingsAll } from "@/hooks/useLiveReadingsAll"
 import {
   Card,
   CardContent,
@@ -24,7 +22,6 @@ export function DashboardPage() {
   const sites = useQuery({ queryKey: ["sites"], queryFn: sitesApi.list })
   const gateways = useQuery({ queryKey: ["gateways"], queryFn: gatewaysApi.list })
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => devicesApi.list() })
-  const liveReadings = useLiveReadingsAll()
 
   const onlineGateways = gateways.data?.filter((g) => g.status === "ONLINE").length ?? 0
   const onlineDevices = devices.data?.filter((d) => d.status === "ONLINE").length ?? 0
@@ -70,49 +67,43 @@ export function DashboardPage() {
 
       {user?.role === "SUPER_ADMIN" && <MqttStatusCard />}
 
-      {/* Gateway status overview */}
-      {user?.role === "SUPER_ADMIN" && <Card>
-        <CardHeader>
-          <CardTitle>Gateways</CardTitle>
-          <CardDescription>Status of all registered gateways</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {gateways.isLoading ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : !gateways.data?.length ? (
-            <p className="text-sm text-muted-foreground">
-              No gateways registered yet. Add one via the Gateways page.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {gateways.data.map((gw) => (
-                <div
-                  key={gw.id}
-                  className="flex items-center justify-between rounded-lg border px-4 py-3"
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{gw.name ?? gw.serialNumber}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {gw.driverName} &middot; {gw.serialNumber}
-                    </span>
+      {user?.role === "SUPER_ADMIN" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Gateways</CardTitle>
+            <CardDescription>Status of all registered gateways</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {gateways.isLoading ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : !gateways.data?.length ? (
+              <p className="text-sm text-muted-foreground">
+                No gateways registered yet. Add one via the Gateways page.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {gateways.data.map((gw) => (
+                  <div
+                    key={gw.id}
+                    className="flex items-center justify-between rounded-lg border px-4 py-3"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium">{gw.name ?? gw.serialNumber}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {gw.driverName} &middot; {gw.serialNumber}
+                      </span>
+                    </div>
+                    <StatusBadge status={gw.status} />
                   </div>
-                  <StatusBadge status={gw.status} />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>}
-
-      <LiveOverviewSection
-        sites={sites.data ?? []}
-        devices={devices.data ?? []}
-        liveReadings={liveReadings}
-        devicesLoading={devices.isLoading}
-      />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

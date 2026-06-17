@@ -74,7 +74,9 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
           onValueChange={(v) => setSelectedSiteId(v || null)}
         >
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select a site…" />
+            <SelectValue placeholder="Select a site…">
+              {(value: string | null) => sites.find((s) => s.id === value)?.name ?? value}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>

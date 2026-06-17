@@ -10,7 +10,6 @@ import { formatDistanceToNow } from "date-fns"
 
 import { devicesApi, deviceProfilesApi } from "@/api/devices"
 import { gatewaysApi } from "@/api/gateways"
-import { sitesApi } from "@/api/sites"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -52,7 +51,6 @@ const schema = z.object({
   name: z.string().min(1, "Name is required"),
   slaveId: z.coerce.number().int().min(1).max(255),
   timeoutSeconds: z.coerce.number().int().min(1).max(60),
-  zoneId: z.string().optional(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -75,13 +73,6 @@ export function DevicesPage() {
     useForm<FormValues>({ resolver: zodResolver(schema) as Resolver<FormValues> })
   const gatewayId = watch("gatewayId")
   const profileId = watch("profileId")
-  const zoneId = watch("zoneId")
-
-  const { data: zones = [] } = useQuery({
-    queryKey: ["zones-all"],
-    queryFn: () => sitesApi.listAllZones(),
-    staleTime: 60_000,
-  })
 
   const createMutation = useMutation({
     mutationFn: devicesApi.create,
@@ -118,7 +109,7 @@ export function DevicesPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ gatewayId: "", profileId: "", name: "", slaveId: 1, timeoutSeconds: 5, zoneId: "" })
+    reset({ gatewayId: "", profileId: "", name: "", slaveId: 1, timeoutSeconds: 5 })
     setOpen(true)
   }
   const openEdit = (d: Device) => {
@@ -129,7 +120,6 @@ export function DevicesPage() {
       name: d.name,
       slaveId: d.slaveId,
       timeoutSeconds: d.timeoutSeconds,
-      zoneId: d.zoneId ?? "",
     })
     setOpen(true)
   }
@@ -141,12 +131,10 @@ export function DevicesPage() {
 
   const onSubmit = (data: FormValues) => {
     if (editing) {
-      const body: Parameters<typeof devicesApi.update>[1] = {
-        name: data.name,
-        timeoutSeconds: data.timeoutSeconds,
-        ...(data.zoneId ? { zoneId: data.zoneId } : { clearZone: true }),
-      }
-      return updateMutation.mutateAsync({ id: editing.id, body })
+      return updateMutation.mutateAsync({
+        id: editing.id,
+        body: { name: data.name, timeoutSeconds: data.timeoutSeconds },
+      })
     }
     return createMutation.mutateAsync({
       gatewayId: data.gatewayId,
@@ -154,7 +142,6 @@ export function DevicesPage() {
       name: data.name,
       slaveId: data.slaveId,
       timeoutSeconds: data.timeoutSeconds,
-      zoneId: data.zoneId || undefined,
     })
   }
 
@@ -225,30 +212,6 @@ export function DevicesPage() {
                 <FieldLabel htmlFor="name">Device name</FieldLabel>
                 <Input id="name" placeholder="Main Meter" aria-invalid={!!errors.name} {...register("name")} />
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
-              </Field>
-
-              <Field>
-                <FieldLabel>Zone</FieldLabel>
-                <Select
-                  value={zoneId ?? ""}
-                  onValueChange={(v) => setValue("zoneId", v ?? "", { shouldValidate: true })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No zone">
-                      {(value: string | null) => value ? zones.find((z) => z.id === value)?.name ?? value : "No zone"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No zone</SelectItem>
-                    {zones.length === 0 ? (
-                      <SelectItem value="__none__" disabled>No zones created yet</SelectItem>
-                    ) : (
-                      zones.map((z) => (
-                        <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
               </Field>
 
               <div className="grid grid-cols-2 gap-4">

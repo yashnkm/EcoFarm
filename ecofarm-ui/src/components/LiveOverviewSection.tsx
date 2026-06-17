@@ -26,24 +26,24 @@ interface Props {
 
 export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoading }: Props) {
   const { user } = useAuthStore()
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
+  const [siteFilter, setSiteFilter] = useState<string>("")
 
-  // null = "All sites" (show all zoned devices regardless of site)
-  const siteDevices = selectedSiteId
-    ? devices.filter((d) => d.siteId === selectedSiteId && d.zoneId)
-    : devices.filter((d) => !!d.zoneId)
+  const zonedDevices = devices.filter((d) => !!d.zoneId)
 
-  const profileIds = [...new Set(siteDevices.map((d) => d.profileId))]
+  const visibleDevices = siteFilter
+    ? zonedDevices.filter((d) => d.siteId === siteFilter)
+    : zonedDevices
 
-  const dataPointQueries = useQueries({
+  const profileIds = [...new Set(visibleDevices.map((d) => d.profileId))]
+
+  const dpQueries = useQueries({
     queries: profileIds.map((pid) => ({
       queryKey: ["data-points", pid],
       queryFn: () => dataPointsApi.list(pid),
       staleTime: 60_000,
     })),
   })
-
-  const commandQueries = useQueries({
+  const cmdQueries = useQueries({
     queries: profileIds.map((pid) => ({
       queryKey: ["commands", pid],
       queryFn: () => commandTemplatesApi.list(pid),
@@ -51,15 +51,9 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
     })),
   })
 
-  const dataPointsByProfile = new Map(
-    profileIds.map((pid, i) => [pid, dataPointQueries[i]?.data ?? []])
-  )
-  const commandsByProfile = new Map(
-    profileIds.map((pid, i) => [pid, commandQueries[i]?.data ?? []])
-  )
-
-  const profilesLoading =
-    dataPointQueries.some((q) => q.isLoading) || commandQueries.some((q) => q.isLoading)
+  const dataPointsByProfile = new Map(profileIds.map((pid, i) => [pid, dpQueries[i]?.data ?? []]))
+  const commandsByProfile = new Map(profileIds.map((pid, i) => [pid, cmdQueries[i]?.data ?? []]))
+  const profilesLoading = dpQueries.some((q) => q.isLoading) || cmdQueries.some((q) => q.isLoading)
 
   return (
     <div className="flex flex-col gap-4">
@@ -68,15 +62,13 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
           <Radio className="size-4 text-muted-foreground" />
           <h2 className="text-base font-semibold">Live Overview</h2>
         </div>
+
         {sites.length > 0 && (
-          <Select
-            value={selectedSiteId ?? ""}
-            onValueChange={(v) => setSelectedSiteId(v || null)}
-          >
+          <Select value={siteFilter} onValueChange={(v) => setSiteFilter(v)}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All sites">
                 {(value: string | null) =>
-                  value ? (sites.find((s) => s.id === value)?.name ?? value) : "All sites"
+                  value ? sites.find((s) => s.id === value)?.name ?? value : "All sites"
                 }
               </SelectValue>
             </SelectTrigger>
@@ -84,9 +76,7 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
               <SelectGroup>
                 <SelectItem value="">All sites</SelectItem>
                 {sites.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
@@ -100,15 +90,15 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
             <Skeleton key={i} className="h-48 w-full rounded-xl" />
           ))}
         </div>
-      ) : siteDevices.length === 0 ? (
+      ) : visibleDevices.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {selectedSiteId
+          {siteFilter
             ? "No zone-assigned devices at this site."
-            : "No zone-assigned devices found. Edit a device in the Devices tab and assign it to a zone."}
+            : "No zone-assigned devices. Go to Devices tab, edit a device, and assign it to a zone."}
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {siteDevices.map((device) => (
+          {visibleDevices.map((device) => (
             <DeviceLiveCard
               key={device.id}
               device={device}

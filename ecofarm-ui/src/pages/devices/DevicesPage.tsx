@@ -78,12 +78,10 @@ export function DevicesPage() {
   const zoneId = watch("zoneId")
 
   const selectedGateway = gateways?.find((g) => g.id === gatewayId)
-  const zoneSiteId = editing?.siteId ?? selectedGateway?.siteId ?? null
 
   const { data: zones = [] } = useQuery({
-    queryKey: ["zones", zoneSiteId],
-    queryFn: () => sitesApi.listZones(zoneSiteId!),
-    enabled: !!zoneSiteId,
+    queryKey: ["zones-all"],
+    queryFn: () => sitesApi.listAllZones(),
     staleTime: 60_000,
   })
 
@@ -148,13 +146,7 @@ export function DevicesPage() {
       const body: Parameters<typeof devicesApi.update>[1] = {
         name: data.name,
         timeoutSeconds: data.timeoutSeconds,
-      }
-      if (zones.length > 0) {
-        if (data.zoneId) {
-          body.zoneId = data.zoneId
-        } else {
-          body.clearZone = true
-        }
+        ...(data.zoneId ? { zoneId: data.zoneId } : { clearZone: true }),
       }
       return updateMutation.mutateAsync({ id: editing.id, body })
     }
@@ -237,27 +229,29 @@ export function DevicesPage() {
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
               </Field>
 
-              {zones.length > 0 && (
-                <Field>
-                  <FieldLabel>Zone</FieldLabel>
-                  <Select
-                    value={zoneId ?? ""}
-                    onValueChange={(v) => setValue("zoneId", v ?? "", { shouldValidate: true })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="No zone">
-                        {(value: string | null) => value ? zones.find((z) => z.id === value)?.name ?? value : "No zone"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No zone</SelectItem>
-                      {zones.map((z) => (
+              <Field>
+                <FieldLabel>Zone</FieldLabel>
+                <Select
+                  value={zoneId ?? ""}
+                  onValueChange={(v) => setValue("zoneId", v ?? "", { shouldValidate: true })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No zone">
+                      {(value: string | null) => value ? zones.find((z) => z.id === value)?.name ?? value : "No zone"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No zone</SelectItem>
+                    {zones.length === 0 ? (
+                      <SelectItem value="__none__" disabled>No zones created yet</SelectItem>
+                    ) : (
+                      zones.map((z) => (
                         <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </Field>
 
               <div className="grid grid-cols-2 gap-4">
                 <Field data-invalid={errors.slaveId ? true : undefined}>

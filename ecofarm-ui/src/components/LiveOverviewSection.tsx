@@ -28,11 +28,10 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
   const { user } = useAuthStore()
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
 
-  const effectiveSiteId = selectedSiteId ?? sites[0]?.id ?? null
-
-  const siteDevices = effectiveSiteId
-    ? devices.filter((d) => d.siteId === effectiveSiteId && d.zoneId)
-    : []
+  // null = "All sites" (show all zoned devices regardless of site)
+  const siteDevices = selectedSiteId
+    ? devices.filter((d) => d.siteId === selectedSiteId && d.zoneId)
+    : devices.filter((d) => !!d.zoneId)
 
   const profileIds = [...new Set(siteDevices.map((d) => d.profileId))]
 
@@ -69,32 +68,33 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
           <Radio className="size-4 text-muted-foreground" />
           <h2 className="text-base font-semibold">Live Overview</h2>
         </div>
-        <Select
-          value={effectiveSiteId ?? ""}
-          onValueChange={(v) => setSelectedSiteId(v || null)}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select a site…">
-              {(value: string | null) => sites.find((s) => s.id === value)?.name ?? value}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {sites.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        {sites.length > 0 && (
+          <Select
+            value={selectedSiteId ?? ""}
+            onValueChange={(v) => setSelectedSiteId(v || null)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All sites">
+                {(value: string | null) =>
+                  value ? (sites.find((s) => s.id === value)?.name ?? value) : "All sites"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="">All sites</SelectItem>
+                {sites.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      {!effectiveSiteId ? (
-        <p className="text-sm text-muted-foreground">
-          No sites found. Add a site to get started.
-        </p>
-      ) : devicesLoading || profilesLoading ? (
+      {devicesLoading || profilesLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-48 w-full rounded-xl" />
@@ -102,7 +102,9 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
         </div>
       ) : siteDevices.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No zone-assigned devices at this site. Edit a device in the Devices tab and assign it to a zone.
+          {selectedSiteId
+            ? "No zone-assigned devices at this site."
+            : "No zone-assigned devices found. Edit a device in the Devices tab and assign it to a zone."}
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { devicesApi } from "@/api/devices"
 import { commandTemplatesApi, dataPointsApi } from "@/api/deviceProfiles"
+import { sitesApi } from "@/api/sites"
 import { useAuthStore } from "@/store/authStore"
 import { useLiveReadings } from "@/hooks/useLiveReadings"
 import { Button } from "@/components/ui/button"
@@ -32,8 +33,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import type { CommandTemplate, CommandStatus, DataPoint } from "@/types/api"
+import type { CommandTemplate, CommandStatus, DataPoint, Zone } from "@/types/api"
 
 export function DeviceDetailPage() {
   const { id = "" } = useParams<{ id: string }>()
@@ -44,6 +52,7 @@ export function DeviceDetailPage() {
   const HISTORY_PAGE_SIZE = 15
 
   const canRecord = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
+  const canAssignZone = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
 
   const { data: device } = useQuery({
     queryKey: ["device", id],
@@ -70,6 +79,13 @@ export function DeviceDetailPage() {
     refetchInterval: 3000,
   })
 
+  const { data: zones = [] } = useQuery({
+    queryKey: ["zones", device?.siteId],
+    queryFn: () => sitesApi.listZones(device!.siteId!),
+    enabled: !!device?.siteId,
+    staleTime: 60_000,
+  })
+
   const liveReadings = useLiveReadings(id)
 
   const issueMutation = useMutation({
@@ -92,12 +108,31 @@ export function DeviceDetailPage() {
     onError: () => toast.error("Failed to update recording settings"),
   })
 
+  const groupsMutation = useMutation({
+    mutationFn: (groups: Record<string, string>) => devicesApi.updateDataPointGroups(id, groups),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["device", id], updated)
+    },
+    onError: () => toast.error("Failed to update zone assignment"),
+  })
+
   const handleRecordToggle = (key: string, checked: boolean) => {
     if (!device) return
     const current = new Set(device.recordedDataPoints ?? [])
     if (checked) current.add(key)
     else current.delete(key)
     recordMutation.mutate([...current])
+  }
+
+  const handleZoneChange = (dpKey: string, zoneName: string) => {
+    if (!device) return
+    const current = { ...(device.dataPointGroups ?? {}) }
+    if (zoneName) {
+      current[dpKey] = zoneName
+    } else {
+      delete current[dpKey]
+    }
+    groupsMutation.mutate(current)
   }
 
   const handleClick = (cmd: CommandTemplate) => {
@@ -171,6 +206,10 @@ export function DeviceDetailPage() {
               recordedKeys={new Set(device?.recordedDataPoints ?? [])}
               canRecord={canRecord}
               onRecordToggle={handleRecordToggle}
+              zones={zones}
+              dataPointGroups={device?.dataPointGroups ?? {}}
+              canAssignZone={canAssignZone}
+              onZoneChange={handleZoneChange}
             />
           )}
         </CardContent>
@@ -307,9 +346,16 @@ interface DataPointTableProps {
   recordedKeys: Set<string>
   canRecord: boolean
   onRecordToggle: (key: string, checked: boolean) => void
+  zones: Zone[]
+  dataPointGroups: Record<string, string>
+  canAssignZone: boolean
+  onZoneChange: (dpKey: string, zoneName: string) => void
 }
 
-function DataPointTable({ dataPoints, liveReadings, recordedKeys, canRecord, onRecordToggle }: DataPointTableProps) {
+function DataPointTable({
+  dataPoints, liveReadings, recordedKeys, canRecord, onRecordToggle,
+  zones, dataPointGroups, canAssignZone, onZoneChange,
+}: DataPointTableProps) {
   return (
     <div className="rounded-b-lg border-t">
       <Table>
@@ -321,6 +367,7 @@ function DataPointTable({ dataPoints, liveReadings, recordedKeys, canRecord, onR
             <TableHead>Unit</TableHead>
             <TableHead>Quality</TableHead>
             <TableHead>Last seen</TableHead>
+            {zones.length > 0 && <TableHead>Zone</TableHead>}
             <TableHead className="pr-6 text-center" title={canRecord ? "Record to database" : "Only admins can enable recording"}>
               Record
             </TableHead>
@@ -353,6 +400,27 @@ function DataPointTable({ dataPoints, liveReadings, recordedKeys, canRecord, onR
                 <TableCell className="text-xs text-muted-foreground">
                   {r ? formatDistanceToNow(new Date(r.time), { addSuffix: true }) : "No data"}
                 </TableCell>
+                {zones.length > 0 && (
+                  <TableCell>
+                    <Select
+                      value={dataPointGroups[dp.key] ?? ""}
+                      onValueChange={(v) => onZoneChange(dp.key, v)}
+                      disabled={!canAssignZone}
+                    >
+                      <SelectTrigger size="sm" className="w-32">
+                        <SelectValue placeholder="No zone">
+                          {(value: string | null) => value ? zones.find((z) => z.name === value)?.name ?? value : "No zone"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No zone</SelectItem>
+                        {zones.map((z) => (
+                          <SelectItem key={z.id} value={z.name}>{z.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                )}
                 <TableCell className="pr-6 text-center">
                   <input
                     type="checkbox"

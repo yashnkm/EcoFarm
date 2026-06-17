@@ -36,11 +36,12 @@ export function DeviceLiveCard({ device, dataPoints, commandTemplates, liveReadi
   const [confirmCommand, setConfirmCommand] = useState<CommandTemplate | null>(null)
 
   const displayed = dataPoints.filter((dp) => dp.displayed)
-  const hasGroups = displayed.some((dp) => dp.displayGroup)
+  const groups = device.dataPointGroups ?? {}
+  const hasGroups = displayed.some((dp) => groups[dp.key])
   const groupMap = new Map<string, typeof displayed>()
   if (hasGroups) {
     for (const dp of displayed) {
-      const key = dp.displayGroup ?? ""
+      const key = groups[dp.key] ?? ""
       if (!groupMap.has(key)) groupMap.set(key, [])
       groupMap.get(key)!.push(dp)
     }

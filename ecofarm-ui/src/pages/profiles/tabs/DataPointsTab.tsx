@@ -7,7 +7,6 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { dataPointsApi, pollGroupsApi, type DataPointBody } from "@/api/deviceProfiles"
-import { sitesApi } from "@/api/sites"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -55,7 +54,6 @@ const schema = z.object({
   unit: z.string().optional(),
   displayWidget: z.enum(WIDGETS),
   pollGroupId: z.string().min(1, "Poll group is required"),
-  displayGroup: z.string().max(100).optional(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -72,11 +70,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     queryKey: ["poll-groups", profileId],
     queryFn: () => pollGroupsApi.list(profileId),
   })
-  const { data: allZones = [] } = useQuery({
-    queryKey: ["zones-all"],
-    queryFn: () => sitesApi.listAllZones(),
-    staleTime: 60_000,
-  })
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({
@@ -90,7 +83,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   const byteOrder = watch("byteOrder")
   const widget = watch("displayWidget")
   const pollGroupId = watch("pollGroupId")
-  const displayGroup = watch("displayGroup")
 
   const createMutation = useMutation({
     mutationFn: (body: DataPointBody) => dataPointsApi.create(profileId, body),
@@ -129,7 +121,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       key: "", label: "", registerNumber: 0,
       dataType: "UINT16", wordCount: 1, byteOrder: "BIG_ENDIAN",
       scaleFactor: 1, offset: 0, unit: "", displayWidget: "NUMBER",
-      pollGroupId: "", displayGroup: "",
+      pollGroupId: "",
     })
     setOpen(true)
   }
@@ -146,7 +138,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       unit: dp.unit ?? "",
       displayWidget: dp.displayWidget as FormValues["displayWidget"],
       pollGroupId: dp.pollGroupId,
-      displayGroup: dp.displayGroup ?? "",
     })
     setOpen(true)
   }
@@ -157,7 +148,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   }
 
   const onSubmit = (d: FormValues) => {
-    const body: DataPointBody = { ...d, displayGroup: d.displayGroup || undefined }
+    const body: DataPointBody = { ...d }
     return editing
       ? updateMutation.mutateAsync({ id: editing.id, body })
       : createMutation.mutateAsync(body)
@@ -261,26 +252,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
               </div>
 
               <Field>
-                <FieldLabel>Zone / Group</FieldLabel>
-                <Select
-                  value={displayGroup ?? ""}
-                  onValueChange={(v) => setValue("displayGroup", v ?? "", { shouldValidate: true })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No zone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No zone</SelectItem>
-                    {allZones.map((z) => (
-                      <SelectItem key={z.id} value={z.name}>
-                        {z.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
                 <FieldLabel>Display widget</FieldLabel>
                 <Select value={widget} onValueChange={(v) => setValue("displayWidget", v as FormValues["displayWidget"])}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -311,7 +282,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
               <TableRow>
                 <TableHead>Key</TableHead>
                 <TableHead>Label</TableHead>
-                <TableHead>Zone/Group</TableHead>
                 <TableHead>Register</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Unit</TableHead>
@@ -323,7 +293,6 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 <TableRow key={dp.id}>
                   <TableCell className="font-mono text-xs">{dp.key}</TableCell>
                   <TableCell>{dp.label}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{dp.displayGroup ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{dp.registerNumber}</TableCell>
                   <TableCell className="text-xs">{dp.dataType}</TableCell>
                   <TableCell>{dp.unit ?? "—"}</TableCell>

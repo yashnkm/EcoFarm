@@ -10,7 +10,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -90,4 +92,9 @@ public class Device {
     @Column(name = "recorded_data_points", columnDefinition = "jsonb")
     @Builder.Default
     private Set<String> recordedDataPoints = new HashSet<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "data_point_groups", columnDefinition = "jsonb")
+    @Builder.Default
+    private Map<String, String> dataPointGroups = new HashMap<>();
 }

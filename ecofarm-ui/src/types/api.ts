@@ -211,6 +211,7 @@ export interface Device {
   lastReadingAt: string | null
   createdAt: string
   recordedDataPoints: string[]
+  dataPointGroups: Record<string, string>
 }
 
 // ── Admin Overview ────────────────────────

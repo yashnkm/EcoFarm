@@ -63,6 +63,11 @@ export const devicesApi = {
     apiClient
       .patch<Device>(`/devices/${id}/recorded-data-points`, { dataPoints })
       .then((r) => r.data),
+
+  updateDataPointGroups: (id: string, dataPointGroups: Record<string, string>) =>
+    apiClient
+      .patch<Device>(`/devices/${id}/data-point-groups`, { dataPointGroups })
+      .then((r) => r.data),
 }
 
 export const deviceProfilesApi = {

@@ -4,6 +4,7 @@ import com.ecoFarm.domain.enums.DeviceProtocol;
 import com.ecoFarm.domain.enums.DeviceStatus;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -24,5 +25,6 @@ public record DeviceResponse(
     DeviceStatus status,
     Instant lastReadingAt,
     Instant createdAt,
-    Set<String> recordedDataPoints
+    Set<String> recordedDataPoints,
+    Map<String, String> dataPointGroups
 ) {}

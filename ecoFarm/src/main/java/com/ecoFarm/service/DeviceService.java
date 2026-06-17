@@ -1,6 +1,7 @@
 package com.ecoFarm.service;
 
 import com.ecoFarm.api.v1.dto.request.CreateDeviceRequest;
+import com.ecoFarm.api.v1.dto.request.DataPointGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.IssueCommandRequest;
 import com.ecoFarm.api.v1.dto.request.RecordedDataPointsRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateDeviceRequest;
@@ -169,6 +170,13 @@ public class DeviceService {
     public Device updateRecordedDataPoints(UUID id, RecordedDataPointsRequest req) {
         Device device = findInTenant(id);
         device.setRecordedDataPoints(req.dataPoints());
+        return device;
+    }
+
+    @Transactional
+    public Device updateDataPointGroups(UUID id, DataPointGroupsRequest req) {
+        Device device = findInTenant(id);
+        device.setDataPointGroups(req.dataPointGroups());
         return device;
     }
 

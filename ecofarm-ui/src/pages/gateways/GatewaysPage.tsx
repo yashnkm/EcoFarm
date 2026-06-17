@@ -184,7 +184,9 @@ export function GatewaysPage() {
                 <FieldLabel>Driver</FieldLabel>
                 <Select value={driverId ?? ""} onValueChange={(v) => setValue("driverId", v ?? "", { shouldValidate: true })} disabled={!!editing}>
                   <SelectTrigger aria-invalid={!!errors.driverId}>
-                    <SelectValue placeholder="Select a driver" />
+                    <SelectValue placeholder="Select a driver">
+                      {(value: string | null) => drivers?.find((d) => d.id === value)?.name ?? value}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -202,7 +204,9 @@ export function GatewaysPage() {
                   <FieldLabel>MQTT Broker</FieldLabel>
                   <Select value={mqttBrokerId ?? ""} onValueChange={(v) => setValue("mqttBrokerId", v ?? "", { shouldValidate: true })}>
                     <SelectTrigger aria-invalid={!!errors.mqttBrokerId}>
-                      <SelectValue placeholder="Select a broker" />
+                      <SelectValue placeholder="Select a broker">
+                        {(value: string | null) => brokers?.find((b) => b.id === value)?.name ?? value}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
@@ -225,7 +229,9 @@ export function GatewaysPage() {
                 <FieldLabel>Site</FieldLabel>
                 <Select value={siteId ?? ""} onValueChange={(v) => setValue("siteId", v ?? undefined)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Unassigned" />
+                    <SelectValue placeholder="Unassigned">
+                      {(value: string | null) => sites?.find((s) => s.id === value)?.name ?? value}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>

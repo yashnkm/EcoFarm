@@ -164,7 +164,9 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
                   onValueChange={(v) => setValue("functionCode", Number(v), { shouldValidate: true })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select function code" />
+                    <SelectValue placeholder="Select function code">
+                      {(value: string | null) => FC_OPTIONS.find((o) => String(o.code) === value)?.label ?? value}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>

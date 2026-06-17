@@ -198,7 +198,11 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
               <Field data-invalid={errors.pollGroupId ? true : undefined}>
                 <FieldLabel>Poll group</FieldLabel>
                 <Select value={pollGroupId ?? ""} onValueChange={(v) => setValue("pollGroupId", v ?? "", { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue placeholder="Select poll group" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select poll group">
+                      {(value: string | null) => groups?.find((g) => g.id === value)?.name ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
                       {groups?.map((g) => (

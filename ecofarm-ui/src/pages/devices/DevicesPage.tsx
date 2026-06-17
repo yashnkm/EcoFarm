@@ -197,7 +197,9 @@ export function DevicesPage() {
                 <FieldLabel>Gateway</FieldLabel>
                 <Select value={gatewayId ?? ""} onValueChange={(v) => setValue("gatewayId", v ?? "", { shouldValidate: true })} disabled={!!editing}>
                   <SelectTrigger aria-invalid={!!errors.gatewayId}>
-                    <SelectValue placeholder="Select a gateway" />
+                    <SelectValue placeholder="Select a gateway">
+                      {(value: string | null) => { const g = gateways?.find((g) => g.id === value); return g ? (g.name ?? g.serialNumber) : value }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -214,7 +216,9 @@ export function DevicesPage() {
                 <FieldLabel>Device profile</FieldLabel>
                 <Select value={profileId ?? ""} onValueChange={(v) => setValue("profileId", v ?? "", { shouldValidate: true })} disabled={!!editing}>
                   <SelectTrigger aria-invalid={!!errors.profileId}>
-                    <SelectValue placeholder="Select a profile" />
+                    <SelectValue placeholder="Select a profile">
+                      {(value: string | null) => { const p = profiles?.find((p) => p.id === value); return p ? `${p.name}${p.global ? " (global)" : ""}` : value }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -241,7 +245,9 @@ export function DevicesPage() {
                     onValueChange={(v) => setValue("zoneId", v ?? "", { shouldValidate: true })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="No zone" />
+                      <SelectValue placeholder="No zone">
+                        {(value: string | null) => value ? zones.find((z) => z.id === value)?.name ?? value : "No zone"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">No zone</SelectItem>

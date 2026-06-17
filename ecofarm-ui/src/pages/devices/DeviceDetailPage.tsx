@@ -111,6 +111,7 @@ export function DeviceDetailPage() {
     mutationFn: (groups: Record<string, string>) => devicesApi.updateDataPointGroups(id, groups),
     onSuccess: (updated) => {
       queryClient.setQueryData(["device", id], updated)
+      queryClient.invalidateQueries({ queryKey: ["devices"] })
     },
     onError: () => toast.error("Failed to update zone assignment"),
   })

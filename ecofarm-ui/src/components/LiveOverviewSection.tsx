@@ -3,13 +3,12 @@ import { Radio } from "lucide-react"
 
 import { dataPointsApi, commandTemplatesApi } from "@/api/deviceProfiles"
 import { useAuthStore } from "@/store/authStore"
-import type { Device, Site } from "@/types/api"
+import type { Device } from "@/types/api"
 import type { LiveReading } from "@/hooks/useLiveReadings"
 import { DeviceLiveCard } from "@/components/DeviceLiveCard"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface Props {
-  sites: Site[]
   devices: Device[]
   liveReadings: Map<string, LiveReading>
   devicesLoading: boolean

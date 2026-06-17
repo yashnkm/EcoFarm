@@ -77,8 +77,6 @@ export function DevicesPage() {
   const profileId = watch("profileId")
   const zoneId = watch("zoneId")
 
-  const selectedGateway = gateways?.find((g) => g.id === gatewayId)
-
   const { data: zones = [] } = useQuery({
     queryKey: ["zones-all"],
     queryFn: () => sitesApi.listAllZones(),

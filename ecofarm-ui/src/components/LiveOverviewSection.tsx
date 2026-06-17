@@ -64,7 +64,7 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
         </div>
 
         {sites.length > 0 && (
-          <Select value={siteFilter} onValueChange={(v) => setSiteFilter(v)}>
+          <Select value={siteFilter} onValueChange={(v) => setSiteFilter(v ?? "")}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All sites">
                 {(value: string | null) =>

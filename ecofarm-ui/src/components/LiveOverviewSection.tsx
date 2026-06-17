@@ -84,6 +84,12 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
         )}
       </div>
 
+      {!devicesLoading && (
+        <p className="text-xs text-muted-foreground">
+          Debug: {devices.length} total devices, {zonedDevices.length} with a zone assigned
+        </p>
+      )}
+
       {devicesLoading || profilesLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (

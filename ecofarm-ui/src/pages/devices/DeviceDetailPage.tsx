@@ -404,7 +404,7 @@ function DataPointTable({
                   <TableCell>
                     <Select
                       value={dataPointGroups[dp.key] ?? ""}
-                      onValueChange={(v) => onZoneChange(dp.key, v)}
+                      onValueChange={(v) => onZoneChange(dp.key, v ?? "")}
                       disabled={!canAssignZone}
                     >
                       <SelectTrigger size="sm" className="w-32">

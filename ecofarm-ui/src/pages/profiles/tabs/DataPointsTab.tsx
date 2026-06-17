@@ -216,49 +216,54 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 {errors.pollGroupId && <FieldError>{errors.pollGroupId.message}</FieldError>}
               </Field>
 
-              <div className="grid grid-cols-3 gap-4">
-                <Field>
-                  <FieldLabel>Data type</FieldLabel>
-                  <Select value={dataType} onValueChange={(v) => setValue("dataType", v as FormValues["dataType"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {DATA_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="words">Words</FieldLabel>
-                  <Input id="words" type="number" {...register("wordCount")} />
-                </Field>
-                <Field>
-                  <FieldLabel>Byte order</FieldLabel>
-                  <Select value={byteOrder} onValueChange={(v) => setValue("byteOrder", v as FormValues["byteOrder"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {BYTE_ORDERS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
+              <Field>
+                <FieldLabel>Data type</FieldLabel>
+                <Select value={dataType} onValueChange={(v) => setValue("dataType", v as FormValues["dataType"])}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {DATA_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-              <div className="grid grid-cols-3 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="scale">Scale</FieldLabel>
-                  <Input id="scale" type="number" step="any" {...register("scaleFactor")} />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="offset">Offset</FieldLabel>
-                  <Input id="offset" type="number" step="any" {...register("offset")} />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="unit">Unit</FieldLabel>
-                  <Input id="unit" placeholder="V" {...register("unit")} />
-                </Field>
-              </div>
+              {!isBoolean && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="words">Words</FieldLabel>
+                      <Input id="words" type="number" {...register("wordCount")} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Byte order</FieldLabel>
+                      <Select value={byteOrder} onValueChange={(v) => setValue("byteOrder", v as FormValues["byteOrder"])}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {BYTE_ORDERS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="scale">Scale</FieldLabel>
+                      <Input id="scale" type="number" step="any" {...register("scaleFactor")} />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="offset">Offset</FieldLabel>
+                      <Input id="offset" type="number" step="any" {...register("offset")} />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="unit">Unit</FieldLabel>
+                      <Input id="unit" placeholder="V" {...register("unit")} />
+                    </Field>
+                  </div>
+                </>
+              )}
 
               <Field>
                 <FieldLabel>Display widget</FieldLabel>

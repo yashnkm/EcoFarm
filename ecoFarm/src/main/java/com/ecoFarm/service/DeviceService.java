@@ -103,7 +103,11 @@ public class DeviceService {
         if (req.ipAddress() != null)       device.setIpAddress(req.ipAddress());
         if (req.port() != null)            device.setPort(req.port());
         if (req.zoneId() != null) {
-            device.setZone(resolveZone(req.zoneId(), device.getSite()));
+            Zone zone = resolveZone(req.zoneId(), device.getSite());
+            device.setZone(zone);
+            if (device.getSite() == null && zone != null) {
+                device.setSite(zone.getSite());
+            }
         } else if (Boolean.TRUE.equals(req.clearZone())) {
             device.setZone(null);
         }
@@ -190,7 +194,7 @@ public class DeviceService {
         if (zoneId == null) return null;
         Zone zone = zoneRepository.findById(zoneId)
             .orElseThrow(() -> ApiException.badRequest("Zone not found"));
-        if (site == null || !zone.getSite().getId().equals(site.getId())) {
+        if (site != null && !zone.getSite().getId().equals(site.getId())) {
             throw ApiException.badRequest("Zone does not belong to the device's site");
         }
         return zone;

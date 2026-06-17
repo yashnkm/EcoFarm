@@ -101,7 +101,9 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
           ))}
         </div>
       ) : siteDevices.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No devices found at this site.</p>
+        <p className="text-sm text-muted-foreground">
+          No zone-assigned devices at this site. Edit a device in the Devices tab and assign it to a zone.
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {siteDevices.map((device) => (

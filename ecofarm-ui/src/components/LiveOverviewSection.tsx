@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Radio } from "lucide-react"
 
@@ -8,14 +7,6 @@ import type { Device, Site } from "@/types/api"
 import type { LiveReading } from "@/hooks/useLiveReadings"
 import { DeviceLiveCard } from "@/components/DeviceLiveCard"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 interface Props {
   sites: Site[]
@@ -24,15 +15,13 @@ interface Props {
   devicesLoading: boolean
 }
 
-export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoading }: Props) {
+export function LiveOverviewSection({ devices, liveReadings, devicesLoading }: Props) {
   const { user } = useAuthStore()
-  const [siteFilter, setSiteFilter] = useState<string>("")
 
-  const zonedDevices = devices.filter((d) => !!d.zoneId)
-
-  const visibleDevices = siteFilter
-    ? zonedDevices.filter((d) => d.siteId === siteFilter)
-    : zonedDevices
+  // Show devices that have at least one data point with a zone assigned
+  const visibleDevices = devices.filter((d) =>
+    Object.values(d.dataPointGroups ?? {}).some((v) => !!v)
+  )
 
   const profileIds = [...new Set(visibleDevices.map((d) => d.profileId))]
 
@@ -57,38 +46,10 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Radio className="size-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold">Live Overview</h2>
-        </div>
-
-        {sites.length > 0 && (
-          <Select value={siteFilter} onValueChange={(v) => setSiteFilter(v ?? "")}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All sites">
-                {(value: string | null) =>
-                  value ? sites.find((s) => s.id === value)?.name ?? value : "All sites"
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="">All sites</SelectItem>
-                {sites.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        )}
+      <div className="flex items-center gap-2">
+        <Radio className="size-4 text-muted-foreground" />
+        <h2 className="text-base font-semibold">Live Overview</h2>
       </div>
-
-      {!devicesLoading && (
-        <p className="text-xs text-muted-foreground">
-          Debug: {devices.length} total devices, {zonedDevices.length} with a zone assigned
-        </p>
-      )}
 
       {devicesLoading || profilesLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -98,9 +59,7 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
         </div>
       ) : visibleDevices.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {siteFilter
-            ? "No zone-assigned devices at this site."
-            : "No zone-assigned devices. Go to Devices tab, edit a device, and assign it to a zone."}
+          No devices with zone-assigned data points. Open a device and assign zones to its data points.
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

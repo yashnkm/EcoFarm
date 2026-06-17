@@ -31,7 +31,7 @@ export function LiveOverviewSection({ sites, devices, liveReadings, devicesLoadi
   const effectiveSiteId = selectedSiteId ?? sites[0]?.id ?? null
 
   const siteDevices = effectiveSiteId
-    ? devices.filter((d) => d.siteId === effectiveSiteId && d.zoneId)
+    ? devices.filter((d) => d.siteId === effectiveSiteId)
     : []
 
   const profileIds = [...new Set(siteDevices.map((d) => d.profileId))]

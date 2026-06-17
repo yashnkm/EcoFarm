@@ -80,9 +80,8 @@ export function DeviceDetailPage() {
   })
 
   const { data: zones = [] } = useQuery({
-    queryKey: ["zones", device?.siteId],
-    queryFn: () => sitesApi.listZones(device!.siteId!),
-    enabled: !!device?.siteId,
+    queryKey: ["zones-all"],
+    queryFn: () => sitesApi.listAllZones(),
     staleTime: 60_000,
   })
 
@@ -367,7 +366,7 @@ function DataPointTable({
             <TableHead>Unit</TableHead>
             <TableHead>Quality</TableHead>
             <TableHead>Last seen</TableHead>
-            {zones.length > 0 && <TableHead>Zone</TableHead>}
+            <TableHead>Zone</TableHead>
             <TableHead className="pr-6 text-center" title={canRecord ? "Record to database" : "Only admins can enable recording"}>
               Record
             </TableHead>
@@ -400,8 +399,10 @@ function DataPointTable({
                 <TableCell className="text-xs text-muted-foreground">
                   {r ? formatDistanceToNow(new Date(r.time), { addSuffix: true }) : "No data"}
                 </TableCell>
-                {zones.length > 0 && (
-                  <TableCell>
+                <TableCell>
+                  {zones.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">No zones</span>
+                  ) : (
                     <Select
                       value={dataPointGroups[dp.key] ?? ""}
                       onValueChange={(v) => onZoneChange(dp.key, v ?? "")}
@@ -419,8 +420,8 @@ function DataPointTable({
                         ))}
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                )}
+                  )}
+                </TableCell>
                 <TableCell className="pr-6 text-center">
                   <input
                     type="checkbox"

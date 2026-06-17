@@ -108,6 +108,7 @@ export function DashboardPage() {
       </Card>}
 
       <LiveOverviewSection
+        sites={sites.data ?? []}
         devices={devices.data ?? []}
         liveReadings={liveReadings}
         devicesLoading={devices.isLoading}

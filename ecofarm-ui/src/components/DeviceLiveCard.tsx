@@ -35,16 +35,14 @@ export function DeviceLiveCard({ device, dataPoints, commandTemplates, liveReadi
   const queryClient = useQueryClient()
   const [confirmCommand, setConfirmCommand] = useState<CommandTemplate | null>(null)
 
-  const displayed = dataPoints.filter((dp) => dp.displayed)
   const groups = device.dataPointGroups ?? {}
-  const hasGroups = displayed.some((dp) => groups[dp.key])
+  // Only show data points that are both displayed and have a zone assigned
+  const displayed = dataPoints.filter((dp) => dp.displayed && !!groups[dp.key])
   const groupMap = new Map<string, typeof displayed>()
-  if (hasGroups) {
-    for (const dp of displayed) {
-      const key = groups[dp.key] ?? ""
-      if (!groupMap.has(key)) groupMap.set(key, [])
-      groupMap.get(key)!.push(dp)
-    }
+  for (const dp of displayed) {
+    const zone = groups[dp.key]
+    if (!groupMap.has(zone)) groupMap.set(zone, [])
+    groupMap.get(zone)!.push(dp)
   }
   const canIssueCommand = userRole === "SUPER_ADMIN" || userRole === "TENANT_ADMIN" || userRole === "OPERATOR"
 
@@ -96,66 +94,38 @@ export function DeviceLiveCard({ device, dataPoints, commandTemplates, liveReadi
 
         <CardContent className="flex flex-1 flex-col gap-3">
           {displayed.length > 0 ? (
-            hasGroups ? (
-              <div className="flex flex-col gap-2 text-sm">
-                {[...groupMap.entries()].map(([group, dps]) => (
-                  <div key={group}>
-                    {group && (
-                      <p className="mb-1 text-xs font-medium text-muted-foreground">{group}</p>
-                    )}
-                    <div className="divide-y rounded-md border">
-                      {dps.map((dp) => {
-                        const r = liveReadings.get(`${device.id}:${dp.key}`)
-                        return (
-                          <div key={dp.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                            <span className="truncate text-muted-foreground">{dp.label}</span>
-                            <div className="flex shrink-0 items-center gap-1.5">
-                              <span className="tabular-nums font-semibold">
-                                {r?.value != null
-                                  ? r.value.toFixed(2)
-                                  : <span className="font-normal text-muted-foreground">—</span>}
-                              </span>
-                              {(dp.unit ?? r?.unit) && (
-                                <span className="text-xs text-muted-foreground">{dp.unit ?? r?.unit}</span>
-                              )}
-                              {r && r.quality !== "GOOD" && (
-                                <Badge variant="secondary" className="px-1 py-0 text-xs">{r.quality}</Badge>
-                              )}
-                            </div>
+            <div className="flex flex-col gap-2 text-sm">
+              {[...groupMap.entries()].map(([zone, dps]) => (
+                <div key={zone}>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">{zone}</p>
+                  <div className="divide-y rounded-md border">
+                    {dps.map((dp) => {
+                      const r = liveReadings.get(`${device.id}:${dp.key}`)
+                      return (
+                        <div key={dp.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                          <span className="truncate text-muted-foreground">{dp.label}</span>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <span className="tabular-nums font-semibold">
+                              {r?.value != null
+                                ? r.value.toFixed(2)
+                                : <span className="font-normal text-muted-foreground">—</span>}
+                            </span>
+                            {(dp.unit ?? r?.unit) && (
+                              <span className="text-xs text-muted-foreground">{dp.unit ?? r?.unit}</span>
+                            )}
+                            {r && r.quality !== "GOOD" && (
+                              <Badge variant="secondary" className="px-1 py-0 text-xs">{r.quality}</Badge>
+                            )}
                           </div>
-                        )
-                      })}
-                    </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="divide-y rounded-md border text-sm">
-                {displayed.map((dp) => {
-                  const r = liveReadings.get(`${device.id}:${dp.key}`)
-                  return (
-                    <div key={dp.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                      <span className="truncate text-muted-foreground">{dp.label}</span>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="tabular-nums font-semibold">
-                          {r?.value != null
-                            ? r.value.toFixed(2)
-                            : <span className="font-normal text-muted-foreground">—</span>}
-                        </span>
-                        {(dp.unit ?? r?.unit) && (
-                          <span className="text-xs text-muted-foreground">{dp.unit ?? r?.unit}</span>
-                        )}
-                        {r && r.quality !== "GOOD" && (
-                          <Badge variant="secondary" className="px-1 py-0 text-xs">{r.quality}</Badge>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
+                </div>
+              ))}
+            </div>
           ) : (
-            <p className="text-xs text-muted-foreground">No displayed data points configured.</p>
+            <p className="text-xs text-muted-foreground">No zone-assigned data points.</p>
           )}
 
           {device.lastReadingAt && (

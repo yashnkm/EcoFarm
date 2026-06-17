@@ -91,4 +91,10 @@ public class DataPoint {
 
     @Column(name = "display_group", length = 100)
     private String displayGroup;
+
+    @Column(name = "false_label", length = 100)
+    private String falseLabel;
+
+    @Column(name = "true_label", length = 100)
+    private String trueLabel;
 }

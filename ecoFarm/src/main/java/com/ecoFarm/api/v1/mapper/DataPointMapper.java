@@ -27,7 +27,9 @@ public class DataPointMapper {
             dp.isWritable(),
             dp.isDisplayed(),
             dp.getDisplayWidget(),
-            dp.getDisplayGroup()
+            dp.getDisplayGroup(),
+            dp.getFalseLabel(),
+            dp.getTrueLabel()
         );
     }
 }

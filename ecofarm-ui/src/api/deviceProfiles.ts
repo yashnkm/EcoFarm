@@ -78,6 +78,8 @@ export interface DataPointBody {
   writable?: boolean
   displayed?: boolean
   displayWidget?: string
+  falseLabel?: string
+  trueLabel?: string
 }
 
 export const dataPointsApi = {

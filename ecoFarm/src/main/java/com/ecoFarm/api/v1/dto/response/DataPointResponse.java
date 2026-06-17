@@ -26,5 +26,7 @@ public record DataPointResponse(
     boolean writable,
     boolean displayed,
     DisplayWidget displayWidget,
-    String displayGroup
+    String displayGroup,
+    String falseLabel,
+    String trueLabel
 ) {}

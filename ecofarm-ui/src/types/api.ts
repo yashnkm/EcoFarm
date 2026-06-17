@@ -167,6 +167,8 @@ export interface DataPoint {
   displayed: boolean
   displayWidget: string
   displayGroup: string | null
+  falseLabel: string | null
+  trueLabel: string | null
 }
 
 export interface PollGroup {

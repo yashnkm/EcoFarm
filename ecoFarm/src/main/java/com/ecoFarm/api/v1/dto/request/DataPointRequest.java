@@ -26,5 +26,7 @@ public record DataPointRequest(
     Boolean displayed,
     DisplayWidget displayWidget,
     @NotNull UUID pollGroupId,
-    @Size(max = 100) String displayGroup
+    @Size(max = 100) String displayGroup,
+    @Size(max = 100) String falseLabel,
+    @Size(max = 100) String trueLabel
 ) {}

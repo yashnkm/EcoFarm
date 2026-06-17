@@ -6,5 +6,6 @@ public enum DataType {
     UINT32,
     INT32,
     FLOAT32,
-    ASCII
+    ASCII,
+    BOOLEAN
 }

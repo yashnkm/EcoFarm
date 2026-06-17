@@ -71,6 +71,8 @@ public class DataPointService {
             .displayed(req.displayed() == null || req.displayed())
             .displayWidget(req.displayWidget() != null ? req.displayWidget() : DisplayWidget.NUMBER)
             .displayGroup(req.displayGroup())
+            .falseLabel(req.falseLabel())
+            .trueLabel(req.trueLabel())
             .build();
 
         return repo.save(dp);
@@ -104,6 +106,8 @@ public class DataPointService {
         if (req.displayed() != null)     dp.setDisplayed(req.displayed());
         if (req.displayWidget() != null) dp.setDisplayWidget(req.displayWidget());
         dp.setDisplayGroup(req.displayGroup());
+        dp.setFalseLabel(req.falseLabel());
+        dp.setTrueLabel(req.trueLabel());
 
         return dp;
     }

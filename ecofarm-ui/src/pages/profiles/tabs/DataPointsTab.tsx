@@ -38,8 +38,8 @@ import { DeleteConfirm } from "@/components/DeleteConfirm"
 import { EditButton } from "@/components/EditButton"
 import type { DataPoint } from "@/types/api"
 
-const DATA_TYPES = ["UINT16", "INT16", "UINT32", "INT32", "FLOAT32", "ASCII"] as const
-const WIDGETS = ["NUMBER", "GAUGE", "BOOLEAN_TOGGLE", "STATUS_BADGE"] as const
+const DATA_TYPES = ["UINT16", "INT16", "UINT32", "INT32", "FLOAT32", "ASCII", "BOOLEAN"] as const
+const WIDGETS = ["NUMBER", "GAUGE", "BOOLEAN_TOGGLE", "BOOLEAN_DISPLAY", "STATUS_BADGE"] as const
 const BYTE_ORDERS = ["BIG_ENDIAN", "LITTLE_ENDIAN"] as const
 
 const schema = z.object({
@@ -54,6 +54,8 @@ const schema = z.object({
   unit: z.string().optional(),
   displayWidget: z.enum(WIDGETS),
   pollGroupId: z.string().min(1, "Poll group is required"),
+  falseLabel: z.string().max(100).optional(),
+  trueLabel: z.string().max(100).optional(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -83,6 +85,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   const byteOrder = watch("byteOrder")
   const widget = watch("displayWidget")
   const pollGroupId = watch("pollGroupId")
+  const isBoolean = dataType === "BOOLEAN"
 
   const createMutation = useMutation({
     mutationFn: (body: DataPointBody) => dataPointsApi.create(profileId, body),
@@ -121,7 +124,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       key: "", label: "", registerNumber: 0,
       dataType: "UINT16", wordCount: 1, byteOrder: "BIG_ENDIAN",
       scaleFactor: 1, offset: 0, unit: "", displayWidget: "NUMBER",
-      pollGroupId: "",
+      pollGroupId: "", falseLabel: "", trueLabel: "",
     })
     setOpen(true)
   }
@@ -138,6 +141,8 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       unit: dp.unit ?? "",
       displayWidget: dp.displayWidget as FormValues["displayWidget"],
       pollGroupId: dp.pollGroupId,
+      falseLabel: dp.falseLabel ?? "",
+      trueLabel: dp.trueLabel ?? "",
     })
     setOpen(true)
   }
@@ -148,7 +153,11 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   }
 
   const onSubmit = (d: FormValues) => {
-    const body: DataPointBody = { ...d }
+    const body: DataPointBody = {
+      ...d,
+      falseLabel: d.dataType === "BOOLEAN" ? (d.falseLabel || undefined) : undefined,
+      trueLabel: d.dataType === "BOOLEAN" ? (d.trueLabel || undefined) : undefined,
+    }
     return editing
       ? updateMutation.mutateAsync({ id: editing.id, body })
       : createMutation.mutateAsync(body)
@@ -262,6 +271,19 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                   </SelectContent>
                 </Select>
               </Field>
+
+              {isBoolean && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="falseLabel">Label when OFF (0)</FieldLabel>
+                    <Input id="falseLabel" placeholder="e.g. OFF" {...register("falseLabel")} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="trueLabel">Label when ON (1)</FieldLabel>
+                    <Input id="trueLabel" placeholder="e.g. ON" {...register("trueLabel")} />
+                  </Field>
+                </div>
+              )}
             </div>
 
             <DialogFooter>

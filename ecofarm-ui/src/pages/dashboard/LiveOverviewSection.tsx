@@ -94,7 +94,7 @@ export function LiveOverviewSection() {
           <h2 className="text-lg font-semibold">Live Overview</h2>
           <p className="text-sm text-muted-foreground">Real-time readings from all devices</p>
         </div>
-        <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
+        <Select value={selectedSiteId} onValueChange={(v) => setSelectedSiteId(v ?? "all")}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select site" />
           </SelectTrigger>

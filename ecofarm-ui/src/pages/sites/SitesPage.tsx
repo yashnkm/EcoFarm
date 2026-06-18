@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus, MapPin, Layers } from "lucide-react"
 
 import { sitesApi } from "@/api/sites"
+import { NewSiteWizard } from "./NewSiteWizard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -200,6 +201,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function SitesPage() {
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Site | null>(null)
   const [zonesFor, setZonesFor] = useState<Site | null>(null)
@@ -242,11 +244,7 @@ export function SitesPage() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
     useForm<FormValues>({ resolver: zodResolver(schema) })
 
-  const openCreate = () => {
-    setEditing(null)
-    reset({ name: "", address: "", timezone: "" })
-    setOpen(true)
-  }
+  const openCreate = () => setWizardOpen(true)
   const openEdit = (site: Site) => {
     setEditing(site)
     reset({ name: site.name, address: site.address ?? "", timezone: site.timezone })
@@ -378,6 +376,8 @@ export function SitesPage() {
           onClose={() => setZonesFor(null)}
         />
       )}
+
+      <NewSiteWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
     </div>
   )
 }

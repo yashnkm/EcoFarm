@@ -6,6 +6,7 @@ import { sitesApi } from "@/api/sites"
 import { gatewaysApi } from "@/api/gateways"
 import { devicesApi } from "@/api/devices"
 import { MqttStatusCard } from "@/components/MqttStatusBadge"
+import { LiveOverviewSection } from "./LiveOverviewSection"
 import {
   Card,
   CardContent,
@@ -64,6 +65,8 @@ export function DashboardPage() {
           loading={false}
         />
       </div>
+
+      <LiveOverviewSection />
 
       {user?.role === "SUPER_ADMIN" && <MqttStatusCard />}
 

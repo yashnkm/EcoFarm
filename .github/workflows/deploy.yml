@@ -71,10 +71,10 @@ jobs:
           if [ -n "${{ secrets.VPS_KNOWN_HOST }}" ]; then
             echo "${{ secrets.VPS_KNOWN_HOST }}" >> ~/.ssh/known_hosts
           else
-            ssh-keyscan -p ${{ secrets.VPS_PORT }} -T 15 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -p ${{ secrets.VPS_PORT }} -T 30 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
           fi
-          # Accept new host keys on first connection (covers keyscan misses)
-          printf 'Host *\n  StrictHostKeyChecking accept-new\n  ServerAliveInterval 30\n' >> ~/.ssh/config
+          # Tune SSH to fail fast on dead connections and accept new host keys
+          printf 'Host *\n  StrictHostKeyChecking accept-new\n  ConnectTimeout 30\n  ServerAliveInterval 30\n  ServerAliveCountMax 3\n' >> ~/.ssh/config
 
       - name: Upload artifacts
         env:
@@ -82,13 +82,23 @@ jobs:
           U: ${{ secrets.VPS_USER }}
           P: ${{ secrets.VPS_PORT }}
         run: |
+          # Retry helper: up to 3 attempts with 20 s back-off
+          retry() {
+            local n=1
+            until "$@"; do
+              if [ $n -ge 3 ]; then echo "All $n attempts failed: $*" >&2; return 1; fi
+              echo "Attempt $n failed — retrying in 20 s..."
+              n=$((n+1)); sleep 20
+            done
+          }
+
           # rsync backend: lib/ (~66 MB) is skipped when deps haven't changed.
           # Only the thin ecoFarm.jar (~2 MB) transfers on normal code-only deploys.
-          rsync -az --delete -e "ssh -p $P" ecoFarm/extracted/ "$U@$H:/opt/ecofarm/app/"
+          retry rsync -az --delete -e "ssh -p $P" ecoFarm/extracted/ "$U@$H:/opt/ecofarm/app/"
 
           # Frontend: already a small compressed tar
           tar -C ecofarm-ui/dist -czf dist.tar.gz .
-          scp -P "$P" dist.tar.gz "$U@$H:/opt/ecofarm/ui-new.tar.gz"
+          retry scp -P "$P" dist.tar.gz "$U@$H:/opt/ecofarm/ui-new.tar.gz"
 
       - name: Activate new release
         env:
@@ -96,7 +106,7 @@ jobs:
           U: ${{ secrets.VPS_USER }}
           P: ${{ secrets.VPS_PORT }}
         run: |
-          ssh -p "$P" "$U@$H" bash -s <<'EOF'
+          ssh -p "$P" -o ConnectTimeout=30 "$U@$H" bash -s <<'EOF'
           set -euo pipefail
 
           # Run DB migrations

@@ -12,7 +12,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -96,7 +95,11 @@ export function LiveOverviewSection() {
         </div>
         <Select value={selectedSiteId} onValueChange={(v) => setSelectedSiteId(v ?? "all")}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select site" />
+            <span className="flex flex-1 truncate text-left text-sm">
+              {selectedSiteId === "all"
+                ? "All Sites"
+                : (sitesQuery.data?.find((s) => s.id === selectedSiteId)?.name ?? "Select site")}
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sites</SelectItem>

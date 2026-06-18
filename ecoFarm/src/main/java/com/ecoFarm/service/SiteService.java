@@ -70,35 +70,28 @@ public class SiteService {
     @Transactional
     public void delete(UUID id) {
         Site site = findInTenant(id);
-        UUID sid = site.getId();
 
-        // Devices belonging to this site: either directly assigned (site_id) or
-        // owned by a gateway that belongs to this site. Using this as a subquery
-        // ensures we don't miss devices whose site_id is null but whose gateway is here.
-        String allDevices = "(SELECT id FROM devices WHERE site_id = :sid"
-            + " OR gateway_id IN (SELECT id FROM gateways WHERE site_id = :sid))";
-
+        // Cascade everything under the site: readings → alerts/rules → commands
+        // → devices → gateways → zones → site itself.
         em.createNativeQuery("DELETE FROM readings WHERE site_id = :sid")
-          .setParameter("sid", sid).executeUpdate();
-        em.createNativeQuery("DELETE FROM alerts WHERE device_id IN " + allDevices)
-          .setParameter("sid", sid).executeUpdate();
-        em.createNativeQuery("DELETE FROM alert_rules WHERE device_id IN " + allDevices)
-          .setParameter("sid", sid).executeUpdate();
-        em.createNativeQuery("DELETE FROM control_commands WHERE device_id IN " + allDevices)
-          .setParameter("sid", sid).executeUpdate();
-        em.createNativeQuery("DELETE FROM communication_logs"
-            + " WHERE gateway_id IN (SELECT id FROM gateways WHERE site_id = :sid)")
-          .setParameter("sid", sid).executeUpdate();
+          .setParameter("sid", site.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM alerts WHERE device_id IN (SELECT id FROM devices WHERE site_id = :sid)")
+          .setParameter("sid", site.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM alert_rules WHERE device_id IN (SELECT id FROM devices WHERE site_id = :sid)")
+          .setParameter("sid", site.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM control_commands WHERE device_id IN (SELECT id FROM devices WHERE site_id = :sid)")
+          .setParameter("sid", site.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM communication_logs WHERE gateway_id IN (SELECT id FROM gateways WHERE site_id = :sid)")
+          .setParameter("sid", site.getId()).executeUpdate();
         em.createNativeQuery("DELETE FROM system_event_logs WHERE site_id = :sid")
-          .setParameter("sid", sid).executeUpdate();
-        em.createNativeQuery("DELETE FROM devices WHERE site_id = :sid"
-            + " OR gateway_id IN (SELECT id FROM gateways WHERE site_id = :sid)")
-          .setParameter("sid", sid).executeUpdate();
+          .setParameter("sid", site.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM devices WHERE site_id = :sid")
+          .setParameter("sid", site.getId()).executeUpdate();
         em.createNativeQuery("DELETE FROM gateways WHERE site_id = :sid")
-          .setParameter("sid", sid).executeUpdate();
+          .setParameter("sid", site.getId()).executeUpdate();
         em.createNativeQuery("DELETE FROM zones WHERE site_id = :sid")
-          .setParameter("sid", sid).executeUpdate();
-        em.createNativeQuery("DELETE FROM sites WHERE id = :sid")
-          .setParameter("sid", sid).executeUpdate();
+          .setParameter("sid", site.getId()).executeUpdate();
+
+        siteRepository.delete(site);
     }
 }

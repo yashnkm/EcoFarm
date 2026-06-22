@@ -253,9 +253,9 @@ const ruleSchema = z.object({
   dataPointKey: z.string().min(1, "Data point key is required"),
   name: z.string().min(1, "Name is required"),
   condition: z.string().min(1, "Condition is required"),
-  threshold: z.coerce.number(),
+  threshold: z.string().min(1, "Threshold is required"),
   severity: z.string().min(1, "Severity is required"),
-  cooldownMinutes: z.coerce.number().int().min(1).max(1440),
+  cooldownMinutes: z.string().min(1, "Cooldown is required"),
 })
 
 type RuleFormValues = z.infer<typeof ruleSchema>
@@ -344,7 +344,7 @@ function AlertRulesTab() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ cooldownMinutes: 15, severity: "WARNING", condition: "GT" })
+    reset({ cooldownMinutes: "15", severity: "WARNING", condition: "GT" })
     setOpen(true)
   }
 
@@ -355,9 +355,9 @@ function AlertRulesTab() {
       dataPointKey: rule.dataPointKey,
       name: rule.name,
       condition: rule.condition,
-      threshold: rule.threshold,
+      threshold: String(rule.threshold),
       severity: rule.severity,
-      cooldownMinutes: rule.cooldownMinutes,
+      cooldownMinutes: String(rule.cooldownMinutes),
     })
     setOpen(true)
   }
@@ -369,10 +369,18 @@ function AlertRulesTab() {
   }
 
   const onSubmit = (data: RuleFormValues) => {
+    const threshold = Number(data.threshold)
+    const cooldownMinutes = Number(data.cooldownMinutes)
     if (editing) {
       return updateMutation.mutateAsync({
         id: editing.id,
-        body: data,
+        body: {
+          name: data.name,
+          condition: data.condition as AlertCondition,
+          threshold,
+          severity: data.severity as AlertSeverity,
+          cooldownMinutes,
+        },
       })
     }
     return createMutation.mutateAsync({
@@ -380,9 +388,9 @@ function AlertRulesTab() {
       dataPointKey: data.dataPointKey,
       name: data.name,
       condition: data.condition as AlertCondition,
-      threshold: data.threshold,
+      threshold,
       severity: data.severity as AlertSeverity,
-      cooldownMinutes: data.cooldownMinutes,
+      cooldownMinutes,
     })
   }
 

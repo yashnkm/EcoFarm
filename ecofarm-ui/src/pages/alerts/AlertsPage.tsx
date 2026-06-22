@@ -369,17 +369,15 @@ function AlertRulesTab() {
   }
 
   const onSubmit = (data: RuleFormValues) => {
-    const threshold = Number(data.threshold)
-    const cooldownMinutes = Number(data.cooldownMinutes)
     if (editing) {
       return updateMutation.mutateAsync({
         id: editing.id,
         body: {
           name: data.name,
-          condition: data.condition as AlertCondition,
-          threshold,
-          severity: data.severity as AlertSeverity,
-          cooldownMinutes,
+          condition: data.condition,
+          threshold: data.threshold,
+          severity: data.severity,
+          cooldownMinutes: data.cooldownMinutes,
         },
       })
     }
@@ -388,9 +386,9 @@ function AlertRulesTab() {
       dataPointKey: data.dataPointKey,
       name: data.name,
       condition: data.condition as AlertCondition,
-      threshold,
+      threshold: Number(data.threshold),
       severity: data.severity as AlertSeverity,
-      cooldownMinutes,
+      cooldownMinutes: Number(data.cooldownMinutes),
     })
   }
 

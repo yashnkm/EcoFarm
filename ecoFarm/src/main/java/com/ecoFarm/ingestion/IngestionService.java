@@ -30,6 +30,7 @@ public class IngestionService {
     private final RegisterDecoder decoder;
     private final RequestTracker tracker;
     private final LivePushService livePushService;
+    private final AlertEvaluationService alertEvaluationService;
 
     @Transactional
     public void handlePollResponse(ParsedResponse response) {
@@ -84,6 +85,12 @@ public class IngestionService {
 
             livePushService.pushReading(device.getTenant().getId(), new LiveReadingMessage(
                 device.getId(), dp.getKey(), value, rawValue, quality, dp.getUnit(), now));
+
+            try {
+                alertEvaluationService.evaluate(device, dp.getKey(), value);
+            } catch (Exception ex) {
+                log.warn("Alert evaluation failed for device {} key {}: {}", device.getId(), dp.getKey(), ex.getMessage());
+            }
 
             if (device.getRecordedDataPoints().contains(dp.getKey())) {
                 readingRepository.save(Reading.builder()

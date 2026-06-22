@@ -15,4 +15,8 @@ public class LivePushService {
     public void pushReading(UUID tenantId, LiveReadingMessage msg) {
         broker.convertAndSend("/topic/tenant/" + tenantId + "/readings", msg);
     }
+
+    public void pushAlert(UUID tenantId, AlertMessage msg) {
+        broker.convertAndSend("/topic/tenant/" + tenantId + "/alerts", msg);
+    }
 }

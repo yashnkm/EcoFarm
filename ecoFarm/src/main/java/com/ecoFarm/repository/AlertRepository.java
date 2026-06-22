@@ -18,6 +18,8 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
 
     List<Alert> findByTenantIdAndStatus(UUID tenantId, AlertStatus status);
 
+    Page<Alert> findByTenantIdAndStatus(UUID tenantId, AlertStatus status, Pageable pageable);
+
     List<Alert> findByDeviceIdAndStatus(UUID deviceId, AlertStatus status);
 
     List<Alert> findByAlertRuleIdAndStatusAndTriggeredAtAfter(
@@ -25,4 +27,6 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
         AlertStatus status,
         Instant cutoff
     );
+
+    void deleteByAlertRuleId(UUID alertRuleId);
 }

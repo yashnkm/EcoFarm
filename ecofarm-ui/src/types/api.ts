@@ -10,6 +10,7 @@ export type DeviceCategory = "ENERGY_METER" | "PLC" | "SENSOR" | "VFD" | "RELAY"
 export type DeviceProtocol = "RTU" | "TCP"
 export type AlertSeverity = "INFO" | "WARNING" | "CRITICAL" | "EMERGENCY"
 export type AlertStatus = "ACTIVE" | "ACKNOWLEDGED" | "RESOLVED"
+export type AlertCondition = "GT" | "LT" | "EQ" | "GTE" | "LTE" | "NEQ"
 export type CommandStatus = "PENDING" | "SENT" | "ACKNOWLEDGED" | "FAILED"
 export type ReadingQuality = "GOOD" | "SUSPECT" | "ERROR"
 
@@ -232,6 +233,44 @@ export interface AdminOverview {
   totalDevices: number
   totalOnline: number
   totalOffline: number
+}
+
+// ── Alert Rule ────────────────────────────
+
+export interface AlertRule {
+  id: string
+  tenantId: string
+  deviceId: string
+  deviceName: string
+  dataPointKey: string
+  name: string
+  condition: AlertCondition
+  threshold: number
+  severity: AlertSeverity
+  enabled: boolean
+  cooldownMinutes: number
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Alert ─────────────────────────────────
+
+export interface Alert {
+  id: string
+  tenantId: string
+  alertRuleId: string
+  ruleName: string
+  deviceId: string
+  deviceName: string
+  dataPointKey: string
+  triggeredValue: number
+  severity: AlertSeverity
+  status: AlertStatus
+  triggeredAt: string
+  acknowledgedAt: string | null
+  acknowledgedBy: string | null
+  resolvedAt: string | null
+  resolvedBy: string | null
 }
 
 // ── Reading ───────────────────────────────

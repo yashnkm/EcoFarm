@@ -18,6 +18,7 @@ import { UsersPage } from "@/pages/users/UsersPage"
 import { GatewayDriversPage } from "@/pages/drivers/GatewayDriversPage"
 import { BrokersPage } from "@/pages/brokers/BrokersPage"
 import { OpsPage } from "@/pages/admin/OpsPage"
+import { AlertsPage } from "@/pages/alerts/AlertsPage"
 
 const isAdminPortal = window.location.hostname.startsWith("admin.")
 
@@ -40,7 +41,7 @@ export default function App() {
               <Route path="/profiles/:id" element={<DeviceProfileDetailPage />} />
             </Route>
             <Route path="/gateway-drivers" element={<GatewayDriversPage />} />
-            <Route path="/alerts" element={<Placeholder title="Alerts" />} />
+            <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/admin/brokers" element={<BrokersPage />} />
             <Route path="/admin/tenants" element={<TenantsPage />} />

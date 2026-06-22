@@ -286,7 +286,7 @@ function AlertRulesTab() {
     formState: { errors, isSubmitting },
   } = useForm<RuleFormValues>({
     resolver: zodResolver(ruleSchema),
-    defaultValues: { cooldownMinutes: 15, severity: "WARNING", condition: "GT" },
+    defaultValues: { cooldownMinutes: "15", severity: "WARNING", condition: "GT" },
   })
 
   const deviceId = watch("deviceId")
@@ -309,9 +309,9 @@ function AlertRulesTab() {
       alertRulesApi.update(id, {
         name: body.name,
         condition: body.condition as AlertCondition,
-        threshold: body.threshold,
+        threshold: body.threshold !== undefined ? Number(body.threshold) : undefined,
         severity: body.severity as AlertSeverity,
-        cooldownMinutes: body.cooldownMinutes,
+        cooldownMinutes: body.cooldownMinutes !== undefined ? Number(body.cooldownMinutes) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["alert-rules"] })

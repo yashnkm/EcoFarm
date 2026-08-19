@@ -1,4 +1,5 @@
-import type { DataPoint, Reading } from "@/types/api"
+import type { DataPoint, Reading, CommandTemplate } from "@/types/api"
+import type { ControlCommand } from "@/api/devices"
 
 // ── Equipment classification ──────────────────────────────────────
 //
@@ -37,4 +38,36 @@ export function rangeStatus(dp: DataPoint, reading: Reading | undefined): RangeS
 
 export function formatReadingNumber(v: number): string {
   return v % 1 === 0 ? v.toString() : v.toFixed(1)
+}
+
+// ── Command-derived fan fallback ────────────────────────────────────
+//
+// Some real profiles control a section's fan via a plain "Start Section-N" /
+// "Stop Section-N" write command with no separate readable status point —
+// there's nothing for classifyDataPoint to find. When that's the case, fall
+// back to the most recent matching command's value as a best-known state
+// (last commanded, not confirmed by the device) rather than showing nothing.
+
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[\s_-]+/g, "")
+}
+
+/** Register numbers of any command template whose name references this zone. */
+export function sectionCommandRegisters(zoneName: string, commands: CommandTemplate[]): Set<number> {
+  const zoneKey = normalize(zoneName)
+  const registers = new Set<number>()
+  for (const cmd of commands) {
+    if (normalize(cmd.name).includes(zoneKey)) registers.add(cmd.registerNumber)
+  }
+  return registers
+}
+
+/** Value of the most recently issued command targeting one of these registers. */
+export function latestCommandValue(registers: Set<number>, history: ControlCommand[]): number | undefined {
+  let latest: ControlCommand | undefined
+  for (const c of history) {
+    if (!registers.has(c.registerNumber)) continue
+    if (!latest || new Date(c.createdAt).getTime() > new Date(latest.createdAt).getTime()) latest = c
+  }
+  return latest?.value
 }

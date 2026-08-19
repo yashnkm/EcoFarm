@@ -17,9 +17,16 @@ interface Props {
   dataPoints: DataPoint[]
   readings: Map<string, Reading>
   deviceId: string
+  /**
+   * Last-commanded fan state, used only when this zone has no readable FAN
+   * data point of its own — e.g. profiles that only expose a "Start/Stop
+   * Section-N" write command with no status readback. Undefined means no
+   * command has ever been issued (nothing to show).
+   */
+  fallbackFanOn?: boolean
 }
 
-export function SectionDiagram({ zoneName, dataPoints, readings, deviceId }: Props) {
+export function SectionDiagram({ zoneName, dataPoints, readings, deviceId, fallbackFanOn }: Props) {
   const getReading = (dp: DataPoint) => readings.get(`${deviceId}:${dp.key}`)
 
   const fans = dataPoints.filter((dp) => classifyDataPoint(dp) === "FAN").slice(0, 2)
@@ -29,7 +36,11 @@ export function SectionDiagram({ zoneName, dataPoints, readings, deviceId }: Pro
     return k === "TEMPERATURE" || k === "HUMIDITY"
   })
 
-  const hasDiagram = fans.length > 0 || mists.length > 0 || climate.length > 0
+  // No readable fan point on this section, but we know the last command
+  // issued for it — show a fan driven by that instead of nothing.
+  const useFallbackFan = fans.length === 0 && fallbackFanOn !== undefined
+
+  const hasDiagram = fans.length > 0 || mists.length > 0 || climate.length > 0 || useFallbackFan
   if (!hasDiagram) return null
 
   return (
@@ -49,8 +60,11 @@ export function SectionDiagram({ zoneName, dataPoints, readings, deviceId }: Pro
           ))}
 
           {fans.map((dp, i) => (
-            <FanUnit key={dp.key} slot={FAN_SLOTS[i]} active={isActive(dp, getReading(dp))} />
+            <FanUnit key={dp.key} slot={FAN_SLOTS[i]} active={isActive(dp, getReading(dp))} confirmed />
           ))}
+          {useFallbackFan && (
+            <FanUnit slot={FAN_SLOTS[0]} active={!!fallbackFanOn} confirmed={false} />
+          )}
         </svg>
       </div>
 
@@ -121,9 +135,12 @@ function MistNozzle({ x, active }: { x: number; active: boolean }) {
 function FanUnit({
   slot,
   active,
+  confirmed,
 }: {
   slot: (typeof FAN_SLOTS)[number]
   active: boolean
+  /** False when this reflects the last command sent, not a sensor reading. */
+  confirmed: boolean
 }) {
   const { housingY, hubY, wisps } = slot
 
@@ -153,8 +170,11 @@ function FanUnit({
         width={26}
         height={30}
         rx={6}
+        strokeDasharray={confirmed ? undefined : "3 2"}
         className={cn("fill-card stroke-border", !active && "opacity-55")}
-      />
+      >
+        {!confirmed && <title>Last commanded state — not confirmed by a sensor reading</title>}
+      </rect>
       <g
         className={active ? "stroke-sky-400 animate-[spin_2.6s_linear_infinite] motion-reduce:animate-none" : "stroke-muted-foreground/50"}
         style={{ transformOrigin: `${HUB_X}px ${hubY}px` }}

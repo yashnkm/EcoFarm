@@ -11,6 +11,7 @@ import { SitesPage } from "@/pages/sites/SitesPage"
 import { GatewaysPage } from "@/pages/gateways/GatewaysPage"
 import { DevicesPage } from "@/pages/devices/DevicesPage"
 import { DeviceDetailPage } from "@/pages/devices/DeviceDetailPage"
+import { LiveDeviceDetailPage } from "@/pages/dashboard/LiveDeviceDetailPage"
 import { DeviceProfilesPage } from "@/pages/profiles/DeviceProfilesPage"
 import { DeviceProfileDetailPage } from "@/pages/profiles/DeviceProfileDetailPage"
 import { TenantsPage } from "@/pages/tenants/TenantsPage"
@@ -31,6 +32,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="/live/:deviceId" element={<LiveDeviceDetailPage />} />
             <Route path="/admin/overview" element={<AdminOverviewPage />} />
             <Route path="/sites" element={<SitesPage />} />
             <Route path="/gateways" element={<GatewaysPage />} />

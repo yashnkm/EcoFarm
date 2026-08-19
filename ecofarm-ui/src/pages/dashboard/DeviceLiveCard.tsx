@@ -1,12 +1,14 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
-import { ExternalLink, Zap } from "lucide-react"
+import { Zap } from "lucide-react"
 import { toast } from "sonner"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { useAuthStore } from "@/store/authStore"
 import { devicesApi } from "@/api/devices"
 import type { Device, DataPoint, CommandTemplate, Role, Reading } from "@/types/api"
+import { statusBadgeProps } from "./deviceStatus"
+import { SectionDiagram } from "./SectionDiagram"
+import { classifyDataPoint } from "./sectionEquipment"
 import {
   Card,
   CardContent,
@@ -78,12 +80,7 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props
     }
   }
 
-  const statusVariant =
-    device.status === "ONLINE"
-      ? "default"
-      : device.status === "OFFLINE"
-        ? "destructive"
-        : "secondary"
+  const statusBadge = statusBadgeProps(device.status)
 
   return (
     <>
@@ -97,13 +94,9 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Badge variant={statusVariant}>{device.status}</Badge>
-              <Link
-                to={`/devices/${device.id}`}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <ExternalLink className="size-4" />
-              </Link>
+              <Badge variant={statusBadge.variant} className={statusBadge.className}>
+                {device.status}
+              </Badge>
             </div>
           </div>
         </CardHeader>
@@ -114,25 +107,38 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props
               No zone-assigned data points configured.
             </p>
           ) : (
-            Array.from(byZone.entries()).map(([zoneName, dps]) => (
-              <div key={zoneName} className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {zoneName}
-                  </span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {dps.map((dp) => (
-                    <DataPointRow
-                      key={dp.key}
-                      dp={dp}
-                      reading={readings.get(`${device.id}:${dp.key}`)}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {Array.from(byZone.entries()).map(([zoneName, dps]) => {
+                const otherPoints = dps.filter((dp) => classifyDataPoint(dp) === "OTHER")
+                return (
+                  <div key={zoneName} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {zoneName}
+                      </span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                    <SectionDiagram
+                      zoneName={zoneName}
+                      dataPoints={dps}
+                      readings={readings}
+                      deviceId={device.id}
                     />
-                  ))}
-                </div>
-              </div>
-            ))
+                    {otherPoints.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        {otherPoints.map((dp) => (
+                          <DataPointRow
+                            key={dp.key}
+                            dp={dp}
+                            reading={readings.get(`${device.id}:${dp.key}`)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
 
           {visibleCommands.length > 0 && (

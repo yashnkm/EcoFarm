@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react"
-import { useQuery, useQueries } from "@tanstack/react-query"
+import { useState, useMemo, useCallback } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { LayoutGrid } from "lucide-react"
 
 import { sitesApi } from "@/api/sites"
 import { devicesApi } from "@/api/devices"
-import { dataPointsApi, commandTemplatesApi } from "@/api/deviceProfiles"
-import { useLiveReadingsAll } from "@/hooks/useLiveReadingsAll"
-import { DeviceLiveCard } from "./DeviceLiveCard"
+import { alertsApi } from "@/api/alerts"
+import { useLiveAlerts } from "@/hooks/useLiveAlerts"
+import { DeviceTile, type DeviceAlertSummary } from "./DeviceTile"
 import {
   Select,
   SelectContent,
@@ -24,7 +24,31 @@ import {
 
 export function LiveOverviewSection() {
   const [selectedSiteId, setSelectedSiteId] = useState<string>("all")
-  const readings = useLiveReadingsAll()
+  const queryClient = useQueryClient()
+
+  const activeAlertsQuery = useQuery({
+    queryKey: ["alerts", "active"],
+    queryFn: () => alertsApi.list({ status: "ACTIVE", size: 200 }),
+    refetchInterval: 15_000,
+  })
+
+  // Refresh alert-driven tile colors as soon as a new alert fires, instead
+  // of waiting for the next poll.
+  useLiveAlerts(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["alerts", "active"] })
+    }, [queryClient])
+  )
+
+  const alertsByDevice = useMemo(() => {
+    const map = new Map<string, DeviceAlertSummary>()
+    for (const alert of activeAlertsQuery.data?.content ?? []) {
+      const existing = map.get(alert.deviceId)
+      if (existing) existing.count += 1
+      else map.set(alert.deviceId, { count: 1 })
+    }
+    return map
+  }, [activeAlertsQuery.data])
 
   const sitesQuery = useQuery({ queryKey: ["sites"], queryFn: sitesApi.list })
   const devicesQuery = useQuery({
@@ -43,46 +67,6 @@ export function LiveOverviewSection() {
       Object.values(d.dataPointGroups ?? {}).some((v) => !!v)
     )
   }, [devicesQuery.data, selectedSiteId])
-
-  // Unique profile IDs across visible devices
-  const profileIds = useMemo(
-    () => [...new Set(filteredDevices.map((d) => d.profileId))],
-    [filteredDevices]
-  )
-
-  const dataPointQueries = useQueries({
-    queries: profileIds.map((pid) => ({
-      queryKey: ["data-points", pid],
-      queryFn: () => dataPointsApi.list(pid),
-      staleTime: 60_000,
-    })),
-  })
-
-  const commandQueries = useQueries({
-    queries: profileIds.map((pid) => ({
-      queryKey: ["commands-tpl", pid],
-      queryFn: () => commandTemplatesApi.list(pid),
-      staleTime: 60_000,
-    })),
-  })
-
-  const dataPointsByProfile = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof dataPointsApi.list> extends Promise<infer T> ? T : never>()
-    profileIds.forEach((pid, i) => {
-      const data = dataPointQueries[i]?.data
-      if (data) map.set(pid, data)
-    })
-    return map
-  }, [profileIds, dataPointQueries])
-
-  const commandsByProfile = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof commandTemplatesApi.list> extends Promise<infer T> ? T : never>()
-    profileIds.forEach((pid, i) => {
-      const data = commandQueries[i]?.data
-      if (data) map.set(pid, data)
-    })
-    return map
-  }, [profileIds, commandQueries])
 
   const isLoading = devicesQuery.isLoading || sitesQuery.isLoading
 
@@ -113,9 +97,9 @@ export function LiveOverviewSection() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
           ))}
         </div>
       ) : filteredDevices.length === 0 ? (
@@ -133,14 +117,12 @@ export function LiveOverviewSection() {
           </EmptyDescription>
         </Empty>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredDevices.map((device) => (
-            <DeviceLiveCard
+            <DeviceTile
               key={device.id}
               device={device}
-              dataPoints={dataPointsByProfile.get(device.profileId) ?? []}
-              commands={commandsByProfile.get(device.profileId) ?? []}
-              readings={readings}
+              alert={alertsByDevice.get(device.id)}
             />
           ))}
         </div>

@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore"
 import { sitesApi } from "@/api/sites"
 import { gatewaysApi } from "@/api/gateways"
 import { devicesApi } from "@/api/devices"
+import { alertsApi } from "@/api/alerts"
 import { MqttStatusCard } from "@/components/MqttStatusBadge"
 import { LiveOverviewSection } from "./LiveOverviewSection"
 import {
@@ -23,6 +24,11 @@ export function DashboardPage() {
   const sites = useQuery({ queryKey: ["sites"], queryFn: sitesApi.list })
   const gateways = useQuery({ queryKey: ["gateways"], queryFn: gatewaysApi.list })
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => devicesApi.list() })
+  const activeAlerts = useQuery({
+    queryKey: ["alerts", "active"],
+    queryFn: () => alertsApi.list({ status: "ACTIVE", size: 200 }),
+    refetchInterval: 15_000,
+  })
 
   const onlineGateways = gateways.data?.filter((g) => g.status === "ONLINE").length ?? 0
   const onlineDevices = devices.data?.filter((d) => d.status === "ONLINE").length ?? 0
@@ -60,9 +66,8 @@ export function DashboardPage() {
         <StatCard
           title="Active Alerts"
           icon={Bell}
-          value={0}
-          sub="Phase 2"
-          loading={false}
+          value={activeAlerts.data?.totalElements}
+          loading={activeAlerts.isLoading}
         />
       </div>
 

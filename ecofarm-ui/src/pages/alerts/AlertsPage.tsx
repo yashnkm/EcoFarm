@@ -9,6 +9,7 @@ import { Bell, BellOff, CheckCheck, Plus, ShieldAlert } from "lucide-react"
 
 import { alertsApi, alertRulesApi } from "@/api/alerts"
 import { devicesApi } from "@/api/devices"
+import { dataPointsApi } from "@/api/deviceProfiles"
 import { useLiveAlerts } from "@/hooks/useLiveAlerts"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
@@ -290,8 +291,17 @@ function AlertRulesTab() {
   })
 
   const deviceId = watch("deviceId")
+  const dataPointKey = watch("dataPointKey")
   const condition = watch("condition")
   const severity = watch("severity")
+
+  const selectedDevice = devices.find((d) => d.id === deviceId)
+
+  const { data: dataPoints = [] } = useQuery({
+    queryKey: ["data-points", selectedDevice?.profileId],
+    queryFn: () => dataPointsApi.list(selectedDevice!.profileId),
+    enabled: !!selectedDevice,
+  })
 
   const createMutation = useMutation({
     mutationFn: alertRulesApi.create,
@@ -421,7 +431,10 @@ function AlertRulesTab() {
                 <FieldLabel>Device</FieldLabel>
                 <Select
                   value={deviceId ?? ""}
-                  onValueChange={(v) => setValue("deviceId", v ?? "", { shouldValidate: true })}
+                  onValueChange={(v) => {
+                    setValue("deviceId", v ?? "", { shouldValidate: true })
+                    setValue("dataPointKey", "")
+                  }}
                   disabled={!!editing}
                 >
                   <SelectTrigger aria-invalid={!!errors.deviceId}>
@@ -441,13 +454,30 @@ function AlertRulesTab() {
               </Field>
 
               <Field data-invalid={errors.dataPointKey ? true : undefined}>
-                <FieldLabel htmlFor="dpKey">Data point key</FieldLabel>
-                <Input
-                  id="dpKey"
-                  placeholder="e.g. voltage, temperature"
-                  disabled={!!editing}
-                  {...register("dataPointKey")}
-                />
+                <FieldLabel>Data point</FieldLabel>
+                <Select
+                  value={dataPointKey ?? ""}
+                  onValueChange={(v) => setValue("dataPointKey", v ?? "", { shouldValidate: true })}
+                  disabled={!!editing || !deviceId}
+                >
+                  <SelectTrigger aria-invalid={!!errors.dataPointKey}>
+                    <SelectValue placeholder={!deviceId ? "Select a device first" : "Select a data point"}>
+                      {(v: string | null) => {
+                        const dp = dataPoints.find((d) => d.key === v)
+                        return dp ? `${dp.label} (${dp.key})` : v
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {dataPoints.map((dp) => (
+                        <SelectItem key={dp.key} value={dp.key}>
+                          {dp.label} <span className="text-muted-foreground text-xs ml-1">({dp.key})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
                 {errors.dataPointKey && <FieldError>{errors.dataPointKey.message}</FieldError>}
               </Field>
 

@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldLabel, FieldError } from "@/components/ui/field"
+import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field"
 import {
   Select,
   SelectContent,
@@ -41,16 +41,30 @@ import type { CommandTemplate } from "@/types/api"
 
 const ROLES = ["OPERATOR", "TENANT_ADMIN", "SUPER_ADMIN"] as const
 
-const schema = z.object({
+const sharedFields = {
   name: z.string().min(1),
   description: z.string().optional(),
   registerNumber: z.coerce.number().int().min(0),
   functionCode: z.coerce.number().int().min(1).max(127),
-  value: z.coerce.number().int(),
   confirmationRequired: z.boolean().optional(),
   minRole: z.enum(ROLES),
+}
+
+// Creating writes two commands at once — "{name} ON" / "{name} OFF" — sharing
+// everything except the value each one sends.
+const createSchema = z.object({
+  ...sharedFields,
+  onValue: z.coerce.number().int(),
+  offValue: z.coerce.number().int(),
 })
-type FormValues = z.infer<typeof schema>
+type CreateValues = z.infer<typeof createSchema>
+
+// Editing still targets one specific command, so it keeps a single value.
+const editSchema = z.object({
+  ...sharedFields,
+  value: z.coerce.number().int(),
+})
+type EditValues = z.infer<typeof editSchema>
 
 export function CommandsTab({ profileId }: { profileId: string }) {
   const [open, setOpen] = useState(false)
@@ -62,22 +76,32 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     queryFn: () => commandTemplatesApi.list(profileId),
   })
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
-    useForm<FormValues>({
-      resolver: zodResolver(schema) as Resolver<FormValues>,
-      defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: true },
-    })
-  const role = watch("minRole")
+  const createForm = useForm<CreateValues>({
+    resolver: zodResolver(createSchema) as Resolver<CreateValues>,
+    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: true, onValue: 1, offValue: 0 },
+  })
+  const createRole = createForm.watch("minRole")
+
+  const editForm = useForm<EditValues>({
+    resolver: zodResolver(editSchema) as Resolver<EditValues>,
+    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: true },
+  })
+  const editRole = editForm.watch("minRole")
 
   const createMutation = useMutation({
-    mutationFn: (body: CommandTemplateBody) => commandTemplatesApi.create(profileId, body),
+    mutationFn: async (values: CreateValues) => {
+      const { name, onValue, offValue, ...rest } = values
+      const base: Omit<CommandTemplateBody, "name" | "value"> = rest
+      await commandTemplatesApi.create(profileId, { ...base, name: `${name} ON`, value: onValue })
+      await commandTemplatesApi.create(profileId, { ...base, name: `${name} OFF`, value: offValue })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["commands", profileId] })
-      toast.success("Command created")
+      toast.success("ON/OFF commands created")
       closeDialog()
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
-      toast.error(err.response?.data?.message ?? "Failed"),
+      toast.error(err.response?.data?.message ?? "Failed to create commands"),
   })
 
   const updateMutation = useMutation({
@@ -102,32 +126,37 @@ export function CommandsTab({ profileId }: { profileId: string }) {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ name: "", description: "", registerNumber: 0, functionCode: 6, value: 1, confirmationRequired: true, minRole: "OPERATOR" })
+    createForm.reset({
+      name: "",
+      description: "",
+      registerNumber: 0,
+      functionCode: 6,
+      onValue: 1,
+      offValue: 0,
+      confirmationRequired: true,
+      minRole: "OPERATOR",
+    })
     setOpen(true)
   }
   const openEdit = (c: CommandTemplate) => {
     setEditing(c)
-    reset({
+    editForm.reset({
       name: c.name,
       description: c.description ?? "",
       registerNumber: c.registerNumber,
       functionCode: c.functionCode,
       value: c.value,
       confirmationRequired: c.confirmationRequired,
-      minRole: c.minRole as FormValues["minRole"],
+      minRole: c.minRole as EditValues["minRole"],
     })
     setOpen(true)
   }
   const closeDialog = () => {
     setOpen(false)
     setEditing(null)
-    reset()
+    createForm.reset()
+    editForm.reset()
   }
-
-  const onSubmit = (d: FormValues) =>
-    editing
-      ? updateMutation.mutateAsync({ id: editing.id, body: d })
-      : createMutation.mutateAsync(d)
 
   return (
     <div className="mt-4 flex flex-col gap-4">
@@ -137,67 +166,132 @@ export function CommandsTab({ profileId }: { profileId: string }) {
 
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
         <DialogContent>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>{editing ? `Edit "${editing.name}"` : "Add command"}</DialogTitle>
-            </DialogHeader>
+          {editing ? (
+            <form onSubmit={editForm.handleSubmit((d) => updateMutation.mutateAsync({ id: editing.id, body: d }))}>
+              <DialogHeader>
+                <DialogTitle>Edit &quot;{editing.name}&quot;</DialogTitle>
+              </DialogHeader>
 
-            <div className="flex flex-col gap-4 py-4">
-              <Field data-invalid={errors.name ? true : undefined}>
-                <FieldLabel htmlFor="cname">Name</FieldLabel>
-                <Input id="cname" placeholder="Start Pump" {...register("name")} />
-                {errors.name && <FieldError>{errors.name.message}</FieldError>}
-              </Field>
+              <div className="flex flex-col gap-4 py-4">
+                <Field data-invalid={editForm.formState.errors.name ? true : undefined}>
+                  <FieldLabel htmlFor="ename">Name</FieldLabel>
+                  <Input id="ename" placeholder="Fan-3 ON" {...editForm.register("name")} />
+                  {editForm.formState.errors.name && <FieldError>{editForm.formState.errors.name.message}</FieldError>}
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="cdesc">Description</FieldLabel>
-                <Input id="cdesc" placeholder="Activates the pump relay" {...register("description")} />
-              </Field>
+                <Field>
+                  <FieldLabel htmlFor="edesc">Description</FieldLabel>
+                  <Input id="edesc" placeholder="Activates the pump relay" {...editForm.register("description")} />
+                </Field>
 
-              <div className="grid grid-cols-3 gap-4">
-                <Field data-invalid={errors.registerNumber ? true : undefined}>
-                  <FieldLabel htmlFor="creg">Register</FieldLabel>
-                  <Input id="creg" type="number" {...register("registerNumber")} />
+                <div className="grid grid-cols-3 gap-4">
+                  <Field data-invalid={editForm.formState.errors.registerNumber ? true : undefined}>
+                    <FieldLabel htmlFor="ereg">Register</FieldLabel>
+                    <Input id="ereg" type="number" {...editForm.register("registerNumber")} />
+                  </Field>
+                  <Field data-invalid={editForm.formState.errors.functionCode ? true : undefined}>
+                    <FieldLabel htmlFor="efc">Function code</FieldLabel>
+                    <Input id="efc" type="number" {...editForm.register("functionCode")} />
+                  </Field>
+                  <Field data-invalid={editForm.formState.errors.value ? true : undefined}>
+                    <FieldLabel htmlFor="eval">Value</FieldLabel>
+                    <Input id="eval" type="number" {...editForm.register("value")} />
+                  </Field>
+                </div>
+
+                <Field>
+                  <FieldLabel>Minimum role</FieldLabel>
+                  <Select value={editRole} onValueChange={(v) => editForm.setValue("minRole", v as EditValues["minRole"])}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </Field>
-                <Field data-invalid={errors.functionCode ? true : undefined}>
-                  <FieldLabel htmlFor="cfc">Function code</FieldLabel>
-                  <Input id="cfc" type="number" {...register("functionCode")} />
-                </Field>
-                <Field data-invalid={errors.value ? true : undefined}>
-                  <FieldLabel htmlFor="cval">Value</FieldLabel>
-                  <Input id="cval" type="number" {...register("value")} />
-                </Field>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" {...editForm.register("confirmationRequired")} className="size-4" />
+                  Require confirmation before sending
+                </label>
               </div>
 
-              <Field>
-                <FieldLabel>Minimum role</FieldLabel>
-                <Select value={role} onValueChange={(v) => setValue("minRole", v as FormValues["minRole"])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
+              <DialogFooter>
+                <Button type="submit" disabled={editForm.formState.isSubmitting}>Save</Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <form onSubmit={createForm.handleSubmit((d) => createMutation.mutateAsync(d))}>
+              <DialogHeader>
+                <DialogTitle>Add command</DialogTitle>
+              </DialogHeader>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" {...register("confirmationRequired")} className="size-4" />
-                Require confirmation before sending
-              </label>
-            </div>
+              <div className="flex flex-col gap-4 py-4">
+                <Field data-invalid={createForm.formState.errors.name ? true : undefined}>
+                  <FieldLabel htmlFor="cname">Name</FieldLabel>
+                  <Input id="cname" placeholder="Fan-3" {...createForm.register("name")} />
+                  <FieldDescription>Creates two commands: &quot;{createForm.watch("name") || "Fan-3"} ON&quot; and &quot;{createForm.watch("name") || "Fan-3"} OFF&quot;.</FieldDescription>
+                  {createForm.formState.errors.name && <FieldError>{createForm.formState.errors.name.message}</FieldError>}
+                </Field>
 
-            <DialogFooter>
-              <Button type="submit" disabled={isSubmitting}>{editing ? "Save" : "Create"}</Button>
-            </DialogFooter>
-          </form>
+                <Field>
+                  <FieldLabel htmlFor="cdesc">Description</FieldLabel>
+                  <Input id="cdesc" placeholder="Activates the pump relay" {...createForm.register("description")} />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field data-invalid={createForm.formState.errors.registerNumber ? true : undefined}>
+                    <FieldLabel htmlFor="creg">Register</FieldLabel>
+                    <Input id="creg" type="number" {...createForm.register("registerNumber")} />
+                  </Field>
+                  <Field data-invalid={createForm.formState.errors.functionCode ? true : undefined}>
+                    <FieldLabel htmlFor="cfc">Function code</FieldLabel>
+                    <Input id="cfc" type="number" {...createForm.register("functionCode")} />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field data-invalid={createForm.formState.errors.onValue ? true : undefined}>
+                    <FieldLabel htmlFor="onval">On value</FieldLabel>
+                    <Input id="onval" type="number" {...createForm.register("onValue")} />
+                  </Field>
+                  <Field data-invalid={createForm.formState.errors.offValue ? true : undefined}>
+                    <FieldLabel htmlFor="offval">Off value</FieldLabel>
+                    <Input id="offval" type="number" {...createForm.register("offValue")} />
+                  </Field>
+                </div>
+
+                <Field>
+                  <FieldLabel>Minimum role</FieldLabel>
+                  <Select value={createRole} onValueChange={(v) => createForm.setValue("minRole", v as CreateValues["minRole"])}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" {...createForm.register("confirmationRequired")} className="size-4" />
+                  Require confirmation before sending
+                </label>
+              </div>
+
+              <DialogFooter>
+                <Button type="submit" disabled={createForm.formState.isSubmitting}>Create</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
       {isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : !commands?.length ? (
-        <p className="text-sm text-muted-foreground">No commands. Add one to expose a named action on devices.</p>
+        <p className="text-sm text-muted-foreground">No commands. Add one to expose a named ON/OFF action on devices.</p>
       ) : (
         <div className="rounded-md border">
           <Table>

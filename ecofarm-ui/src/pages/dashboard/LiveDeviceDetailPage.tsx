@@ -35,15 +35,6 @@ export function LiveDeviceDetailPage() {
     enabled: !!deviceQuery.data?.profileId,
   })
 
-  // Drives the command-derived fan fallback in SectionDiagram for sections
-  // whose fan has only a write command, no readable status point.
-  const commandHistoryQuery = useQuery({
-    queryKey: ["command-history", deviceId],
-    queryFn: () => devicesApi.listCommands(deviceId),
-    enabled: !!deviceId,
-    refetchInterval: 5000,
-  })
-
   const isLoading = deviceQuery.isLoading || dataPointsQuery.isLoading || commandsQuery.isLoading
 
   return (
@@ -70,7 +61,6 @@ export function LiveDeviceDetailPage() {
             dataPoints={dataPointsQuery.data ?? []}
             commands={commandsQuery.data ?? []}
             readings={readings}
-            commandHistory={commandHistoryQuery.data ?? []}
           />
         )}
       </div>

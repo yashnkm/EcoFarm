@@ -4,11 +4,9 @@ import { toast } from "sonner"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { useAuthStore } from "@/store/authStore"
-import { devicesApi, type ControlCommand } from "@/api/devices"
+import { devicesApi } from "@/api/devices"
 import type { Device, DataPoint, CommandTemplate, Role, Reading } from "@/types/api"
 import { statusBadgeProps } from "./deviceStatus"
-import { SectionDiagram } from "./SectionDiagram"
-import { classifyDataPoint, sectionCommandRegisters, latestCommandValue } from "./sectionEquipment"
 import {
   Card,
   CardContent,
@@ -39,10 +37,9 @@ interface Props {
   dataPoints: DataPoint[]
   commands: CommandTemplate[]
   readings: Map<string, Reading>
-  commandHistory?: ControlCommand[]
 }
 
-export function DeviceLiveCard({ device, dataPoints, commands, readings, commandHistory = [] }: Props) {
+export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props) {
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const [confirmCmd, setConfirmCmd] = useState<CommandTemplate | null>(null)
@@ -109,40 +106,25 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings, command
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {Array.from(byZone.entries()).map(([zoneName, dps]) => {
-                const otherPoints = dps.filter((dp) => classifyDataPoint(dp) === "OTHER")
-                const sectionRegisters = sectionCommandRegisters(zoneName, commands)
-                const fallbackFanValue =
-                  sectionRegisters.size > 0 ? latestCommandValue(sectionRegisters, commandHistory) : undefined
-                return (
-                  <div key={zoneName} className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {zoneName}
-                      </span>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-                    <SectionDiagram
-                      zoneName={zoneName}
-                      dataPoints={dps}
-                      readings={readings}
-                      deviceId={device.id}
-                      fallbackFanOn={fallbackFanValue !== undefined ? fallbackFanValue > 0 : undefined}
-                    />
-                    {otherPoints.length > 0 && (
-                      <div className="flex flex-col gap-1.5">
-                        {otherPoints.map((dp) => (
-                          <DataPointRow
-                            key={dp.key}
-                            dp={dp}
-                            reading={readings.get(`${device.id}:${dp.key}`)}
-                          />
-                        ))}
-                      </div>
-                    )}
+              {Array.from(byZone.entries()).map(([zoneName, dps]) => (
+                <div key={zoneName} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {zoneName}
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
                   </div>
-                )
-              })}
+                  <div className="flex flex-col gap-1.5">
+                    {dps.map((dp) => (
+                      <DataPointRow
+                        key={dp.key}
+                        dp={dp}
+                        reading={readings.get(`${device.id}:${dp.key}`)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

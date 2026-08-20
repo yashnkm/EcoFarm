@@ -113,25 +113,7 @@ export function SectionCard({
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-3">
-        {sectionCommands.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {sectionCommands.map((cmd) => (
-              <CommandButton
-                key={cmd.id}
-                command={cmd}
-                onIssue={onIssueCommand}
-                disabled={issuePending}
-                statusValue={
-                  cmd.statusDataPointKey
-                    ? readings.get(`${deviceId}:${cmd.statusDataPointKey}`)?.value
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        )}
-
+      <CardContent className="flex flex-1 flex-col gap-3">
         {(temp || humidity) && (
           <ParamGroup title="Current Climate">
             {temp && (
@@ -215,6 +197,31 @@ export function SectionCard({
               )
             })}
           </ParamGroup>
+        )}
+
+        {sectionCommands.length > 0 && (
+          <div className="mt-auto grid grid-cols-2 gap-2 pt-1">
+            {sectionCommands.map((cmd, i) => {
+              // Pairs fill one row split in half; a trailing odd command
+              // takes the full remaining width of its own row.
+              const spansFullWidth = i === sectionCommands.length - 1 && sectionCommands.length % 2 === 1
+              return (
+                <div key={cmd.id} className={cn(spansFullWidth && "col-span-2")}>
+                  <CommandButton
+                    command={cmd}
+                    variant="switch"
+                    onIssue={onIssueCommand}
+                    disabled={issuePending}
+                    statusValue={
+                      cmd.statusDataPointKey
+                        ? readings.get(`${deviceId}:${cmd.statusDataPointKey}`)?.value
+                        : undefined
+                    }
+                  />
+                </div>
+              )
+            })}
+          </div>
         )}
       </CardContent>
     </Card>

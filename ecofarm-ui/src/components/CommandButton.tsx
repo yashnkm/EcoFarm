@@ -36,12 +36,14 @@ interface Props {
    */
   statusValue?: number | null
   /**
-   * "chip" (default): the standalone pill button used in the Commands panel.
-   * "row": an inline label+value row for embedding a command inline next to
-   * the reading it controls (e.g. inside a section card) — same click
-   * behavior and same dialogs underneath, just a different trigger element.
+   * "chip" (default): the standalone pill button used in the admin commands
+   * table. "row": an inline label+value row for embedding a command inline
+   * next to the reading it controls (e.g. inside a section card). "switch":
+   * a full-width toggle-switch control (section on/off, pinned to the
+   * bottom of a section card) — all three share the same click behavior
+   * and dialogs underneath, just a different trigger element.
    */
-  variant?: "chip" | "row"
+  variant?: "chip" | "row" | "switch"
   rowLabel?: string
   rowValue?: string
   rowUnit?: string | null
@@ -100,19 +102,58 @@ export function CommandButton({
 
     return (
       <>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleClick}
-          disabled={disabled}
-          className={cn(
-            isOn && "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-400",
-            !isUnknown && !isOn && "border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive"
-          )}
-        >
-          <Zap className="mr-1.5 size-3" />
-          {label}
-        </Button>
+        {variant === "switch" ? (
+          <button
+            type="button"
+            onClick={handleClick}
+            disabled={disabled}
+            className={cn(
+              "flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors disabled:pointer-events-none disabled:opacity-50",
+              isOn && "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15",
+              !isUnknown && !isOn && "border-destructive/30 bg-destructive/10 hover:bg-destructive/15",
+              isUnknown && "border-border bg-muted/40 hover:bg-muted/60"
+            )}
+          >
+            <span
+              className={cn(
+                "text-sm font-semibold",
+                isOn ? "text-emerald-400" : !isUnknown ? "text-destructive" : "text-muted-foreground"
+              )}
+            >
+              {command.name}
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {isUnknown ? "Unknown" : isOn ? "ON" : "OFF"}
+              </span>
+            </span>
+            <span
+              className={cn(
+                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300",
+                isOn ? "bg-emerald-500" : !isUnknown ? "bg-destructive/50" : "bg-muted-foreground/30"
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block size-5 translate-x-0.5 rounded-full bg-white shadow transition-transform duration-300 motion-reduce:transition-none",
+                  isOn && "translate-x-5.5"
+                )}
+              />
+            </span>
+          </button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleClick}
+            disabled={disabled}
+            className={cn(
+              isOn && "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-400",
+              !isUnknown && !isOn && "border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive"
+            )}
+          >
+            <Zap className="mr-1.5 size-3" />
+            {label}
+          </Button>
+        )}
 
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogContent>

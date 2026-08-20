@@ -5,6 +5,7 @@ import { LayoutGrid } from "lucide-react"
 import { sitesApi } from "@/api/sites"
 import { devicesApi } from "@/api/devices"
 import { alertsApi } from "@/api/alerts"
+import { naturalCompare } from "@/lib/utils"
 import { useLiveAlerts } from "@/hooks/useLiveAlerts"
 import { DeviceTile, type DeviceAlertSummary } from "./DeviceTile"
 import {
@@ -63,9 +64,9 @@ export function LiveOverviewSection() {
       selectedSiteId === "all"
         ? all
         : all.filter((d) => d.siteId === selectedSiteId)
-    return bySite.filter((d) =>
-      Object.values(d.dataPointGroups ?? {}).some((v) => !!v)
-    )
+    return bySite
+      .filter((d) => Object.values(d.dataPointGroups ?? {}).some((v) => !!v))
+      .sort((a, b) => naturalCompare(a.name, b.name))
   }, [devicesQuery.data, selectedSiteId])
 
   const isLoading = devicesQuery.isLoading || sitesQuery.isLoading

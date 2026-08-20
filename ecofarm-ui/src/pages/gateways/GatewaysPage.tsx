@@ -11,6 +11,7 @@ import { gatewaysApi } from "@/api/gateways"
 import { sitesApi } from "@/api/sites"
 import { brokersApi } from "@/api/brokers"
 import { useAuthStore } from "@/store/authStore"
+import { naturalCompare } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -278,7 +279,7 @@ export function GatewaysPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {gateways.map((gw) => (
+              {[...gateways].sort((a, b) => naturalCompare(a.name ?? a.serialNumber, b.name ?? b.serialNumber)).map((gw) => (
                 <TableRow key={gw.id}>
                   <TableCell className="font-medium">{gw.name ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{gw.serialNumber}</TableCell>

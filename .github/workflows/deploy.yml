@@ -126,7 +126,9 @@ jobs:
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS category VARCHAR(20);" \
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS scale_factor NUMERIC(12,6);" \
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS offset_value NUMERIC(12,6);" \
-            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS unit VARCHAR(50);"
+            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS unit VARCHAR(50);" \
+            -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS sort_order INTEGER;" \
+            -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS zone_order JSONB;"
 
           # Add admin subdomain to CORS allowed origins if not already present
           ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"

@@ -5,7 +5,9 @@ import com.ecoFarm.api.v1.dto.request.CreateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.DataPointGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.IssueCommandRequest;
 import com.ecoFarm.api.v1.dto.request.RecordedDataPointsRequest;
+import com.ecoFarm.api.v1.dto.request.ReorderDevicesRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateDeviceRequest;
+import com.ecoFarm.api.v1.dto.request.ZoneOrderRequest;
 import com.ecoFarm.api.v1.dto.response.ControlCommandResponse;
 import com.ecoFarm.api.v1.dto.response.DeviceResponse;
 import com.ecoFarm.api.v1.mapper.DeviceMapper;
@@ -81,6 +83,20 @@ public class DeviceController {
         @PathVariable UUID id,
         @Valid @RequestBody CommandGroupsRequest req) {
         return mapper.toResponse(service.updateCommandGroups(id, req));
+    }
+
+    @PatchMapping("/{id}/zone-order")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    public DeviceResponse updateZoneOrder(
+        @PathVariable UUID id,
+        @Valid @RequestBody ZoneOrderRequest req) {
+        return mapper.toResponse(service.updateZoneOrder(id, req));
+    }
+
+    @PatchMapping("/reorder")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    public List<DeviceResponse> reorder(@Valid @RequestBody ReorderDevicesRequest req) {
+        return service.reorderDevices(req).stream().map(mapper::toResponse).toList();
     }
 
     @PostMapping("/{id}/commands")

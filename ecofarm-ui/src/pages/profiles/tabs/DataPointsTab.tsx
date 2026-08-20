@@ -36,6 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { DeleteConfirm } from "@/components/DeleteConfirm"
 import { EditButton } from "@/components/EditButton"
+import { CloneButton } from "@/components/CloneButton"
 import type { DataPoint } from "@/types/api"
 
 const DATA_TYPES = ["UINT16", "INT16", "UINT32", "INT32", "FLOAT32", "ASCII", "BOOLEAN"] as const
@@ -132,6 +133,27 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     setEditing(dp)
     reset({
       key: dp.key, label: dp.label,
+      registerNumber: dp.registerNumber,
+      dataType: dp.dataType as FormValues["dataType"],
+      wordCount: dp.wordCount,
+      byteOrder: dp.byteOrder as FormValues["byteOrder"],
+      scaleFactor: Number(dp.scaleFactor),
+      offset: Number(dp.offset),
+      unit: dp.unit ?? "",
+      displayWidget: dp.displayWidget as FormValues["displayWidget"],
+      pollGroupId: dp.pollGroupId,
+      falseLabel: dp.falseLabel ?? "",
+      trueLabel: dp.trueLabel ?? "",
+    })
+    setOpen(true)
+  }
+  // Same dialog as "Add", pre-filled from an existing point — everything
+  // carried over except key/label, which have to be distinct, so those
+  // start blank instead of silently duplicating (and colliding on save).
+  const openClone = (dp: DataPoint) => {
+    setEditing(null)
+    reset({
+      key: "", label: "",
       registerNumber: dp.registerNumber,
       dataType: dp.dataType as FormValues["dataType"],
       wordCount: dp.wordCount,
@@ -312,7 +334,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                 <TableHead>Register</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Unit</TableHead>
-                <TableHead className="w-24"></TableHead>
+                <TableHead className="w-32"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -325,6 +347,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                   <TableCell>{dp.unit ?? "—"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <CloneButton onClick={() => openClone(dp)} />
                       <EditButton onClick={() => openEdit(dp)} />
                       <DeleteConfirm onConfirm={() => deleteMutation.mutate(dp.id)} title={`Delete "${dp.label}"?`} />
                     </div>

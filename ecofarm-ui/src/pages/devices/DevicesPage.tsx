@@ -1,15 +1,16 @@
-import { useState } from "react"
+import { useState, useLayoutEffect } from "react"
 import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Plus, Cpu } from "lucide-react"
+import { Plus, Cpu, GripVertical } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
 import { devicesApi, deviceProfilesApi } from "@/api/devices"
 import { gatewaysApi } from "@/api/gateways"
+import { cn, sortByPositionOrName } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -63,6 +64,41 @@ export function DevicesPage() {
     queryKey: ["devices"],
     queryFn: () => devicesApi.list(),
   })
+
+  // Local, draggable copy of the list — synced from the server whenever
+  // fresh data arrives (initial load, or after a reorder round-trips),
+  // but mutated directly during a drag for instant visual feedback instead
+  // of waiting on a request.
+  const [orderedDevices, setOrderedDevices] = useState<Device[]>([])
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (devices) {
+      setOrderedDevices(sortByPositionOrName(devices, (d) => d.sortOrder, (d) => d.name))
+    }
+  }, [devices])
+
+  const reorderMutation = useMutation({
+    mutationFn: (deviceIds: string[]) => devicesApi.reorder(deviceIds),
+    onSuccess: (updated) => queryClient.setQueryData(["devices"], updated),
+    onError: () => {
+      toast.error("Failed to save the new order")
+      queryClient.invalidateQueries({ queryKey: ["devices"] })
+    },
+  })
+
+  const handleDrop = (targetIndex: number) => {
+    if (dragIndex === null || dragIndex === targetIndex) {
+      setDragIndex(null)
+      return
+    }
+    const next = [...orderedDevices]
+    const [moved] = next.splice(dragIndex, 1)
+    next.splice(targetIndex, 0, moved)
+    setOrderedDevices(next)
+    setDragIndex(null)
+    reorderMutation.mutate(next.map((d) => d.id))
+  }
+
   const { data: gateways } = useQuery({ queryKey: ["gateways"], queryFn: gatewaysApi.list })
   const { data: profiles } = useQuery({
     queryKey: ["device-profiles"],
@@ -253,6 +289,7 @@ export function DevicesPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8"></TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Profile</TableHead>
                 <TableHead>Slave ID</TableHead>
@@ -262,8 +299,24 @@ export function DevicesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {devices.map((d) => (
-                <TableRow key={d.id}>
+              {orderedDevices.map((d, i) => (
+                <TableRow
+                  key={d.id}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleDrop(i)}
+                  className={cn(dragIndex === i && "opacity-50")}
+                >
+                  <TableCell className="w-8">
+                    <span
+                      draggable
+                      onDragStart={() => setDragIndex(i)}
+                      onDragEnd={() => setDragIndex(null)}
+                      className="flex cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
+                      title="Drag to reorder"
+                    >
+                      <GripVertical className="size-4" />
+                    </span>
+                  </TableCell>
                   <TableCell className="font-medium">
                     <Link to={`/devices/${d.id}`} className="hover:underline">{d.name}</Link>
                   </TableCell>

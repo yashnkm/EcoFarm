@@ -29,7 +29,9 @@ public class DeviceMapper {
             d.getCreatedAt(),
             d.getRecordedDataPoints(),
             d.getDataPointGroups(),
-            d.getCommandGroups()
+            d.getCommandGroups(),
+            d.getSortOrder(),
+            d.getZoneOrder()
         );
     }
 

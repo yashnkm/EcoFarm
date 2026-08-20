@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { DeleteConfirm } from "@/components/DeleteConfirm"
 import { EditButton } from "@/components/EditButton"
+import { CloneButton } from "@/components/CloneButton"
 import type { CommandTemplate } from "@/types/api"
 
 const ROLES = ["OPERATOR", "TENANT_ADMIN", "SUPER_ADMIN"] as const
@@ -252,6 +253,42 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       offset: Number(c.offset),
       unit: c.unit ?? "",
     })
+    setOpen(true)
+  }
+  // Same dialog as "Add command", pre-filled from an existing one and
+  // switched to the matching mode — everything carried over except name,
+  // which has to be unique, so it starts blank instead of colliding on save.
+  const openClone = (c: CommandTemplate) => {
+    setEditing(null)
+    const isToggle = c.offValue != null
+    setCreateMode(isToggle ? "toggle" : "value")
+    if (isToggle) {
+      toggleForm.reset({
+        name: "",
+        description: c.description ?? "",
+        registerNumber: c.registerNumber,
+        functionCode: c.functionCode,
+        onValue: c.value,
+        offValue: c.offValue!,
+        statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
+        confirmationRequired: c.confirmationRequired,
+        minRole: c.minRole as ToggleValues["minRole"],
+      })
+    } else {
+      valueForm.reset({
+        name: "",
+        description: c.description ?? "",
+        registerNumber: c.registerNumber,
+        functionCode: c.functionCode,
+        confirmationRequired: c.confirmationRequired,
+        minRole: c.minRole as ValueValues["minRole"],
+        category: c.category ?? "OTHER",
+        statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
+        scaleFactor: Number(c.scaleFactor),
+        offset: Number(c.offset),
+        unit: c.unit ?? "",
+      })
+    }
     setOpen(true)
   }
   const closeDialog = () => {
@@ -698,7 +735,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                 <TableHead>Status point</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Min role</TableHead>
-                <TableHead className="w-24"></TableHead>
+                <TableHead className="w-32"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -726,6 +763,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                   <TableCell><Badge variant="secondary" className="text-xs">{c.minRole}</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <CloneButton onClick={() => openClone(c)} />
                       <EditButton onClick={() => openEdit(c)} />
                       <DeleteConfirm onConfirm={() => deleteMutation.mutate(c.id)} title={`Delete "${c.name}"?`} />
                     </div>

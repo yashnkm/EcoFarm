@@ -27,5 +27,7 @@ public record DeviceResponse(
     Instant createdAt,
     Set<String> recordedDataPoints,
     Map<String, String> dataPointGroups,
-    Map<String, String> commandGroups
+    Map<String, String> commandGroups,
+    Integer sortOrder,
+    Map<String, Integer> zoneOrder
 ) {}

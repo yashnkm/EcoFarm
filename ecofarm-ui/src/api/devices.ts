@@ -73,6 +73,16 @@ export const devicesApi = {
     apiClient
       .patch<Device>(`/devices/${id}/command-groups`, { commandGroups })
       .then((r) => r.data),
+
+  updateZoneOrder: (id: string, zoneOrder: Record<string, number>) =>
+    apiClient
+      .patch<Device>(`/devices/${id}/zone-order`, { zoneOrder })
+      .then((r) => r.data),
+
+  /** Full ordered list of device IDs, tenant-wide — position becomes each
+   * device's new sortOrder. */
+  reorder: (deviceIds: string[]) =>
+    apiClient.patch<Device[]>("/devices/reorder", { deviceIds }).then((r) => r.data),
 }
 
 export const deviceProfilesApi = {

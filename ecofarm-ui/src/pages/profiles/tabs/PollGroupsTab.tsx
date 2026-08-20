@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { pollGroupsApi, type PollGroupBody } from "@/api/deviceProfiles"
+import { naturalCompare } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -228,7 +229,7 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groups.map((g) => (
+              {[...groups].sort((a, b) => naturalCompare(a.name, b.name)).map((g) => (
                 <TableRow key={g.id}>
                   <TableCell className="font-medium">{g.name}</TableCell>
                   <TableCell className="text-xs">

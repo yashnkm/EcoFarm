@@ -223,6 +223,8 @@ export interface Device {
   recordedDataPoints: string[]
   dataPointGroups: Record<string, string>
   commandGroups: Record<string, string>
+  sortOrder: number | null
+  zoneOrder: Record<string, number>
 }
 
 // ── Admin Overview ────────────────────────

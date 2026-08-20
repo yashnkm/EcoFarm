@@ -104,4 +104,20 @@ public class Device {
     @Column(name = "command_groups", columnDefinition = "jsonb")
     @Builder.Default
     private Map<String, String> commandGroups = new HashMap<>();
+
+    /** Where this device sits in tenant-wide device lists — null (the
+     * default, e.g. before anyone has ever dragged to reorder) means "no
+     * explicit position yet", and the frontend falls back to sorting by
+     * name. */
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
+    /** Display order for this device's own section cards (Section-1,
+     * Section-2, ... — the free-text zone names in dataPointGroups), keyed
+     * by zone name -> position. A zone with no entry here (e.g. one just
+     * created) sorts after all explicitly-ordered ones, by name. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "zone_order", columnDefinition = "jsonb")
+    @Builder.Default
+    private Map<String, Integer> zoneOrder = new HashMap<>();
 }

@@ -1,3 +1,5 @@
+import { GripVertical } from "lucide-react"
+
 import type { CommandTemplate, DataPoint, Device, Reading } from "@/types/api"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +28,12 @@ interface Props {
   modeReading?: Reading
   issuePending: boolean
   onIssueCommand: (commandTemplateId: string, value?: number) => void
+  /** Whether the current user is allowed to drag this card to a new
+   * position — the section order is device-wide, shared by everyone who
+   * views it, so it's gated the same way zone assignment already is. */
+  canReorder?: boolean
+  onDragHandleStart?: () => void
+  onDragHandleEnd?: () => void
 }
 
 function formatReadingValue(v: number): string {
@@ -44,6 +52,9 @@ export function SectionCard({
   modeReading,
   issuePending,
   onIssueCommand,
+  canReorder,
+  onDragHandleStart,
+  onDragHandleEnd,
 }: Props) {
   // A cached value from before the device went offline is not the same
   // thing as a live confirmed one — showing it with full confidence would
@@ -113,7 +124,20 @@ export function SectionCard({
     <Card className="flex flex-col gap-4">
       <CardHeader className="pb-0">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base font-semibold tracking-wide">{zoneName}</CardTitle>
+          <div className="flex min-w-0 items-center gap-1.5">
+            {canReorder && (
+              <span
+                draggable
+                onDragStart={onDragHandleStart}
+                onDragEnd={onDragHandleEnd}
+                className="-ml-1 flex shrink-0 cursor-grab items-center text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing"
+                title="Drag to reorder"
+              >
+                <GripVertical className="size-4" />
+              </span>
+            )}
+            <CardTitle className="truncate text-base font-semibold tracking-wide">{zoneName}</CardTitle>
+          </div>
           <div className="flex shrink-0 items-center gap-2">
             {modeDataPoint && (
               <Badge

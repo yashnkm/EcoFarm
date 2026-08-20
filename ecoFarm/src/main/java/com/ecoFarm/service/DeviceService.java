@@ -5,7 +5,9 @@ import com.ecoFarm.api.v1.dto.request.CreateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.DataPointGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.IssueCommandRequest;
 import com.ecoFarm.api.v1.dto.request.RecordedDataPointsRequest;
+import com.ecoFarm.api.v1.dto.request.ReorderDevicesRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateDeviceRequest;
+import com.ecoFarm.api.v1.dto.request.ZoneOrderRequest;
 import com.ecoFarm.domain.entity.*;
 import com.ecoFarm.domain.enums.CommandStatus;
 import com.ecoFarm.domain.enums.DeviceProtocol;
@@ -229,6 +231,30 @@ public class DeviceService {
         Device device = findInTenant(id);
         device.setCommandGroups(req.commandGroups());
         return device;
+    }
+
+    @Transactional
+    public Device updateZoneOrder(UUID id, ZoneOrderRequest req) {
+        Device device = findInTenant(id);
+        device.setZoneOrder(req.zoneOrder());
+        return device;
+    }
+
+    // Position in the submitted list becomes each device's new sortOrder —
+    // a plain drag-and-drop reorder, not a partial patch, so a device left
+    // out of the list simply isn't touched (its old position stands).
+    @Transactional
+    public List<Device> reorderDevices(ReorderDevicesRequest req) {
+        UUID tenantId = SecurityUtil.currentTenantId();
+        List<Device> reordered = new java.util.ArrayList<>();
+        int position = 0;
+        for (UUID deviceId : req.deviceIds()) {
+            Device device = deviceRepository.findByIdAndTenantId(deviceId, tenantId)
+                .orElseThrow(() -> ApiException.badRequest("Device " + deviceId + " not found"));
+            device.setSortOrder(position++);
+            reordered.add(device);
+        }
+        return reordered;
     }
 
     @Transactional(readOnly = true)

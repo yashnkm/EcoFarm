@@ -55,18 +55,26 @@ export function SectionCard({
   const fans = dataPoints.filter((dp) => classifyParam(dp) === "FAN_READING")
   const other = dataPoints.filter((dp) => classifyParam(dp) === "OTHER")
 
-  // Setpoint commands explicitly assigned to this zone (via the same
-  // per-device assignment mechanism as dataPointGroups) that aren't already
-  // shown above through a matched status data point — e.g. a setpoint that
-  // doesn't have a readback point yet still needs somewhere to appear once
-  // an admin has assigned it here.
+  // Commands explicitly assigned to this zone (via the same per-device
+  // assignment mechanism as dataPointGroups) — every command lives inside
+  // its section's card, never in a separate page-level list, mirroring how
+  // zone-less data points simply don't render on the live page either.
+  const assignedCommands = commands.filter((cmd) => commandGroups[cmd.id] === zoneName)
+
+  // Section on/off (toggle) commands get their own prominent slot right
+  // under the header — they control everything else in the section.
+  const sectionCommands = assignedCommands.filter((cmd) => classifyCommand(cmd) === "SECTION")
+
+  // Setpoint-style commands that aren't already shown above through a
+  // matched status data point — e.g. a setpoint that doesn't have a
+  // readback point yet still needs somewhere to appear once assigned.
   const matchedCommandIds = new Set(
     [...tempSetpoints, ...foggingSetpoints]
       .map((dp) => findMatchingCommand(dp, commands)?.id)
       .filter((id): id is string => !!id)
   )
-  const unmatchedAssignedCommands = commands.filter(
-    (cmd) => commandGroups[cmd.id] === zoneName && cmd.promptForValue && !matchedCommandIds.has(cmd.id)
+  const unmatchedAssignedCommands = assignedCommands.filter(
+    (cmd) => classifyCommand(cmd) !== "SECTION" && !matchedCommandIds.has(cmd.id)
   )
   const extraTempCommands = unmatchedAssignedCommands.filter((c) => classifyCommand(c) === "TEMPERATURE")
   const extraFoggingCommands = unmatchedAssignedCommands.filter((c) => classifyCommand(c) === "FOGGING")
@@ -106,6 +114,24 @@ export function SectionCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
+        {sectionCommands.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {sectionCommands.map((cmd) => (
+              <CommandButton
+                key={cmd.id}
+                command={cmd}
+                onIssue={onIssueCommand}
+                disabled={issuePending}
+                statusValue={
+                  cmd.statusDataPointKey
+                    ? readings.get(`${deviceId}:${cmd.statusDataPointKey}`)?.value
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        )}
+
         {(temp || humidity) && (
           <ParamGroup title="Current Climate">
             {temp && (

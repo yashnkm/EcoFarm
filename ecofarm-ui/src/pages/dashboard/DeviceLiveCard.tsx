@@ -6,7 +6,6 @@ import { devicesApi } from "@/api/devices"
 import type { Device, DataPoint, CommandTemplate, Reading } from "@/types/api"
 import { meetsMinRole } from "@/lib/roles"
 import { statusBadgeProps } from "./deviceStatus"
-import { classifyCommand, type CommandGroup } from "./sectionParams"
 import { SectionCard } from "./SectionCard"
 import {
   Card,
@@ -15,7 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CommandButton } from "@/components/CommandButton"
 
 interface Props {
   device: Device
@@ -24,28 +22,17 @@ interface Props {
   readings: Map<string, Reading>
 }
 
-const COMMAND_GROUP_TITLES: Record<CommandGroup, string> = {
-  TEMPERATURE: "Temperature",
-  FOGGING: "Fogging",
-  SECTION: "Section Control",
-  OTHER: "Other",
-}
-const COMMAND_GROUP_ORDER: CommandGroup[] = ["TEMPERATURE", "FOGGING", "SECTION", "OTHER"]
-
 export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props) {
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
 
+  // Every command a user is allowed to see, regardless of section — each
+  // SectionCard below picks out the ones assigned to its own zone. A command
+  // with no zone assigned simply doesn't render anywhere on this page, the
+  // same rule already used for data points.
   const visibleCommands = user?.role
     ? commands.filter((cmd) => meetsMinRole(user.role, cmd.minRole))
     : []
-
-  const commandsByGroup = new Map<CommandGroup, CommandTemplate[]>()
-  for (const cmd of visibleCommands) {
-    const group = classifyCommand(cmd)
-    if (!commandsByGroup.has(group)) commandsByGroup.set(group, [])
-    commandsByGroup.get(group)!.push(cmd)
-  }
 
   // Device-wide mode indicator (Auto/Manual) — not zone-assigned, so it's
   // resolved once here and shown in every section card's header.
@@ -107,7 +94,7 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props
                 key={zoneName}
                 zoneName={zoneName}
                 dataPoints={dps}
-                commands={commands}
+                commands={visibleCommands}
                 commandGroups={device.commandGroups ?? {}}
                 readings={readings}
                 deviceId={device.id}
@@ -118,38 +105,6 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props
                 onIssueCommand={(cmdId, value) => cmdMutation.mutate({ cmdId, value })}
               />
             ))}
-          </div>
-        )}
-
-        {visibleCommands.length > 0 && (
-          <div className="flex flex-col gap-3 border-t pt-4">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Commands
-            </span>
-            <div className="flex flex-col gap-3">
-              {COMMAND_GROUP_ORDER.filter((group) => commandsByGroup.has(group)).map((group) => (
-                <div key={group} className="flex flex-col gap-1.5">
-                  <span className="text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground">
-                    {COMMAND_GROUP_TITLES[group]}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {commandsByGroup.get(group)!.map((cmd) => (
-                      <CommandButton
-                        key={cmd.id}
-                        command={cmd}
-                        disabled={cmdMutation.isPending}
-                        onIssue={(cmdId, value) => cmdMutation.mutate({ cmdId, value })}
-                        statusValue={
-                          cmd.statusDataPointKey
-                            ? readings.get(`${device.id}:${cmd.statusDataPointKey}`)?.value
-                            : undefined
-                        }
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </CardContent>

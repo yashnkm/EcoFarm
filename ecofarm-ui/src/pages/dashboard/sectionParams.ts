@@ -63,6 +63,13 @@ export function friendlyParamLabel(dp: DataPoint): string {
   return FRIENDLY_PARAM_LABELS[base.toLowerCase()] ?? base
 }
 
+/** Same friendly mapping applied directly to a command's own name — for
+ * commands assigned to a zone with no backing status data point to read
+ * the label from. */
+export function friendlyCommandName(name: string): string {
+  return FRIENDLY_PARAM_LABELS[name.trim().toLowerCase()] ?? name
+}
+
 /** Drops the zone suffix for single-per-section readings — "Temperature-3" -> "Temperature". */
 export function stripZoneSuffix(label: string): string {
   return label.replace(/-\d+[A-Za-z]?$/, "")

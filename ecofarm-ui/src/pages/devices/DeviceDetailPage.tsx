@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { CommandStatus, DataPoint, Zone } from "@/types/api"
+import type { CommandStatus, CommandTemplate, DataPoint, Zone } from "@/types/api"
 
 export function DeviceDetailPage() {
   const { id = "" } = useParams<{ id: string }>()
@@ -106,6 +106,15 @@ export function DeviceDetailPage() {
     onError: () => toast.error("Failed to update zone assignment"),
   })
 
+  const commandGroupsMutation = useMutation({
+    mutationFn: (groups: Record<string, string>) => devicesApi.updateCommandGroups(id, groups),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["device", id], updated)
+      queryClient.invalidateQueries({ queryKey: ["devices"] })
+    },
+    onError: () => toast.error("Failed to update zone assignment"),
+  })
+
   const handleRecordToggle = (key: string, checked: boolean) => {
     if (!device) return
     const current = new Set(device.recordedDataPoints ?? [])
@@ -123,6 +132,17 @@ export function DeviceDetailPage() {
       delete current[dpKey]
     }
     groupsMutation.mutate(current)
+  }
+
+  const handleCommandZoneChange = (commandId: string, zoneName: string) => {
+    if (!device) return
+    const current = { ...(device.commandGroups ?? {}) }
+    if (zoneName) {
+      current[commandId] = zoneName
+    } else {
+      delete current[commandId]
+    }
+    commandGroupsMutation.mutate(current)
   }
 
   const visibleCommands = user?.role
@@ -206,20 +226,19 @@ export function DeviceDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Commands</CardTitle>
-            <CardDescription>Write operations available for this device profile.</CardDescription>
+            <CardDescription>Write operations available for this device profile — assign each to a zone so it shows up in the right section on the live view.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {visibleCommands.map((cmd) => (
-                <CommandButton
-                  key={cmd.id}
-                  command={cmd}
-                  disabled={issueMutation.isPending}
-                  onIssue={(commandTemplateId, value) => issueMutation.mutate({ commandTemplateId, value })}
-                  statusValue={cmd.statusDataPointKey ? liveReadings.get(cmd.statusDataPointKey)?.value : undefined}
-                />
-              ))}
-            </div>
+          <CardContent className="p-0">
+            <CommandTable
+              commands={visibleCommands}
+              liveReadings={liveReadings}
+              issuePending={issueMutation.isPending}
+              onIssue={(commandTemplateId, value) => issueMutation.mutate({ commandTemplateId, value })}
+              zones={zones}
+              commandGroups={device?.commandGroups ?? {}}
+              canAssignZone={canAssignZone}
+              onZoneChange={handleCommandZoneChange}
+            />
           </CardContent>
         </Card>
       )}
@@ -398,6 +417,88 @@ function DataPointTable({
               </TableRow>
             )
           })}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+interface CommandTableProps {
+  commands: CommandTemplate[]
+  liveReadings: Map<string, { value: number | null; unit: string | null; quality: string; time: string }>
+  issuePending: boolean
+  onIssue: (commandTemplateId: string, value?: number) => void
+  zones: Zone[]
+  commandGroups: Record<string, string>
+  canAssignZone: boolean
+  onZoneChange: (commandId: string, zoneName: string) => void
+}
+
+function CommandTable({
+  commands, liveReadings, issuePending, onIssue,
+  zones, commandGroups, canAssignZone, onZoneChange,
+}: CommandTableProps) {
+  return (
+    <div className="rounded-b-lg border-t">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="pl-6">Name</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Register</TableHead>
+            <TableHead>Value</TableHead>
+            <TableHead>Zone</TableHead>
+            <TableHead className="pr-6">Command</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {commands.map((cmd) => (
+            <TableRow key={cmd.id}>
+              <TableCell className="pl-6 font-medium">{cmd.name}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">{cmd.description ?? "—"}</TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">{cmd.registerNumber}</TableCell>
+              <TableCell className="font-mono text-xs">
+                {cmd.promptForValue ? (
+                  <Badge variant="outline" className="text-xs">entered on send</Badge>
+                ) : cmd.offValue != null ? (
+                  `${cmd.value} / ${cmd.offValue}`
+                ) : (
+                  cmd.value
+                )}
+              </TableCell>
+              <TableCell>
+                {zones.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">No zones</span>
+                ) : (
+                  <Select
+                    value={commandGroups[cmd.id] ?? ""}
+                    onValueChange={(v) => onZoneChange(cmd.id, v ?? "")}
+                    disabled={!canAssignZone}
+                  >
+                    <SelectTrigger size="sm" className="w-32">
+                      <SelectValue placeholder="No zone">
+                        {(value: string | null) => value ? zones.find((z) => z.name === value)?.name ?? value : "No zone"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No zone</SelectItem>
+                      {zones.map((z) => (
+                        <SelectItem key={z.id} value={z.name}>{z.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </TableCell>
+              <TableCell className="pr-6">
+                <CommandButton
+                  command={cmd}
+                  disabled={issuePending}
+                  onIssue={onIssue}
+                  statusValue={cmd.statusDataPointKey ? liveReadings.get(cmd.statusDataPointKey)?.value : undefined}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

@@ -97,4 +97,11 @@ public class Device {
     @Column(name = "data_point_groups", columnDefinition = "jsonb")
     @Builder.Default
     private Map<String, String> dataPointGroups = new HashMap<>();
+
+    /** Same idea as dataPointGroups, but keyed by command template id instead
+     * of data point key — which zone/section a command belongs to. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "command_groups", columnDefinition = "jsonb")
+    @Builder.Default
+    private Map<String, String> commandGroups = new HashMap<>();
 }

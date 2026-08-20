@@ -108,6 +108,7 @@ export function DeviceLiveCard({ device, dataPoints, commands, readings }: Props
                 zoneName={zoneName}
                 dataPoints={dps}
                 commands={commands}
+                commandGroups={device.commandGroups ?? {}}
                 readings={readings}
                 deviceId={device.id}
                 deviceStatus={device.status}

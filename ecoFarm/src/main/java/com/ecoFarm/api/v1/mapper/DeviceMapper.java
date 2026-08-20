@@ -28,7 +28,8 @@ public class DeviceMapper {
             d.getLastReadingAt(),
             d.getCreatedAt(),
             d.getRecordedDataPoints(),
-            d.getDataPointGroups()
+            d.getDataPointGroups(),
+            d.getCommandGroups()
         );
     }
 

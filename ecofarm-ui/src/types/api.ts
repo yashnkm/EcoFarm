@@ -218,6 +218,7 @@ export interface Device {
   createdAt: string
   recordedDataPoints: string[]
   dataPointGroups: Record<string, string>
+  commandGroups: Record<string, string>
 }
 
 // ── Admin Overview ────────────────────────

@@ -1,5 +1,6 @@
 package com.ecoFarm.api.v1.controller;
 
+import com.ecoFarm.api.v1.dto.request.CommandGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.CreateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.DataPointGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.IssueCommandRequest;
@@ -72,6 +73,14 @@ public class DeviceController {
         @PathVariable UUID id,
         @Valid @RequestBody DataPointGroupsRequest req) {
         return mapper.toResponse(service.updateDataPointGroups(id, req));
+    }
+
+    @PatchMapping("/{id}/command-groups")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    public DeviceResponse updateCommandGroups(
+        @PathVariable UUID id,
+        @Valid @RequestBody CommandGroupsRequest req) {
+        return mapper.toResponse(service.updateCommandGroups(id, req));
     }
 
     @PostMapping("/{id}/commands")

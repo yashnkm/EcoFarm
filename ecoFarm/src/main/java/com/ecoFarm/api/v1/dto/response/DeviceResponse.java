@@ -26,5 +26,6 @@ public record DeviceResponse(
     Instant lastReadingAt,
     Instant createdAt,
     Set<String> recordedDataPoints,
-    Map<String, String> dataPointGroups
+    Map<String, String> dataPointGroups,
+    Map<String, String> commandGroups
 ) {}

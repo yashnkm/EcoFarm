@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge"
 import { CommandButton } from "@/components/CommandButton"
 import { statusBadgeProps } from "./deviceStatus"
 import {
+  classifyCommand,
   classifyParam,
   findMatchingCommand,
+  friendlyCommandName,
   friendlyParamLabel,
   humanizeLabel,
   stripZoneSuffix,
@@ -16,6 +18,7 @@ interface Props {
   zoneName: string
   dataPoints: DataPoint[]
   commands: CommandTemplate[]
+  commandGroups: Record<string, string>
   readings: Map<string, Reading>
   deviceId: string
   deviceStatus: Device["status"]
@@ -33,6 +36,7 @@ export function SectionCard({
   zoneName,
   dataPoints,
   commands,
+  commandGroups,
   readings,
   deviceId,
   deviceStatus,
@@ -50,6 +54,25 @@ export function SectionCard({
   const foggingSetpoints = dataPoints.filter((dp) => classifyParam(dp) === "FOGGING_SETPOINT")
   const fans = dataPoints.filter((dp) => classifyParam(dp) === "FAN_READING")
   const other = dataPoints.filter((dp) => classifyParam(dp) === "OTHER")
+
+  // Setpoint commands explicitly assigned to this zone (via the same
+  // per-device assignment mechanism as dataPointGroups) that aren't already
+  // shown above through a matched status data point — e.g. a setpoint that
+  // doesn't have a readback point yet still needs somewhere to appear once
+  // an admin has assigned it here.
+  const matchedCommandIds = new Set(
+    [...tempSetpoints, ...foggingSetpoints]
+      .map((dp) => findMatchingCommand(dp, commands)?.id)
+      .filter((id): id is string => !!id)
+  )
+  const unmatchedAssignedCommands = commands.filter(
+    (cmd) => commandGroups[cmd.id] === zoneName && cmd.promptForValue && !matchedCommandIds.has(cmd.id)
+  )
+  const extraTempCommands = unmatchedAssignedCommands.filter((c) => classifyCommand(c) === "TEMPERATURE")
+  const extraFoggingCommands = unmatchedAssignedCommands.filter((c) => classifyCommand(c) === "FOGGING")
+  const extraOtherCommands = unmatchedAssignedCommands.filter(
+    (c) => classifyCommand(c) !== "TEMPERATURE" && classifyCommand(c) !== "FOGGING"
+  )
 
   const statusBadge = statusBadgeProps(deviceStatus)
   const modeIsAuto = modeDataPoint && modeReading?.value != null ? !!modeReading.value : undefined
@@ -94,7 +117,7 @@ export function SectionCard({
           </ParamGroup>
         )}
 
-        {tempSetpoints.length > 0 && (
+        {(tempSetpoints.length > 0 || extraTempCommands.length > 0) && (
           <ParamGroup title="Temperature Control">
             {tempSetpoints.map((dp) => (
               <EditableParamRow
@@ -106,10 +129,13 @@ export function SectionCard({
                 onIssue={onIssueCommand}
               />
             ))}
+            {extraTempCommands.map((cmd) => (
+              <CommandOnlyRow key={cmd.id} command={cmd} disabled={issuePending} onIssue={onIssueCommand} />
+            ))}
           </ParamGroup>
         )}
 
-        {(foggingReadings.length > 0 || foggingSetpoints.length > 0) && (
+        {(foggingReadings.length > 0 || foggingSetpoints.length > 0 || extraFoggingCommands.length > 0) && (
           <ParamGroup title="Fogging">
             {foggingReadings.map((dp) => (
               <StatusRow key={dp.key} label={humanizeLabel(dp.label)} reading={getReading(dp)} dp={dp} />
@@ -124,6 +150,9 @@ export function SectionCard({
                 onIssue={onIssueCommand}
               />
             ))}
+            {extraFoggingCommands.map((cmd) => (
+              <CommandOnlyRow key={cmd.id} command={cmd} disabled={issuePending} onIssue={onIssueCommand} />
+            ))}
           </ParamGroup>
         )}
 
@@ -131,6 +160,14 @@ export function SectionCard({
           <ParamGroup title="Ventilation">
             {fans.map((dp) => (
               <StatusRow key={dp.key} label={humanizeLabel(dp.label)} reading={getReading(dp)} dp={dp} />
+            ))}
+          </ParamGroup>
+        )}
+
+        {extraOtherCommands.length > 0 && (
+          <ParamGroup title="Other Settings">
+            {extraOtherCommands.map((cmd) => (
+              <CommandOnlyRow key={cmd.id} command={cmd} disabled={issuePending} onIssue={onIssueCommand} />
             ))}
           </ParamGroup>
         )}
@@ -242,6 +279,29 @@ function EditableParamRow({
       rowLabel={label}
       rowValue={value}
       rowUnit={unit}
+    />
+  )
+}
+
+/** A command assigned to this zone with no matching readback data point —
+ * still clickable via the same dialog, just with no live value to show. */
+function CommandOnlyRow({
+  command,
+  disabled,
+  onIssue,
+}: {
+  command: CommandTemplate
+  disabled: boolean
+  onIssue: (id: string, value?: number) => void
+}) {
+  return (
+    <CommandButton
+      command={command}
+      onIssue={onIssue}
+      disabled={disabled}
+      variant="row"
+      rowLabel={friendlyCommandName(command.name)}
+      rowValue="—"
     />
   )
 }

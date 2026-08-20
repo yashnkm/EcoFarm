@@ -39,6 +39,11 @@ export type CommandGroup = "TEMPERATURE" | "FOGGING" | "SECTION" | "OTHER"
 
 export function classifyCommand(cmd: CommandTemplate): CommandGroup {
   if (cmd.offValue != null) return "SECTION"
+  if (cmd.category) return cmd.category
+
+  // Legacy fallback for commands created before the explicit category field
+  // existed — guesses from a fixed set of known names. New commands should
+  // never rely on this; the admin form now asks directly.
   const name = cmd.name.trim().toLowerCase()
   if (TEMP_SETPOINT_NAMES.has(name)) return "TEMPERATURE"
   if (FOGGING_SETPOINT_NAMES.has(name)) return "FOGGING"

@@ -1,5 +1,6 @@
 package com.ecoFarm.domain.entity;
 
+import com.ecoFarm.domain.enums.CommandCategory;
 import com.ecoFarm.domain.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -61,6 +62,13 @@ public class CommandTemplate {
      * current state is unknown, so a toggle always resolves to the ON value. */
     @Column(name = "status_data_point_key", length = 100)
     private String statusDataPointKey;
+
+    /** Explicit dashboard grouping for non-toggle commands (setpoints etc.) —
+     * null means "not set" (e.g. created before this field existed), in
+     * which case the frontend falls back to its legacy name-based guess. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 20)
+    private CommandCategory category;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "min_role", nullable = false, length = 30)

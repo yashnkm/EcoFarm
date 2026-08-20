@@ -1,5 +1,6 @@
 package com.ecoFarm.api.v1.dto.response;
 
+import com.ecoFarm.domain.enums.CommandCategory;
 import com.ecoFarm.domain.enums.Role;
 
 import java.util.UUID;
@@ -16,5 +17,6 @@ public record CommandTemplateResponse(
     Role minRole,
     boolean promptForValue,
     Integer offValue,
-    String statusDataPointKey
+    String statusDataPointKey,
+    CommandCategory category
 ) {}

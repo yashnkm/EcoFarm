@@ -195,6 +195,7 @@ export interface CommandTemplate {
   promptForValue: boolean
   offValue: number | null
   statusDataPointKey: string | null
+  category: "TEMPERATURE" | "FOGGING" | "OTHER" | null
 }
 
 // ── Device ────────────────────────────────

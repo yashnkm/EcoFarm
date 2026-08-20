@@ -1,5 +1,6 @@
 package com.ecoFarm.api.v1.dto.request;
 
+import com.ecoFarm.domain.enums.CommandCategory;
 import com.ecoFarm.domain.enums.Role;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -15,5 +16,6 @@ public record CommandTemplateRequest(
     Role minRole,
     Boolean promptForValue,
     Integer offValue,
-    String statusDataPointKey
+    String statusDataPointKey,
+    CommandCategory category
 ) {}

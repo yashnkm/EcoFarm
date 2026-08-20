@@ -117,6 +117,7 @@ export interface CommandTemplateBody {
   promptForValue?: boolean
   offValue?: number
   statusDataPointKey?: string
+  category?: "TEMPERATURE" | "FOGGING" | "OTHER"
 }
 
 export const commandTemplatesApi = {

@@ -60,6 +60,7 @@ public class CommandTemplateService {
             .promptForValue(Boolean.TRUE.equals(req.promptForValue()))
             .offValue(req.offValue())
             .statusDataPointKey(req.statusDataPointKey())
+            .category(req.category())
             .build();
         return repo.save(c);
     }
@@ -85,6 +86,7 @@ public class CommandTemplateService {
         if (req.promptForValue() != null) c.setPromptForValue(req.promptForValue());
         c.setOffValue(req.offValue());
         c.setStatusDataPointKey(req.statusDataPointKey());
+        c.setCategory(req.category());
         return c;
     }
 

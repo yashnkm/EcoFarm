@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { commandTemplatesApi, dataPointsApi, type CommandTemplateBody } from "@/api/deviceProfiles"
+import { classifyCommand } from "@/pages/dashboard/sectionParams"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +42,21 @@ import { EditButton } from "@/components/EditButton"
 import type { CommandTemplate } from "@/types/api"
 
 const ROLES = ["OPERATOR", "TENANT_ADMIN", "SUPER_ADMIN"] as const
+const CATEGORIES = ["TEMPERATURE", "FOGGING", "OTHER"] as const
+const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
+  TEMPERATURE: "Temperature Control",
+  FOGGING: "Fogging",
+  OTHER: "Other",
+}
+// Same labels, extended with the SECTION group classifyCommand() can also
+// return (toggle commands) — used to describe a command's live-dashboard
+// grouping in the admin table, matching classifyCommand's own fallback
+// logic exactly (so a legacy command classified via its name still shows
+// correctly here, not just ones with an explicit category set).
+const GROUP_LABELS: Record<"TEMPERATURE" | "FOGGING" | "SECTION" | "OTHER", string> = {
+  ...CATEGORY_LABELS,
+  SECTION: "Section control",
+}
 const NO_STATUS_POINT = "__none__"
 type CreateMode = "toggle" | "value"
 
@@ -65,8 +81,13 @@ const toggleSchema = z.object({
 type ToggleValues = z.infer<typeof toggleSchema>
 
 // Value-entry — a single command where the operator supplies the value at
-// send-time (setpoints), instead of a value fixed at creation.
-const valueSchema = z.object(sharedFields)
+// send-time (setpoints), instead of a value fixed at creation. Category
+// decides which group it renders in on the live dashboard — asked directly
+// here instead of guessed from the name.
+const valueSchema = z.object({
+  ...sharedFields,
+  category: z.enum(CATEGORIES),
+})
 type ValueValues = z.infer<typeof valueSchema>
 
 // Editing covers all three kinds through one superset schema — only the
@@ -76,6 +97,7 @@ const editSchema = z.object({
   value: z.coerce.number().int(),
   offValue: z.coerce.number().int().optional(),
   statusDataPointKey: z.string().optional(),
+  category: z.enum(CATEGORIES).optional(),
 })
 type EditValues = z.infer<typeof editSchema>
 
@@ -103,9 +125,10 @@ export function CommandsTab({ profileId }: { profileId: string }) {
 
   const valueForm = useForm<ValueValues>({
     resolver: zodResolver(valueSchema) as Resolver<ValueValues>,
-    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: false },
+    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: false, category: "OTHER" },
   })
   const valueRole = valueForm.watch("minRole")
+  const valueCategory = valueForm.watch("category")
 
   const editForm = useForm<EditValues>({
     resolver: zodResolver(editSchema) as Resolver<EditValues>,
@@ -113,6 +136,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
   })
   const editRole = editForm.watch("minRole")
   const editStatusKey = editForm.watch("statusDataPointKey")
+  const editCategory = editForm.watch("category")
 
   const invalidateAndClose = (message: string) => {
     queryClient.invalidateQueries({ queryKey: ["commands", profileId] })
@@ -180,6 +204,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       functionCode: 6,
       confirmationRequired: false,
       minRole: "OPERATOR",
+      category: "OTHER",
     })
     setOpen(true)
   }
@@ -195,6 +220,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
       confirmationRequired: c.confirmationRequired,
       minRole: c.minRole as EditValues["minRole"],
+      category: c.category ?? "OTHER",
     })
     setOpen(true)
   }
@@ -215,6 +241,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
         ...d,
         offValue: isToggle ? d.offValue : undefined,
         statusDataPointKey: isToggle && d.statusDataPointKey !== NO_STATUS_POINT ? d.statusDataPointKey : undefined,
+        category: isToggle ? undefined : d.category,
       },
     })
   }
@@ -290,15 +317,37 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                     </Field>
                   </>
                 ) : (
-                  <Field data-invalid={editForm.formState.errors.value ? true : undefined}>
-                    <FieldLabel htmlFor="eval">Value</FieldLabel>
-                    <Input id="eval" type="number" {...editForm.register("value")} disabled={editing.promptForValue} />
-                    {editing.promptForValue && (
+                  <>
+                    <Field data-invalid={editForm.formState.errors.value ? true : undefined}>
+                      <FieldLabel htmlFor="eval">Value</FieldLabel>
+                      <Input id="eval" type="number" {...editForm.register("value")} disabled={editing.promptForValue} />
+                      {editing.promptForValue && (
+                        <FieldDescription>
+                          This command asks the operator for a value each time it&apos;s sent — the value above is unused.
+                        </FieldDescription>
+                      )}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>Category</FieldLabel>
+                      <Select
+                        value={editCategory ?? "OTHER"}
+                        onValueChange={(v) => editForm.setValue("category", v as EditValues["category"])}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>{CATEGORY_LABELS[cat]}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                       <FieldDescription>
-                        This command asks the operator for a value each time it&apos;s sent — the value above is unused.
+                        Which group this shows in on the live dashboard once assigned to a section.
                       </FieldDescription>
-                    )}
-                  </Field>
+                    </Field>
+                  </>
                 )}
 
                 <Field>
@@ -463,6 +512,26 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                     </div>
 
                     <Field>
+                      <FieldLabel>Category</FieldLabel>
+                      <Select
+                        value={valueCategory}
+                        onValueChange={(v) => valueForm.setValue("category", v as ValueValues["category"])}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>{CATEGORY_LABELS[cat]}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Which group this shows in on the live dashboard once assigned to a section.
+                      </FieldDescription>
+                    </Field>
+
+                    <Field>
                       <FieldLabel>Minimum role</FieldLabel>
                       <Select value={valueRole} onValueChange={(v) => valueForm.setValue("minRole", v as ValueValues["minRole"])}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -505,6 +574,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                 <TableHead>FC</TableHead>
                 <TableHead>Value</TableHead>
                 <TableHead>Status point</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Min role</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
@@ -527,6 +597,9 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {c.offValue != null ? (c.statusDataPointKey ?? "—") : "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {GROUP_LABELS[classifyCommand(c)]}
                   </TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs">{c.minRole}</Badge></TableCell>
                   <TableCell>

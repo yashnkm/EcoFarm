@@ -122,7 +122,8 @@ jobs:
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS off_value INTEGER;" \
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS status_data_point_key VARCHAR(100);" \
             -c "ALTER TABLE data_points DROP CONSTRAINT IF EXISTS data_points_data_type_check;" \
-            -c "ALTER TABLE data_points DROP CONSTRAINT IF EXISTS data_points_display_widget_check;"
+            -c "ALTER TABLE data_points DROP CONSTRAINT IF EXISTS data_points_display_widget_check;" \
+            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS category VARCHAR(20);"
 
           # Add admin subdomain to CORS allowed origins if not already present
           ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"

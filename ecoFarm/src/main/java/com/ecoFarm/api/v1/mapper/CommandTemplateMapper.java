@@ -20,7 +20,8 @@ public class CommandTemplateMapper {
             c.getMinRole(),
             c.isPromptForValue(),
             c.getOffValue(),
-            c.getStatusDataPointKey()
+            c.getStatusDataPointKey(),
+            c.getCategory()
         );
     }
 }

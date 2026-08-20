@@ -49,17 +49,34 @@ export function SectionCard({
 
   const temp = dataPoints.find((dp) => classifyParam(dp) === "TEMP_READING")
   const humidity = dataPoints.find((dp) => classifyParam(dp) === "HUMIDITY_READING")
-  const tempSetpoints = dataPoints.filter((dp) => classifyParam(dp) === "TEMP_SETPOINT")
   const foggingReadings = dataPoints.filter((dp) => classifyParam(dp) === "FOGGING_READING")
-  const foggingSetpoints = dataPoints.filter((dp) => classifyParam(dp) === "FOGGING_SETPOINT")
   const fans = dataPoints.filter((dp) => classifyParam(dp) === "FAN_READING")
-  const other = dataPoints.filter((dp) => classifyParam(dp) === "OTHER")
 
   // Commands explicitly assigned to this zone (via the same per-device
   // assignment mechanism as dataPointGroups) — every command lives inside
   // its section's card, never in a separate page-level list, mirroring how
   // zone-less data points simply don't render on the live page either.
   const assignedCommands = commands.filter((cmd) => commandGroups[cmd.id] === zoneName)
+
+  // A data point counts as a temp/fogging setpoint readback either via the
+  // legacy name-based guess (classifyParam, for commands from before the
+  // explicit link existed) or because some command assigned to this zone
+  // explicitly links to it via statusDataPointKey — the explicit link is
+  // what lets a genuinely new setpoint name show up here at all, instead of
+  // being limited to the handful of hardcoded legacy names.
+  const isLinkedSetpoint = (dp: DataPoint, group: "TEMPERATURE" | "FOGGING") =>
+    assignedCommands.some((c) => c.statusDataPointKey === dp.key && classifyCommand(c) === group)
+
+  const tempSetpoints = dataPoints.filter(
+    (dp) => classifyParam(dp) === "TEMP_SETPOINT" || isLinkedSetpoint(dp, "TEMPERATURE")
+  )
+  const foggingSetpoints = dataPoints.filter(
+    (dp) => classifyParam(dp) === "FOGGING_SETPOINT" || isLinkedSetpoint(dp, "FOGGING")
+  )
+  const claimedSetpointKeys = new Set([...tempSetpoints, ...foggingSetpoints].map((dp) => dp.key))
+  const other = dataPoints.filter(
+    (dp) => classifyParam(dp) === "OTHER" && !claimedSetpointKeys.has(dp.key)
+  )
 
   // Section on/off (toggle) commands get their own prominent slot right
   // under the header — they control everything else in the section.
@@ -183,6 +200,14 @@ export function SectionCard({
         {other.length > 0 && (
           <ParamGroup title="Other">
             {other.map((dp) => {
+              // A boolean-configured point (e.g. a "Fan Status" readback
+              // that doesn't happen to match the "Fan-N" label pattern the
+              // Ventilation group looks for) still deserves an ON/OFF badge,
+              // not a raw 0/1 dump — go by what it's actually configured as,
+              // not a guess from its label text.
+              if (dp.dataType === "BOOLEAN" || dp.displayWidget === "BOOLEAN_TOGGLE" || dp.displayWidget === "BOOLEAN_DISPLAY") {
+                return <StatusRow key={dp.key} label={humanizeLabel(dp.label)} reading={getReading(dp)} dp={dp} />
+              }
               const reading = getReading(dp)
               const value = reading?.value != null ? formatReadingValue(reading.value) : "—"
               const unit = reading?.unit ?? dp.unit

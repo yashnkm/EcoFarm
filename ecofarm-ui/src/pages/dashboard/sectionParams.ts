@@ -50,9 +50,16 @@ export function classifyCommand(cmd: CommandTemplate): CommandGroup {
   return "OTHER"
 }
 
-/** Matches a "<Name> Status" readback data point back to the editable
- * "<Name>" command that writes it — e.g. "Set1 Status" → command "Set1". */
+/** Matches a readback data point back to the command that writes it, so it
+ * renders as one live, editable row instead of two disconnected things.
+ * Prefers the explicit statusDataPointKey link (set directly on the command,
+ * same field toggles already use) — falls back to guessing from a
+ * "<Name> Status" data point label matching a "<Name>" command name only for
+ * commands created before that link existed. */
 export function findMatchingCommand(dp: DataPoint, commands: CommandTemplate[]): CommandTemplate | undefined {
+  const explicit = commands.find((c) => c.statusDataPointKey === dp.key)
+  if (explicit) return explicit
+
   const base = dp.label.trim().toLowerCase().replace(/ status$/, "")
   return commands.find((c) => c.name.trim().toLowerCase() === base)
 }

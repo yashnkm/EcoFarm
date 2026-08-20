@@ -83,10 +83,14 @@ type ToggleValues = z.infer<typeof toggleSchema>
 // Value-entry — a single command where the operator supplies the value at
 // send-time (setpoints), instead of a value fixed at creation. Category
 // decides which group it renders in on the live dashboard — asked directly
-// here instead of guessed from the name.
+// here instead of guessed from the name. statusDataPointKey (same field
+// toggles use) links it to the readback point that confirms the setpoint
+// actually took — without it, the dashboard falls back to guessing the
+// link from name text, same fragility the category field just replaced.
 const valueSchema = z.object({
   ...sharedFields,
   category: z.enum(CATEGORIES),
+  statusDataPointKey: z.string().optional(),
 })
 type ValueValues = z.infer<typeof valueSchema>
 
@@ -129,6 +133,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
   })
   const valueRole = valueForm.watch("minRole")
   const valueCategory = valueForm.watch("category")
+  const valueStatusKey = valueForm.watch("statusDataPointKey")
 
   const editForm = useForm<EditValues>({
     resolver: zodResolver(editSchema) as Resolver<EditValues>,
@@ -161,8 +166,15 @@ export function CommandsTab({ profileId }: { profileId: string }) {
   })
 
   const createValueMutation = useMutation({
-    mutationFn: (values: ValueValues) =>
-      commandTemplatesApi.create(profileId, { ...values, value: 0, promptForValue: true }),
+    mutationFn: (values: ValueValues) => {
+      const { statusDataPointKey, ...rest } = values
+      return commandTemplatesApi.create(profileId, {
+        ...rest,
+        value: 0,
+        promptForValue: true,
+        statusDataPointKey: statusDataPointKey === NO_STATUS_POINT ? undefined : statusDataPointKey,
+      })
+    },
     onSuccess: () => invalidateAndClose("Command created"),
     onError: onCreateError,
   })
@@ -205,6 +217,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       confirmationRequired: false,
       minRole: "OPERATOR",
       category: "OTHER",
+      statusDataPointKey: NO_STATUS_POINT,
     })
     setOpen(true)
   }
@@ -240,7 +253,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       body: {
         ...d,
         offValue: isToggle ? d.offValue : undefined,
-        statusDataPointKey: isToggle && d.statusDataPointKey !== NO_STATUS_POINT ? d.statusDataPointKey : undefined,
+        statusDataPointKey: d.statusDataPointKey !== NO_STATUS_POINT ? d.statusDataPointKey : undefined,
         category: isToggle ? undefined : d.category,
       },
     })
@@ -345,6 +358,28 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                       </Select>
                       <FieldDescription>
                         Which group this shows in on the live dashboard once assigned to a section.
+                      </FieldDescription>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>Status data point</FieldLabel>
+                      <Select
+                        value={editStatusKey ?? NO_STATUS_POINT}
+                        onValueChange={(v) => editForm.setValue("statusDataPointKey", v ?? NO_STATUS_POINT)}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value={NO_STATUS_POINT}>None</SelectItem>
+                            {dataPoints.map((dp) => (
+                              <SelectItem key={dp.key} value={dp.key}>{dp.label} ({dp.key})</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Which reading confirms this setpoint's real current value — shown inline and kept in sync
+                        with the PLC, instead of relying on the command name to guess a match.
                       </FieldDescription>
                     </Field>
                   </>
@@ -532,6 +567,28 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                     </Field>
 
                     <Field>
+                      <FieldLabel>Status data point</FieldLabel>
+                      <Select
+                        value={valueStatusKey ?? NO_STATUS_POINT}
+                        onValueChange={(v) => valueForm.setValue("statusDataPointKey", v ?? NO_STATUS_POINT)}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value={NO_STATUS_POINT}>None</SelectItem>
+                            {dataPoints.map((dp) => (
+                              <SelectItem key={dp.key} value={dp.key}>{dp.label} ({dp.key})</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Which reading confirms this setpoint's real current value — shown inline and kept in sync
+                        with the PLC, instead of relying on the command name to guess a match.
+                      </FieldDescription>
+                    </Field>
+
+                    <Field>
                       <FieldLabel>Minimum role</FieldLabel>
                       <Select value={valueRole} onValueChange={(v) => valueForm.setValue("minRole", v as ValueValues["minRole"])}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -596,7 +653,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
-                    {c.offValue != null ? (c.statusDataPointKey ?? "—") : "—"}
+                    {c.statusDataPointKey ?? "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {GROUP_LABELS[classifyCommand(c)]}

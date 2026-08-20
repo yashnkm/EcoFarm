@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CommandButton } from "@/components/CommandButton"
-import { statusBadgeProps } from "./deviceStatus"
+import { isDeviceOnline, statusBadgeProps } from "./deviceStatus"
 import {
   classifyCommand,
   classifyParam,
@@ -45,7 +45,14 @@ export function SectionCard({
   issuePending,
   onIssueCommand,
 }: Props) {
-  const getReading = (dp: DataPoint) => readings.get(`${deviceId}:${dp.key}`)
+  // A cached value from before the device went offline is not the same
+  // thing as a live confirmed one — showing it with full confidence would
+  // silently lie about whether the section is actually in that state right
+  // now. Once the device is offline, every reading-derived display in this
+  // card (climate numbers, setpoints, status badges, the section switch)
+  // falls back to "—" / Unknown instead, via this single choke point.
+  const online = isDeviceOnline(deviceStatus)
+  const getReading = (dp: DataPoint) => (online ? readings.get(`${deviceId}:${dp.key}`) : undefined)
 
   const temp = dataPoints.find((dp) => classifyParam(dp) === "TEMP_READING")
   const humidity = dataPoints.find((dp) => classifyParam(dp) === "HUMIDITY_READING")
@@ -100,7 +107,7 @@ export function SectionCard({
   )
 
   const statusBadge = statusBadgeProps(deviceStatus)
-  const modeIsAuto = modeDataPoint && modeReading?.value != null ? !!modeReading.value : undefined
+  const modeIsAuto = online && modeDataPoint && modeReading?.value != null ? !!modeReading.value : undefined
 
   return (
     <Card className="flex flex-col gap-4">
@@ -238,7 +245,7 @@ export function SectionCard({
                     onIssue={onIssueCommand}
                     disabled={issuePending}
                     statusValue={
-                      cmd.statusDataPointKey
+                      online && cmd.statusDataPointKey
                         ? readings.get(`${deviceId}:${cmd.statusDataPointKey}`)?.value
                         : undefined
                     }

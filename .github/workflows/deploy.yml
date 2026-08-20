@@ -116,7 +116,11 @@ jobs:
             -c "ALTER TABLE poll_groups ADD COLUMN IF NOT EXISTS function_code INTEGER NOT NULL DEFAULT 3;" \
             -c "ALTER TABLE poll_groups ALTER COLUMN function_code DROP DEFAULT;" \
             -c "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS active_tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL;" \
-            -c "ALTER TABLE tenants DROP COLUMN IF EXISTS mqtt_broker_id;"
+            -c "ALTER TABLE tenants DROP COLUMN IF EXISTS mqtt_broker_id;" \
+            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS prompt_for_value BOOLEAN NOT NULL DEFAULT false;" \
+            -c "ALTER TABLE command_templates ALTER COLUMN prompt_for_value DROP DEFAULT;" \
+            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS off_value INTEGER;" \
+            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS status_data_point_key VARCHAR(100);"
 
           # Add admin subdomain to CORS allowed origins if not already present
           ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"

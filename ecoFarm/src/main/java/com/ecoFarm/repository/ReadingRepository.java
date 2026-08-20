@@ -8,10 +8,17 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface ReadingRepository extends JpaRepository<Reading, Reading.ReadingId> {
+
+    /**
+     * Single latest reading for a device + data point — used to resolve a
+     * toggle command's current on/off state before flipping it.
+     */
+    Optional<Reading> findFirstByDeviceIdAndDataPointOrderByTimeDesc(UUID deviceId, String dataPoint);
 
     /**
      * Range query — historical readings for a device + data point.

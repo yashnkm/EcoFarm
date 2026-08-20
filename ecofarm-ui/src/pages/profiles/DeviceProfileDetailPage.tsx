@@ -22,7 +22,7 @@ export function DeviceProfileDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Button variant="ghost" size="sm" render={<Link to="/profiles" />}>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/profiles" />}>
           <ArrowLeft data-icon="inline-start" />
           Back to profiles
         </Button>

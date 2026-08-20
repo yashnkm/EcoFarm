@@ -114,6 +114,9 @@ export interface CommandTemplateBody {
   value: number
   confirmationRequired?: boolean
   minRole?: string
+  promptForValue?: boolean
+  offValue?: number
+  statusDataPointKey?: string
 }
 
 export const commandTemplatesApi = {

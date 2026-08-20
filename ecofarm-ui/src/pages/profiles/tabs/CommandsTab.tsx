@@ -6,7 +6,8 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
-import { commandTemplatesApi, type CommandTemplateBody } from "@/api/deviceProfiles"
+import { commandTemplatesApi, dataPointsApi, type CommandTemplateBody } from "@/api/deviceProfiles"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -40,6 +41,8 @@ import { EditButton } from "@/components/EditButton"
 import type { CommandTemplate } from "@/types/api"
 
 const ROLES = ["OPERATOR", "TENANT_ADMIN", "SUPER_ADMIN"] as const
+const NO_STATUS_POINT = "__none__"
+type CreateMode = "toggle" | "value"
 
 const sharedFields = {
   name: z.string().min(1),
@@ -50,68 +53,100 @@ const sharedFields = {
   minRole: z.enum(ROLES),
 }
 
-// Creating writes two commands at once — "{name} ON" / "{name} OFF" — sharing
-// everything except the value each one sends.
-const createSchema = z.object({
+// Toggle — one command, one register, two values. Which one actually gets
+// sent is resolved server-side from statusDataPointKey's latest reading, so
+// the UI can show a single button that flips state instead of two commands.
+const toggleSchema = z.object({
   ...sharedFields,
   onValue: z.coerce.number().int(),
   offValue: z.coerce.number().int(),
+  statusDataPointKey: z.string().optional(),
 })
-type CreateValues = z.infer<typeof createSchema>
+type ToggleValues = z.infer<typeof toggleSchema>
 
-// Editing still targets one specific command, so it keeps a single value.
+// Value-entry — a single command where the operator supplies the value at
+// send-time (setpoints), instead of a value fixed at creation.
+const valueSchema = z.object(sharedFields)
+type ValueValues = z.infer<typeof valueSchema>
+
+// Editing covers all three kinds through one superset schema — only the
+// fields relevant to the command being edited are shown.
 const editSchema = z.object({
   ...sharedFields,
   value: z.coerce.number().int(),
+  offValue: z.coerce.number().int().optional(),
+  statusDataPointKey: z.string().optional(),
 })
 type EditValues = z.infer<typeof editSchema>
 
 export function CommandsTab({ profileId }: { profileId: string }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<CommandTemplate | null>(null)
+  const [createMode, setCreateMode] = useState<CreateMode>("toggle")
   const queryClient = useQueryClient()
 
   const { data: commands, isLoading } = useQuery({
     queryKey: ["commands", profileId],
     queryFn: () => commandTemplatesApi.list(profileId),
   })
-
-  const createForm = useForm<CreateValues>({
-    resolver: zodResolver(createSchema) as Resolver<CreateValues>,
-    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: true, onValue: 1, offValue: 0 },
+  const { data: dataPoints = [] } = useQuery({
+    queryKey: ["data-points", profileId],
+    queryFn: () => dataPointsApi.list(profileId),
   })
-  const createRole = createForm.watch("minRole")
+
+  const toggleForm = useForm<ToggleValues>({
+    resolver: zodResolver(toggleSchema) as Resolver<ToggleValues>,
+    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: false, onValue: 1, offValue: 0 },
+  })
+  const toggleRole = toggleForm.watch("minRole")
+  const toggleStatusKey = toggleForm.watch("statusDataPointKey")
+
+  const valueForm = useForm<ValueValues>({
+    resolver: zodResolver(valueSchema) as Resolver<ValueValues>,
+    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: false },
+  })
+  const valueRole = valueForm.watch("minRole")
 
   const editForm = useForm<EditValues>({
     resolver: zodResolver(editSchema) as Resolver<EditValues>,
     defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: true },
   })
   const editRole = editForm.watch("minRole")
+  const editStatusKey = editForm.watch("statusDataPointKey")
 
-  const createMutation = useMutation({
-    mutationFn: async (values: CreateValues) => {
-      const { name, onValue, offValue, ...rest } = values
-      const base: Omit<CommandTemplateBody, "name" | "value"> = rest
-      await commandTemplatesApi.create(profileId, { ...base, name: `${name} ON`, value: onValue })
-      await commandTemplatesApi.create(profileId, { ...base, name: `${name} OFF`, value: offValue })
+  const invalidateAndClose = (message: string) => {
+    queryClient.invalidateQueries({ queryKey: ["commands", profileId] })
+    toast.success(message)
+    closeDialog()
+  }
+  const onCreateError = (err: { response?: { data?: { message?: string } } }) =>
+    toast.error(err.response?.data?.message ?? "Failed to create command")
+
+  const createToggleMutation = useMutation({
+    mutationFn: (values: ToggleValues) => {
+      const { onValue, offValue, statusDataPointKey, ...rest } = values
+      return commandTemplatesApi.create(profileId, {
+        ...rest,
+        value: onValue,
+        offValue,
+        statusDataPointKey: statusDataPointKey === NO_STATUS_POINT ? undefined : statusDataPointKey,
+      })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["commands", profileId] })
-      toast.success("ON/OFF commands created")
-      closeDialog()
-    },
-    onError: (err: { response?: { data?: { message?: string } } }) =>
-      toast.error(err.response?.data?.message ?? "Failed to create commands"),
+    onSuccess: () => invalidateAndClose("Toggle command created"),
+    onError: onCreateError,
+  })
+
+  const createValueMutation = useMutation({
+    mutationFn: (values: ValueValues) =>
+      commandTemplatesApi.create(profileId, { ...values, value: 0, promptForValue: true }),
+    onSuccess: () => invalidateAndClose("Command created"),
+    onError: onCreateError,
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: CommandTemplateBody }) =>
       commandTemplatesApi.update(profileId, id, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["commands", profileId] })
-      toast.success("Command updated")
-      closeDialog()
-    },
+    onSuccess: () => invalidateAndClose("Command updated"),
     onError: (err: { response?: { data?: { message?: string } } }) =>
       toast.error(err.response?.data?.message ?? "Failed"),
   })
@@ -126,14 +161,24 @@ export function CommandsTab({ profileId }: { profileId: string }) {
 
   const openCreate = () => {
     setEditing(null)
-    createForm.reset({
+    setCreateMode("toggle")
+    toggleForm.reset({
       name: "",
       description: "",
       registerNumber: 0,
       functionCode: 6,
       onValue: 1,
       offValue: 0,
-      confirmationRequired: true,
+      statusDataPointKey: NO_STATUS_POINT,
+      confirmationRequired: false,
+      minRole: "OPERATOR",
+    })
+    valueForm.reset({
+      name: "",
+      description: "",
+      registerNumber: 0,
+      functionCode: 6,
+      confirmationRequired: false,
       minRole: "OPERATOR",
     })
     setOpen(true)
@@ -146,6 +191,8 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       registerNumber: c.registerNumber,
       functionCode: c.functionCode,
       value: c.value,
+      offValue: c.offValue ?? undefined,
+      statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
       confirmationRequired: c.confirmationRequired,
       minRole: c.minRole as EditValues["minRole"],
     })
@@ -154,8 +201,22 @@ export function CommandsTab({ profileId }: { profileId: string }) {
   const closeDialog = () => {
     setOpen(false)
     setEditing(null)
-    createForm.reset()
+    toggleForm.reset()
+    valueForm.reset()
     editForm.reset()
+  }
+
+  const onSubmitEdit = (d: EditValues) => {
+    if (!editing) return
+    const isToggle = editing.offValue != null
+    updateMutation.mutateAsync({
+      id: editing.id,
+      body: {
+        ...d,
+        offValue: isToggle ? d.offValue : undefined,
+        statusDataPointKey: isToggle && d.statusDataPointKey !== NO_STATUS_POINT ? d.statusDataPointKey : undefined,
+      },
+    })
   }
 
   return (
@@ -167,7 +228,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
         <DialogContent>
           {editing ? (
-            <form onSubmit={editForm.handleSubmit((d) => updateMutation.mutateAsync({ id: editing.id, body: d }))}>
+            <form onSubmit={editForm.handleSubmit(onSubmitEdit)}>
               <DialogHeader>
                 <DialogTitle>Edit &quot;{editing.name}&quot;</DialogTitle>
               </DialogHeader>
@@ -175,16 +236,16 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               <div className="flex flex-col gap-4 py-4">
                 <Field data-invalid={editForm.formState.errors.name ? true : undefined}>
                   <FieldLabel htmlFor="ename">Name</FieldLabel>
-                  <Input id="ename" placeholder="Fan-3 ON" {...editForm.register("name")} />
+                  <Input id="ename" placeholder="Section-3" {...editForm.register("name")} />
                   {editForm.formState.errors.name && <FieldError>{editForm.formState.errors.name.message}</FieldError>}
                 </Field>
 
                 <Field>
                   <FieldLabel htmlFor="edesc">Description</FieldLabel>
-                  <Input id="edesc" placeholder="Activates the pump relay" {...editForm.register("description")} />
+                  <Input id="edesc" placeholder="Activates the section relay" {...editForm.register("description")} />
                 </Field>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <Field data-invalid={editForm.formState.errors.registerNumber ? true : undefined}>
                     <FieldLabel htmlFor="ereg">Register</FieldLabel>
                     <Input id="ereg" type="number" {...editForm.register("registerNumber")} />
@@ -193,11 +254,52 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                     <FieldLabel htmlFor="efc">Function code</FieldLabel>
                     <Input id="efc" type="number" {...editForm.register("functionCode")} />
                   </Field>
+                </div>
+
+                {editing.offValue != null ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field data-invalid={editForm.formState.errors.value ? true : undefined}>
+                        <FieldLabel htmlFor="eonval">On value</FieldLabel>
+                        <Input id="eonval" type="number" {...editForm.register("value")} />
+                      </Field>
+                      <Field data-invalid={editForm.formState.errors.offValue ? true : undefined}>
+                        <FieldLabel htmlFor="eoffval">Off value</FieldLabel>
+                        <Input id="eoffval" type="number" {...editForm.register("offValue")} />
+                      </Field>
+                    </div>
+                    <Field>
+                      <FieldLabel>Status data point</FieldLabel>
+                      <Select
+                        value={editStatusKey ?? NO_STATUS_POINT}
+                        onValueChange={(v) => editForm.setValue("statusDataPointKey", v ?? NO_STATUS_POINT)}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value={NO_STATUS_POINT}>None — always shows Unknown</SelectItem>
+                            {dataPoints.map((dp) => (
+                              <SelectItem key={dp.key} value={dp.key}>{dp.label} ({dp.key})</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Which reading tells the button whether this is currently on.
+                      </FieldDescription>
+                    </Field>
+                  </>
+                ) : (
                   <Field data-invalid={editForm.formState.errors.value ? true : undefined}>
                     <FieldLabel htmlFor="eval">Value</FieldLabel>
-                    <Input id="eval" type="number" {...editForm.register("value")} />
+                    <Input id="eval" type="number" {...editForm.register("value")} disabled={editing.promptForValue} />
+                    {editing.promptForValue && (
+                      <FieldDescription>
+                        This command asks the operator for a value each time it&apos;s sent — the value above is unused.
+                      </FieldDescription>
+                    )}
                   </Field>
-                </div>
+                )}
 
                 <Field>
                   <FieldLabel>Minimum role</FieldLabel>
@@ -222,68 +324,168 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               </DialogFooter>
             </form>
           ) : (
-            <form onSubmit={createForm.handleSubmit((d) => createMutation.mutateAsync(d))}>
+            <>
               <DialogHeader>
                 <DialogTitle>Add command</DialogTitle>
               </DialogHeader>
 
-              <div className="flex flex-col gap-4 py-4">
-                <Field data-invalid={createForm.formState.errors.name ? true : undefined}>
-                  <FieldLabel htmlFor="cname">Name</FieldLabel>
-                  <Input id="cname" placeholder="Fan-3" {...createForm.register("name")} />
-                  <FieldDescription>Creates two commands: &quot;{createForm.watch("name") || "Fan-3"} ON&quot; and &quot;{createForm.watch("name") || "Fan-3"} OFF&quot;.</FieldDescription>
-                  {createForm.formState.errors.name && <FieldError>{createForm.formState.errors.name.message}</FieldError>}
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="cdesc">Description</FieldLabel>
-                  <Input id="cdesc" placeholder="Activates the pump relay" {...createForm.register("description")} />
-                </Field>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Field data-invalid={createForm.formState.errors.registerNumber ? true : undefined}>
-                    <FieldLabel htmlFor="creg">Register</FieldLabel>
-                    <Input id="creg" type="number" {...createForm.register("registerNumber")} />
-                  </Field>
-                  <Field data-invalid={createForm.formState.errors.functionCode ? true : undefined}>
-                    <FieldLabel htmlFor="cfc">Function code</FieldLabel>
-                    <Input id="cfc" type="number" {...createForm.register("functionCode")} />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Field data-invalid={createForm.formState.errors.onValue ? true : undefined}>
-                    <FieldLabel htmlFor="onval">On value</FieldLabel>
-                    <Input id="onval" type="number" {...createForm.register("onValue")} />
-                  </Field>
-                  <Field data-invalid={createForm.formState.errors.offValue ? true : undefined}>
-                    <FieldLabel htmlFor="offval">Off value</FieldLabel>
-                    <Input id="offval" type="number" {...createForm.register("offValue")} />
-                  </Field>
-                </div>
-
-                <Field>
-                  <FieldLabel>Minimum role</FieldLabel>
-                  <Select value={createRole} onValueChange={(v) => createForm.setValue("minRole", v as CreateValues["minRole"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" {...createForm.register("confirmationRequired")} className="size-4" />
-                  Require confirmation before sending
-                </label>
+              <div className="flex gap-1 rounded-lg border p-1">
+                <button
+                  type="button"
+                  onClick={() => setCreateMode("toggle")}
+                  className={cn(
+                    "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    createMode === "toggle" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Toggle button
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode("value")}
+                  className={cn(
+                    "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    createMode === "value" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Value entry (setpoint)
+                </button>
               </div>
 
-              <DialogFooter>
-                <Button type="submit" disabled={createForm.formState.isSubmitting}>Create</Button>
-              </DialogFooter>
-            </form>
+              {createMode === "toggle" ? (
+                <form onSubmit={toggleForm.handleSubmit((d) => createToggleMutation.mutateAsync(d))}>
+                  <div className="flex flex-col gap-4 py-4">
+                    <Field data-invalid={toggleForm.formState.errors.name ? true : undefined}>
+                      <FieldLabel htmlFor="cname">Name</FieldLabel>
+                      <Input id="cname" placeholder="Section-3" {...toggleForm.register("name")} />
+                      <FieldDescription>
+                        Creates one command, shown as a single button — green &quot;{toggleForm.watch("name") || "Section-3"} ON&quot; or red &quot;{toggleForm.watch("name") || "Section-3"} OFF&quot; depending on live status.
+                      </FieldDescription>
+                      {toggleForm.formState.errors.name && <FieldError>{toggleForm.formState.errors.name.message}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="cdesc">Description</FieldLabel>
+                      <Input id="cdesc" placeholder="Activates the section relay" {...toggleForm.register("description")} />
+                    </Field>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field data-invalid={toggleForm.formState.errors.registerNumber ? true : undefined}>
+                        <FieldLabel htmlFor="creg">Register</FieldLabel>
+                        <Input id="creg" type="number" {...toggleForm.register("registerNumber")} />
+                      </Field>
+                      <Field data-invalid={toggleForm.formState.errors.functionCode ? true : undefined}>
+                        <FieldLabel htmlFor="cfc">Function code</FieldLabel>
+                        <Input id="cfc" type="number" {...toggleForm.register("functionCode")} />
+                      </Field>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field data-invalid={toggleForm.formState.errors.onValue ? true : undefined}>
+                        <FieldLabel htmlFor="onval">On value</FieldLabel>
+                        <Input id="onval" type="number" {...toggleForm.register("onValue")} />
+                      </Field>
+                      <Field data-invalid={toggleForm.formState.errors.offValue ? true : undefined}>
+                        <FieldLabel htmlFor="offval">Off value</FieldLabel>
+                        <Input id="offval" type="number" {...toggleForm.register("offValue")} />
+                      </Field>
+                    </div>
+
+                    <Field>
+                      <FieldLabel>Status data point</FieldLabel>
+                      <Select
+                        value={toggleStatusKey ?? NO_STATUS_POINT}
+                        onValueChange={(v) => toggleForm.setValue("statusDataPointKey", v ?? NO_STATUS_POINT)}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value={NO_STATUS_POINT}>None — always shows Unknown</SelectItem>
+                            {dataPoints.map((dp) => (
+                              <SelectItem key={dp.key} value={dp.key}>{dp.label} ({dp.key})</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Which reading tells the button whether this is currently on — e.g. Fan-3 status.
+                      </FieldDescription>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>Minimum role</FieldLabel>
+                      <Select value={toggleRole} onValueChange={(v) => toggleForm.setValue("minRole", v as ToggleValues["minRole"])}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" {...toggleForm.register("confirmationRequired")} className="size-4" />
+                      Require confirmation before sending
+                    </label>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="submit" disabled={toggleForm.formState.isSubmitting}>Create</Button>
+                  </DialogFooter>
+                </form>
+              ) : (
+                <form onSubmit={valueForm.handleSubmit((d) => createValueMutation.mutateAsync(d))}>
+                  <div className="flex flex-col gap-4 py-4">
+                    <Field data-invalid={valueForm.formState.errors.name ? true : undefined}>
+                      <FieldLabel htmlFor="vname">Name</FieldLabel>
+                      <Input id="vname" placeholder="Set1" {...valueForm.register("name")} />
+                      <FieldDescription>
+                        Creates one command. Sending it asks for a value each time — nothing fixed at creation.
+                      </FieldDescription>
+                      {valueForm.formState.errors.name && <FieldError>{valueForm.formState.errors.name.message}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="vdesc">Description</FieldLabel>
+                      <Input id="vdesc" placeholder="Temperature setpoint 1" {...valueForm.register("description")} />
+                    </Field>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field data-invalid={valueForm.formState.errors.registerNumber ? true : undefined}>
+                        <FieldLabel htmlFor="vreg">Register</FieldLabel>
+                        <Input id="vreg" type="number" {...valueForm.register("registerNumber")} />
+                      </Field>
+                      <Field data-invalid={valueForm.formState.errors.functionCode ? true : undefined}>
+                        <FieldLabel htmlFor="vfc">Function code</FieldLabel>
+                        <Input id="vfc" type="number" {...valueForm.register("functionCode")} />
+                      </Field>
+                    </div>
+
+                    <Field>
+                      <FieldLabel>Minimum role</FieldLabel>
+                      <Select value={valueRole} onValueChange={(v) => valueForm.setValue("minRole", v as ValueValues["minRole"])}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" {...valueForm.register("confirmationRequired")} className="size-4" />
+                      Require confirmation before sending
+                    </label>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="submit" disabled={valueForm.formState.isSubmitting}>Create</Button>
+                  </DialogFooter>
+                </form>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>
@@ -291,7 +493,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       {isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : !commands?.length ? (
-        <p className="text-sm text-muted-foreground">No commands. Add one to expose a named ON/OFF action on devices.</p>
+        <p className="text-sm text-muted-foreground">No commands. Add one to expose a named action on devices.</p>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -302,6 +504,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                 <TableHead>Register</TableHead>
                 <TableHead>FC</TableHead>
                 <TableHead>Value</TableHead>
+                <TableHead>Status point</TableHead>
                 <TableHead>Min role</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
@@ -313,7 +516,18 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                   <TableCell className="text-muted-foreground text-xs">{c.description ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{c.registerNumber}</TableCell>
                   <TableCell>{c.functionCode}</TableCell>
-                  <TableCell>{c.value}</TableCell>
+                  <TableCell>
+                    {c.promptForValue ? (
+                      <Badge variant="outline" className="text-xs">entered on send</Badge>
+                    ) : c.offValue != null ? (
+                      <span className="font-mono text-xs">{c.value} / {c.offValue}</span>
+                    ) : (
+                      c.value
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {c.offValue != null ? (c.statusDataPointKey ?? "—") : "—"}
+                  </TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs">{c.minRole}</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">

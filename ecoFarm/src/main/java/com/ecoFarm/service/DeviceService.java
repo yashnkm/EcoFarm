@@ -32,6 +32,7 @@ public class DeviceService {
     private final ZoneRepository zoneRepository;
     private final CommandTemplateRepository commandTemplateRepository;
     private final ControlCommandRepository controlCommandRepository;
+    private final ReadingRepository readingRepository;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
 
@@ -156,13 +157,35 @@ public class DeviceService {
         User issuer = userRepository.findById(SecurityUtil.currentUserId())
             .orElseThrow(() -> ApiException.notFound("User not found"));
 
+        int value;
+        if (template.getOffValue() != null) {
+            // Toggle command — resolve direction from the linked status data
+            // point's latest reading, never from anything the client sends.
+            // No reading yet (or no status point configured) reads as "off",
+            // so the first click always turns it on rather than guessing.
+            boolean currentlyOn = template.getStatusDataPointKey() != null
+                && readingRepository.findFirstByDeviceIdAndDataPointOrderByTimeDesc(deviceId, template.getStatusDataPointKey())
+                    .map(r -> r.getValue() != null && r.getValue() > 0)
+                    .orElse(false);
+            value = currentlyOn ? template.getOffValue() : template.getValue();
+        } else if (template.isPromptForValue()) {
+            if (req.value() == null) {
+                throw ApiException.badRequest("This command requires a value");
+            }
+            value = req.value();
+        } else {
+            // Fixed commands always send their configured value — a client
+            // can never override it, even if one was supplied.
+            value = template.getValue();
+        }
+
         ControlCommand cmd = ControlCommand.builder()
             .tenant(device.getTenant())
             .device(device)
             .issuedBy(issuer)
             .registerNumber(template.getRegisterNumber())
             .functionCode(template.getFunctionCode())
-            .value(template.getValue())
+            .value(value)
             .status(CommandStatus.PENDING)
             .build();
 

@@ -17,7 +17,10 @@ public class CommandTemplateMapper {
             c.getFunctionCode(),
             c.getValue(),
             c.isConfirmationRequired(),
-            c.getMinRole()
+            c.getMinRole(),
+            c.isPromptForValue(),
+            c.getOffValue(),
+            c.getStatusDataPointKey()
         );
     }
 }

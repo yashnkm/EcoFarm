@@ -42,6 +42,26 @@ public class CommandTemplate {
     @Builder.Default
     private boolean confirmationRequired = true;
 
+    /** When true, {@code value} is a placeholder — the operator supplies the
+     * actual value at send-time (setpoints), instead of always sending the
+     * same fixed number (plain ON/OFF commands). */
+    @Column(name = "prompt_for_value", nullable = false)
+    @Builder.Default
+    private boolean promptForValue = false;
+
+    /** Non-null marks this as a toggle command: {@code value} is the ON value,
+     * this is the OFF value — both written to the same register. Which one
+     * actually gets sent is resolved server-side from {@link #statusDataPointKey}'s
+     * latest reading, never supplied by the client. */
+    @Column(name = "off_value")
+    private Integer offValue;
+
+    /** The data point (by key, within the same profile) whose latest reading
+     * says whether this toggle is currently on — e.g. "fan_3". Null means the
+     * current state is unknown, so a toggle always resolves to the ON value. */
+    @Column(name = "status_data_point_key", length = 100)
+    private String statusDataPointKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "min_role", nullable = false, length = 30)
     @Builder.Default

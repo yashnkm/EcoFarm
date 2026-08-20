@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Activity, Play, History, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Activity, History, ChevronLeft, ChevronRight } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 
@@ -10,21 +10,13 @@ import { commandTemplatesApi, dataPointsApi } from "@/api/deviceProfiles"
 import { sitesApi } from "@/api/sites"
 import { useAuthStore } from "@/store/authStore"
 import { useLiveReadings } from "@/hooks/useLiveReadings"
+import { meetsMinRole } from "@/lib/roles"
+import { CommandButton } from "@/components/CommandButton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import {
   Table,
   TableBody,
@@ -40,14 +32,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Spinner } from "@/components/ui/spinner"
-import type { CommandTemplate, CommandStatus, DataPoint, Zone } from "@/types/api"
+import type { CommandStatus, DataPoint, Zone } from "@/types/api"
 
 export function DeviceDetailPage() {
   const { id = "" } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
-  const [confirmCommand, setConfirmCommand] = useState<CommandTemplate | null>(null)
   const [historyPage, setHistoryPage] = useState(0)
   const HISTORY_PAGE_SIZE = 15
 
@@ -88,11 +78,11 @@ export function DeviceDetailPage() {
   const liveReadings = useLiveReadings(id)
 
   const issueMutation = useMutation({
-    mutationFn: (commandTemplateId: string) => devicesApi.issueCommand(id, commandTemplateId),
+    mutationFn: ({ commandTemplateId, value }: { commandTemplateId: string; value?: number }) =>
+      devicesApi.issueCommand(id, commandTemplateId, value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["command-history", id] })
       toast.success("Command sent — awaiting acknowledgement")
-      setConfirmCommand(null)
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       toast.error(err.response?.data?.message ?? "Failed to issue command")
@@ -135,18 +125,14 @@ export function DeviceDetailPage() {
     groupsMutation.mutate(current)
   }
 
-  const handleClick = (cmd: CommandTemplate) => {
-    if (cmd.confirmationRequired) {
-      setConfirmCommand(cmd)
-    } else {
-      issueMutation.mutate(cmd.id)
-    }
-  }
+  const visibleCommands = user?.role
+    ? (commands ?? []).filter((cmd) => meetsMinRole(user.role, cmd.minRole))
+    : []
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Button variant="ghost" size="sm" render={<Link to="/devices" />}>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/devices" />}>
           <ArrowLeft data-icon="inline-start" />
           Back to devices
         </Button>
@@ -216,7 +202,7 @@ export function DeviceDetailPage() {
       </Card>
 
       {/* Commands */}
-      {commands && commands.length > 0 && (
+      {visibleCommands.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Commands</CardTitle>
@@ -224,16 +210,14 @@ export function DeviceDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {commands.map((cmd) => (
-                <Button
+              {visibleCommands.map((cmd) => (
+                <CommandButton
                   key={cmd.id}
-                  variant="outline"
-                  onClick={() => handleClick(cmd)}
+                  command={cmd}
                   disabled={issueMutation.isPending}
-                >
-                  <Play data-icon="inline-start" />
-                  {cmd.name}
-                </Button>
+                  onIssue={(commandTemplateId, value) => issueMutation.mutate({ commandTemplateId, value })}
+                  statusValue={cmd.statusDataPointKey ? liveReadings.get(cmd.statusDataPointKey)?.value : undefined}
+                />
               ))}
             </div>
           </CardContent>
@@ -314,28 +298,6 @@ export function DeviceDetailPage() {
           </Card>
         )
       })()}
-
-      {/* Confirmation dialog */}
-      <AlertDialog open={!!confirmCommand} onOpenChange={(o) => !o && setConfirmCommand(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Issue command: {confirmCommand?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmCommand?.description ?? `This will write ${confirmCommand?.value} to register ${confirmCommand?.registerNumber} (FC ${confirmCommand?.functionCode}).`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => confirmCommand && issueMutation.mutate(confirmCommand.id)}
-              disabled={issueMutation.isPending}
-            >
-              {issueMutation.isPending && <Spinner data-icon="inline-start" />}
-              Send command
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

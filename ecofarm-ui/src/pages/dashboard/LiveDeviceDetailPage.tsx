@@ -40,19 +40,19 @@ export function LiveDeviceDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" render={<Link to="/" />}>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/" />}>
           <ArrowLeft data-icon="inline-start" />
           Back to dashboard
         </Button>
         {canConfigure && deviceQuery.data && (
-          <Button variant="outline" size="sm" render={<Link to={`/devices/${deviceQuery.data.id}`} />}>
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`/devices/${deviceQuery.data.id}`} />}>
             <Settings2 data-icon="inline-start" />
             Technical details
           </Button>
         )}
       </div>
 
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-5xl">
         {isLoading || !deviceQuery.data ? (
           <Skeleton className="h-96 w-full rounded-xl" />
         ) : (

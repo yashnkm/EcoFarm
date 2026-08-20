@@ -11,5 +11,8 @@ public record CommandTemplateRequest(
     @NotNull Integer functionCode,
     @NotNull Integer value,
     Boolean confirmationRequired,
-    Role minRole
+    Role minRole,
+    Boolean promptForValue,
+    Integer offValue,
+    String statusDataPointKey
 ) {}

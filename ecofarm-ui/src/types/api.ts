@@ -192,6 +192,9 @@ export interface CommandTemplate {
   value: number
   confirmationRequired: boolean
   minRole: Role
+  promptForValue: boolean
+  offValue: number | null
+  statusDataPointKey: string | null
 }
 
 // ── Device ────────────────────────────────

@@ -49,6 +49,9 @@ public class CommandTemplateService {
             .value(req.value())
             .confirmationRequired(req.confirmationRequired() == null || req.confirmationRequired())
             .minRole(req.minRole() != null ? req.minRole() : Role.OPERATOR)
+            .promptForValue(Boolean.TRUE.equals(req.promptForValue()))
+            .offValue(req.offValue())
+            .statusDataPointKey(req.statusDataPointKey())
             .build();
         return repo.save(c);
     }
@@ -64,6 +67,9 @@ public class CommandTemplateService {
         c.setValue(req.value());
         if (req.confirmationRequired() != null) c.setConfirmationRequired(req.confirmationRequired());
         if (req.minRole() != null) c.setMinRole(req.minRole());
+        if (req.promptForValue() != null) c.setPromptForValue(req.promptForValue());
+        c.setOffValue(req.offValue());
+        c.setStatusDataPointKey(req.statusDataPointKey());
         return c;
     }
 

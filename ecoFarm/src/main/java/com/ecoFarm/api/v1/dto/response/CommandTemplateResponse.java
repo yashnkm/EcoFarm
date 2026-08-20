@@ -13,5 +13,8 @@ public record CommandTemplateResponse(
     Integer functionCode,
     Integer value,
     boolean confirmationRequired,
-    Role minRole
+    Role minRole,
+    boolean promptForValue,
+    Integer offValue,
+    String statusDataPointKey
 ) {}

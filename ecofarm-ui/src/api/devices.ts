@@ -48,9 +48,9 @@ export const devicesApi = {
 
   delete: (id: string) => apiClient.delete(`/devices/${id}`).then(() => undefined),
 
-  issueCommand: (id: string, commandTemplateId: string) =>
+  issueCommand: (id: string, commandTemplateId: string, value?: number) =>
     apiClient
-      .post<ControlCommand>(`/devices/${id}/commands`, { commandTemplateId })
+      .post<ControlCommand>(`/devices/${id}/commands`, { commandTemplateId, value })
       .then((r) => r.data),
 
   listCommands: (id: string) =>

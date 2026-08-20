@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 public record PollGroupRequest(
     @NotBlank String name,
     @NotNull @Min(1) Integer intervalSeconds,
-    @NotNull Integer startRegister,
+    @NotNull @Min(0) Integer startRegister,
     @NotNull @Min(1) Integer count,
-    @NotNull Integer functionCode
+    @NotNull @Min(1) Integer functionCode
 ) {}

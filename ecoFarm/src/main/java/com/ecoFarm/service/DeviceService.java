@@ -173,6 +173,13 @@ public class DeviceService {
             if (req.value() == null) {
                 throw ApiException.badRequest("This command requires a value");
             }
+            // A single Modbus register only holds 16 bits — nothing upstream
+            // ties an operator-entered setpoint back to a sane engineering
+            // range, so this is the last line of defense against a mistyped
+            // value (e.g. an extra digit) going straight to the PLC.
+            if (req.value() < -32768 || req.value() > 65535) {
+                throw ApiException.badRequest("Value out of range for a single register (-32768 to 65535)");
+            }
             value = req.value();
         } else {
             // Fixed commands always send their configured value — a client

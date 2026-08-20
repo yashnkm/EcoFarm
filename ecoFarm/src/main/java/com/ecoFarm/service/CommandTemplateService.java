@@ -5,6 +5,7 @@ import com.ecoFarm.domain.entity.CommandTemplate;
 import com.ecoFarm.domain.entity.DeviceProfile;
 import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.repository.CommandTemplateRepository;
+import com.ecoFarm.repository.DataPointRepository;
 import com.ecoFarm.shared.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.util.UUID;
 public class CommandTemplateService {
 
     private final CommandTemplateRepository repo;
+    private final DataPointRepository dataPointRepository;
     private final DeviceProfileService profileService;
 
     @Transactional(readOnly = true)
@@ -40,6 +42,12 @@ public class CommandTemplateService {
     @Transactional
     public CommandTemplate create(UUID profileId, CommandTemplateRequest req) {
         DeviceProfile profile = profileService.findEditable(profileId);
+
+        if (repo.findByProfileIdAndName(profileId, req.name()).isPresent()) {
+            throw ApiException.conflict("A command with this name already exists in the profile");
+        }
+        requireStatusDataPointExists(profileId, req.statusDataPointKey());
+
         CommandTemplate c = CommandTemplate.builder()
             .profile(profile)
             .name(req.name())
@@ -60,6 +68,13 @@ public class CommandTemplateService {
     public CommandTemplate update(UUID profileId, UUID id, CommandTemplateRequest req) {
         profileService.findEditable(profileId);
         CommandTemplate c = findInProfile(profileId, id);
+
+        if (!c.getName().equals(req.name())
+            && repo.findByProfileIdAndName(profileId, req.name()).isPresent()) {
+            throw ApiException.conflict("A command with this name already exists in the profile");
+        }
+        requireStatusDataPointExists(profileId, req.statusDataPointKey());
+
         c.setName(req.name());
         c.setDescription(req.description());
         c.setRegisterNumber(req.registerNumber());
@@ -71,6 +86,20 @@ public class CommandTemplateService {
         c.setOffValue(req.offValue());
         c.setStatusDataPointKey(req.statusDataPointKey());
         return c;
+    }
+
+    // A toggle's statusDataPointKey is a free-text key (matches how
+    // dataPointGroups/commandGroups already work), not a real FK — so a typo
+    // here doesn't fail loudly. It silently means the toggle can never read
+    // real state (always shows "Unknown", always resolves to sending ON).
+    // Checking it against the profile's real data points at save time turns
+    // that into a clear error instead of a live-dashboard mystery.
+    private void requireStatusDataPointExists(UUID profileId, String statusDataPointKey) {
+        if (statusDataPointKey == null || statusDataPointKey.isBlank()) return;
+        if (dataPointRepository.findByProfileIdAndKey(profileId, statusDataPointKey).isEmpty()) {
+            throw ApiException.badRequest(
+                "Status data point '" + statusDataPointKey + "' does not exist in this profile");
+        }
     }
 
     @Transactional

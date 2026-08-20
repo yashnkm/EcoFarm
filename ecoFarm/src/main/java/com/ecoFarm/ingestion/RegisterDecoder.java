@@ -29,6 +29,25 @@ public class RegisterDecoder {
         int wordCount = dp.getWordCount();
         if (index + wordCount > registers.size()) return null;
 
+        // FLOAT32 carries its own fractional value already — decode it
+        // straight to a float and scale in floating point. Funneling it
+        // through the long raw-integer path below (as every other data type
+        // does) would truncate anything past the decimal point before
+        // scale_factor/offset ever got applied.
+        if (dp.getDataType() == DataType.FLOAT32 && wordCount == 2) {
+            int high = registers.get(index) & 0xFFFF;
+            int low = registers.get(index + 1) & 0xFFFF;
+            int combined = dp.getByteOrder() == ByteOrder.BIG_ENDIAN
+                ? (high << 16) | low
+                : (low << 16) | high;
+            float raw = Float.intBitsToFloat(combined);
+
+            BigDecimal scaled = BigDecimal.valueOf(raw)
+                .multiply(dp.getScaleFactor())
+                .add(dp.getOffset());
+            return scaled.doubleValue();
+        }
+
         long raw = combineRegisters(registers, index, wordCount, dp.getByteOrder(), dp.getDataType());
 
         BigDecimal scaled = BigDecimal.valueOf(raw)
@@ -62,11 +81,10 @@ public class RegisterDecoder {
             ? ((long) high << 16) | low
             : ((long) low  << 16) | high;
 
+        // FLOAT32 never reaches here — decode() handles it directly above,
+        // in floating point, before any long-truncating path.
         return switch (dataType) {
             case INT32 -> (int) combined;
-            case FLOAT32 -> Float.floatToIntBits(0) == 0
-                ? (long) Float.intBitsToFloat((int) combined)
-                : combined;
             default -> combined & 0xFFFFFFFFL;
         };
     }

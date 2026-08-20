@@ -3,6 +3,7 @@ package com.ecoFarm.api.v1.dto.request;
 import com.ecoFarm.domain.enums.ByteOrder;
 import com.ecoFarm.domain.enums.DataType;
 import com.ecoFarm.domain.enums.DisplayWidget;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,7 +14,7 @@ import java.util.UUID;
 public record DataPointRequest(
     @NotBlank @Size(max = 100) String key,
     @NotBlank String label,
-    @NotNull Integer registerNumber,
+    @NotNull @Min(0) Integer registerNumber,
     DataType dataType,
     Integer wordCount,
     ByteOrder byteOrder,

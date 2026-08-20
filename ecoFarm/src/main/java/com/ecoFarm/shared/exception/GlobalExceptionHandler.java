@@ -1,13 +1,16 @@
 package com.ecoFarm.shared.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -45,6 +48,33 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(error(HttpStatus.FORBIDDEN, "Access denied"));
+    }
+
+    // Spring Boot 3.2+ throws this for any request path that matches no
+    // handler, instead of quietly falling back to a 404 error page — without
+    // this, it fell through to handleGeneric() below and every routing typo
+    // looked like a server crash.
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(error(HttpStatus.NOT_FOUND, "Not found"));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+            .body(error(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed"));
+    }
+
+    // Catches both: a unique-constraint clash slipping past a service's own
+    // pre-check under a race, and a foreign-key violation from deleting
+    // something still referenced elsewhere (e.g. a poll group that still has
+    // data points attached) — both used to reach handleGeneric() as a 500.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(error(HttpStatus.CONFLICT, "This operation conflicts with existing data — it may still be referenced elsewhere, or duplicate a value that must be unique."));
     }
 
     @ExceptionHandler(Exception.class)

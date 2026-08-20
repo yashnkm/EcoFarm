@@ -52,6 +52,9 @@ public class DataPointService {
         }
 
         PollGroup pollGroup = requirePollGroup(profileId, req.pollGroupId());
+        int wordCount = req.wordCount() != null ? req.wordCount() : 1;
+        requireRegisterInRange(pollGroup, req.registerNumber(), wordCount);
+
         DataPoint dp = DataPoint.builder()
             .profile(profile)
             .pollGroup(pollGroup)
@@ -60,7 +63,7 @@ public class DataPointService {
             .registerNumber(req.registerNumber())
             .functionCode(pollGroup.getFunctionCode())
             .dataType(req.dataType() != null ? req.dataType() : DataType.UINT16)
-            .wordCount(req.wordCount() != null ? req.wordCount() : 1)
+            .wordCount(wordCount)
             .byteOrder(req.byteOrder() != null ? req.byteOrder() : ByteOrder.BIG_ENDIAN)
             .scaleFactor(req.scaleFactor() != null ? req.scaleFactor() : BigDecimal.ONE)
             .offset(req.offset() != null ? req.offset() : BigDecimal.ZERO)
@@ -89,6 +92,9 @@ public class DataPointService {
         }
 
         PollGroup pollGroup = requirePollGroup(profileId, req.pollGroupId());
+        int wordCount = req.wordCount() != null ? req.wordCount() : dp.getWordCount();
+        requireRegisterInRange(pollGroup, req.registerNumber(), wordCount);
+
         dp.setKey(req.key());
         dp.setLabel(req.label());
         dp.setRegisterNumber(req.registerNumber());
@@ -127,5 +133,20 @@ public class DataPointService {
             throw ApiException.badRequest("Poll group does not belong to this profile");
         }
         return g;
+    }
+
+    // A data point's register has to actually fall inside the block its poll
+    // group reads, or the decoder silently drops it on every poll forever —
+    // no error anywhere, just a permanently empty reading. Catching that at
+    // creation time turns a debugging session into a form validation error.
+    private void requireRegisterInRange(PollGroup group, int registerNumber, int wordCount) {
+        int groupStart = group.getStartRegister();
+        int groupEnd = groupStart + group.getCount(); // exclusive
+        if (registerNumber < groupStart || registerNumber + wordCount > groupEnd) {
+            throw ApiException.badRequest(String.format(
+                "Register %d (word count %d) falls outside poll group '%s''s polled range [%d, %d) — "
+                    + "it will never receive a reading",
+                registerNumber, wordCount, group.getName(), groupStart, groupEnd));
+        }
     }
 }

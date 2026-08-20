@@ -13,7 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,6 +29,7 @@ public class IngestionService {
     private final PollGroupRepository pollGroupRepository;
     private final ReadingRepository readingRepository;
     private final ControlCommandRepository controlCommandRepository;
+    private final CommandTemplateRepository commandTemplateRepository;
     private final CommunicationLogRepository communicationLogRepository;
     private final RegisterDecoder decoder;
     private final RequestTracker tracker;
@@ -73,6 +77,20 @@ public class IngestionService {
         // Resolve data points inside this poll group's register range
         List<DataPoint> dataPoints = dataPointRepository.findByPollGroupId(group.getId());
 
+        // Toggle commands resolve their on/off direction by querying the
+        // persisted Reading table for their statusDataPointKey's latest
+        // value (see DeviceService.issueCommand) — so that key needs a real
+        // row in the table even if nobody opted it into "Record" (which
+        // only means "keep history for charts", a separate concern). Without
+        // this, a toggle whose status point isn't separately flagged for
+        // recording would always read as "unknown" server-side and always
+        // resolve to sending ON, no matter what the live dashboard shows.
+        Set<String> statusPointKeys = commandTemplateRepository.findByProfileId(device.getProfile().getId())
+            .stream()
+            .map(CommandTemplate::getStatusDataPointKey)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
         for (DataPoint dp : dataPoints) {
             Double value = decoder.decode(response.getValues(), group.getStartRegister(), dp);
             if (value == null) {
@@ -92,7 +110,7 @@ public class IngestionService {
                 log.warn("Alert evaluation failed for device {} key {}: {}", device.getId(), dp.getKey(), ex.getMessage());
             }
 
-            if (device.getRecordedDataPoints().contains(dp.getKey())) {
+            if (device.getRecordedDataPoints().contains(dp.getKey()) || statusPointKeys.contains(dp.getKey())) {
                 readingRepository.save(Reading.builder()
                     .time(now)
                     .tenantId(device.getTenant().getId())

@@ -3,6 +3,7 @@ package com.ecoFarm.api.v1.dto.response;
 import com.ecoFarm.domain.enums.CommandCategory;
 import com.ecoFarm.domain.enums.Role;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record CommandTemplateResponse(
@@ -18,5 +19,8 @@ public record CommandTemplateResponse(
     boolean promptForValue,
     Integer offValue,
     String statusDataPointKey,
-    CommandCategory category
+    CommandCategory category,
+    BigDecimal scaleFactor,
+    BigDecimal offset,
+    String unit
 ) {}

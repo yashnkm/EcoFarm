@@ -87,10 +87,18 @@ type ToggleValues = z.infer<typeof toggleSchema>
 // toggles use) links it to the readback point that confirms the setpoint
 // actually took — without it, the dashboard falls back to guessing the
 // link from name text, same fragility the category field just replaced.
+// scaleFactor/offset/unit mirror a data point's own conversion, but in
+// reverse: the operator types a real engineering value (e.g. 30 seconds),
+// and the server converts it to the raw register write — the same
+// "raw = (entered - offset) / scale" math DataPoint decoding already does
+// the other direction.
 const valueSchema = z.object({
   ...sharedFields,
   category: z.enum(CATEGORIES),
   statusDataPointKey: z.string().optional(),
+  scaleFactor: z.coerce.number().refine((v) => v !== 0, "Scale factor cannot be zero"),
+  offset: z.coerce.number(),
+  unit: z.string().optional(),
 })
 type ValueValues = z.infer<typeof valueSchema>
 
@@ -102,6 +110,9 @@ const editSchema = z.object({
   offValue: z.coerce.number().int().optional(),
   statusDataPointKey: z.string().optional(),
   category: z.enum(CATEGORIES).optional(),
+  scaleFactor: z.coerce.number().refine((v) => v !== 0, "Scale factor cannot be zero").optional(),
+  offset: z.coerce.number().optional(),
+  unit: z.string().optional(),
 })
 type EditValues = z.infer<typeof editSchema>
 
@@ -129,7 +140,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
 
   const valueForm = useForm<ValueValues>({
     resolver: zodResolver(valueSchema) as Resolver<ValueValues>,
-    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: false, category: "OTHER" },
+    defaultValues: { minRole: "OPERATOR", functionCode: 6, confirmationRequired: false, category: "OTHER", scaleFactor: 1, offset: 0 },
   })
   const valueRole = valueForm.watch("minRole")
   const valueCategory = valueForm.watch("category")
@@ -218,6 +229,9 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       minRole: "OPERATOR",
       category: "OTHER",
       statusDataPointKey: NO_STATUS_POINT,
+      scaleFactor: 1,
+      offset: 0,
+      unit: "",
     })
     setOpen(true)
   }
@@ -234,6 +248,9 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       confirmationRequired: c.confirmationRequired,
       minRole: c.minRole as EditValues["minRole"],
       category: c.category ?? "OTHER",
+      scaleFactor: Number(c.scaleFactor),
+      offset: Number(c.offset),
+      unit: c.unit ?? "",
     })
     setOpen(true)
   }
@@ -255,6 +272,9 @@ export function CommandsTab({ profileId }: { profileId: string }) {
         offValue: isToggle ? d.offValue : undefined,
         statusDataPointKey: d.statusDataPointKey !== NO_STATUS_POINT ? d.statusDataPointKey : undefined,
         category: isToggle ? undefined : d.category,
+        scaleFactor: isToggle ? undefined : d.scaleFactor,
+        offset: isToggle ? undefined : d.offset,
+        unit: isToggle ? undefined : d.unit,
       },
     })
   }
@@ -382,6 +402,28 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                         with the PLC, instead of relying on the command name to guess a match.
                       </FieldDescription>
                     </Field>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <Field data-invalid={editForm.formState.errors.scaleFactor ? true : undefined}>
+                        <FieldLabel htmlFor="escale">Scale</FieldLabel>
+                        <Input id="escale" type="number" step="any" {...editForm.register("scaleFactor")} />
+                        {editForm.formState.errors.scaleFactor && (
+                          <FieldError>{editForm.formState.errors.scaleFactor.message}</FieldError>
+                        )}
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="eoffset">Offset</FieldLabel>
+                        <Input id="eoffset" type="number" step="any" {...editForm.register("offset")} />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="eunit">Unit</FieldLabel>
+                        <Input id="eunit" placeholder="Seconds" {...editForm.register("unit")} />
+                      </Field>
+                    </div>
+                    <FieldDescription>
+                      The value an operator types is real-world (e.g. 30 seconds) — sent to the PLC as
+                      (value − offset) ÷ scale.
+                    </FieldDescription>
                   </>
                 )}
 
@@ -587,6 +629,29 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                         with the PLC, instead of relying on the command name to guess a match.
                       </FieldDescription>
                     </Field>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <Field data-invalid={valueForm.formState.errors.scaleFactor ? true : undefined}>
+                        <FieldLabel htmlFor="vscale">Scale</FieldLabel>
+                        <Input id="vscale" type="number" step="any" {...valueForm.register("scaleFactor")} />
+                        {valueForm.formState.errors.scaleFactor && (
+                          <FieldError>{valueForm.formState.errors.scaleFactor.message}</FieldError>
+                        )}
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="voffset">Offset</FieldLabel>
+                        <Input id="voffset" type="number" step="any" {...valueForm.register("offset")} />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="vunit">Unit</FieldLabel>
+                        <Input id="vunit" placeholder="Seconds" {...valueForm.register("unit")} />
+                      </Field>
+                    </div>
+                    <FieldDescription>
+                      The value an operator types is real-world (e.g. 30 seconds) — sent to the PLC as
+                      (value − offset) ÷ scale. Leave scale as 1 and offset as 0 if the register already
+                      stores the raw value directly.
+                    </FieldDescription>
 
                     <Field>
                       <FieldLabel>Minimum role</FieldLabel>

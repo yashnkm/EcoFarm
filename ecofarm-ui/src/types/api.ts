@@ -196,6 +196,9 @@ export interface CommandTemplate {
   offValue: number | null
   statusDataPointKey: string | null
   category: "TEMPERATURE" | "FOGGING" | "OTHER" | null
+  scaleFactor: number
+  offset: number
+  unit: string | null
 }
 
 // ── Device ────────────────────────────────

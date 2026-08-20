@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +48,7 @@ public class CommandTemplateService {
             throw ApiException.conflict("A command with this name already exists in the profile");
         }
         requireStatusDataPointExists(profileId, req.statusDataPointKey());
+        requireNonZeroScale(req.scaleFactor());
 
         CommandTemplate c = CommandTemplate.builder()
             .profile(profile)
@@ -61,6 +63,9 @@ public class CommandTemplateService {
             .offValue(req.offValue())
             .statusDataPointKey(req.statusDataPointKey())
             .category(req.category())
+            .scaleFactor(req.scaleFactor() != null ? req.scaleFactor() : BigDecimal.ONE)
+            .offset(req.offset() != null ? req.offset() : BigDecimal.ZERO)
+            .unit(req.unit())
             .build();
         return repo.save(c);
     }
@@ -75,6 +80,7 @@ public class CommandTemplateService {
             throw ApiException.conflict("A command with this name already exists in the profile");
         }
         requireStatusDataPointExists(profileId, req.statusDataPointKey());
+        requireNonZeroScale(req.scaleFactor());
 
         c.setName(req.name());
         c.setDescription(req.description());
@@ -87,7 +93,16 @@ public class CommandTemplateService {
         c.setOffValue(req.offValue());
         c.setStatusDataPointKey(req.statusDataPointKey());
         c.setCategory(req.category());
+        c.setScaleFactor(req.scaleFactor() != null ? req.scaleFactor() : BigDecimal.ONE);
+        c.setOffset(req.offset() != null ? req.offset() : BigDecimal.ZERO);
+        c.setUnit(req.unit());
         return c;
+    }
+
+    private void requireNonZeroScale(BigDecimal scaleFactor) {
+        if (scaleFactor != null && scaleFactor.compareTo(BigDecimal.ZERO) == 0) {
+            throw ApiException.badRequest("Scale factor cannot be zero");
+        }
     }
 
     // A toggle's statusDataPointKey is a free-text key (matches how

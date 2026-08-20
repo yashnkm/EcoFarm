@@ -215,10 +215,13 @@ export function CommandButton({
           </DialogHeader>
           <div className="py-2">
             <Field>
-              <FieldLabel htmlFor={`cmdval-${command.id}`}>Value</FieldLabel>
+              <FieldLabel htmlFor={`cmdval-${command.id}`}>
+                Value{command.unit ? ` (${command.unit})` : ""}
+              </FieldLabel>
               <Input
                 id={`cmdval-${command.id}`}
                 type="number"
+                step="any"
                 autoFocus
                 value={value}
                 onChange={(e) => setValue(e.target.value)}

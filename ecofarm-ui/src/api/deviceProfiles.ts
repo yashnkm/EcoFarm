@@ -118,6 +118,9 @@ export interface CommandTemplateBody {
   offValue?: number
   statusDataPointKey?: string
   category?: "TEMPERATURE" | "FOGGING" | "OTHER"
+  scaleFactor?: number
+  offset?: number
+  unit?: string
 }
 
 export const commandTemplatesApi = {

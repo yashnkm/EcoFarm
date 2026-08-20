@@ -5,6 +5,7 @@ import com.ecoFarm.domain.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -62,6 +63,23 @@ public class CommandTemplate {
      * current state is unknown, so a toggle always resolves to the ON value. */
     @Column(name = "status_data_point_key", length = 100)
     private String statusDataPointKey;
+
+    /** Engineering-value conversion for promptForValue commands — the
+     * operator types a real-world value (e.g. 22.5 for °C, 30 for seconds),
+     * and the raw register write is computed as
+     * {@code round((enteredValue - offset) / scaleFactor)}, the inverse of
+     * how DataPoint decodes a reading. Ignored for fixed and toggle
+     * commands, whose values are already raw register values chosen at
+     * creation time. Null (e.g. rows from before this field existed) is
+     * treated as scaleFactor=1 / offset=0 — a no-op conversion. */
+    @Column(name = "scale_factor", precision = 12, scale = 6)
+    private BigDecimal scaleFactor;
+
+    @Column(name = "offset_value", precision = 12, scale = 6)
+    private BigDecimal offset;
+
+    @Column(length = 50)
+    private String unit;
 
     /** Explicit dashboard grouping for non-toggle commands (setpoints etc.) —
      * null means "not set" (e.g. created before this field existed), in

@@ -4,6 +4,8 @@ import com.ecoFarm.api.v1.dto.response.CommandTemplateResponse;
 import com.ecoFarm.domain.entity.CommandTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 @Component
 public class CommandTemplateMapper {
 
@@ -21,7 +23,13 @@ public class CommandTemplateMapper {
             c.isPromptForValue(),
             c.getOffValue(),
             c.getStatusDataPointKey(),
-            c.getCategory()
+            c.getCategory(),
+            // Rows saved before this field existed have a null column —
+            // present them as the no-op conversion rather than leaking null
+            // to every API consumer.
+            c.getScaleFactor() != null ? c.getScaleFactor() : BigDecimal.ONE,
+            c.getOffset() != null ? c.getOffset() : BigDecimal.ZERO,
+            c.getUnit()
         );
     }
 }

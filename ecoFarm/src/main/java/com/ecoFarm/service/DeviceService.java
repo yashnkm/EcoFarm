@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -173,14 +175,21 @@ public class DeviceService {
             if (req.value() == null) {
                 throw ApiException.badRequest("This command requires a value");
             }
-            // A single Modbus register only holds 16 bits — nothing upstream
-            // ties an operator-entered setpoint back to a sane engineering
-            // range, so this is the last line of defense against a mistyped
-            // value (e.g. an extra digit) going straight to the PLC.
-            if (req.value() < -32768 || req.value() > 65535) {
+            // The operator enters a real-world engineering value (e.g. 22.5
+            // for °C, 30 for seconds) — convert it to the raw register value
+            // via the command's own scale/offset, the inverse of how
+            // DataPoint decodes a reading: raw = (entered - offset) / scale.
+            BigDecimal scale = template.getScaleFactor() != null ? template.getScaleFactor() : BigDecimal.ONE;
+            BigDecimal off = template.getOffset() != null ? template.getOffset() : BigDecimal.ZERO;
+            BigDecimal raw = req.value().subtract(off).divide(scale, 0, RoundingMode.HALF_UP);
+
+            // A single Modbus register only holds 16 bits — this is the last
+            // line of defense against a mistyped or badly-scaled value going
+            // straight to the PLC.
+            if (raw.compareTo(BigDecimal.valueOf(-32768)) < 0 || raw.compareTo(BigDecimal.valueOf(65535)) > 0) {
                 throw ApiException.badRequest("Value out of range for a single register (-32768 to 65535)");
             }
-            value = req.value();
+            value = raw.intValue();
         } else {
             // Fixed commands always send their configured value — a client
             // can never override it, even if one was supplied.

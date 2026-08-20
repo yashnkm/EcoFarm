@@ -58,7 +58,7 @@ function DialogContent({
       >
         {/* Content scrolls on its own — the close button below stays
             pinned to the dialog's corner instead of scrolling away with it. */}
-        <div className="grid gap-4 overflow-y-auto p-4">{children}</div>
+        <div className="themed-scrollbar grid gap-4 overflow-y-auto p-4">{children}</div>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

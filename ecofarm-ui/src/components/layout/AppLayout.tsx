@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { ThemeToggle } from "@/components/ThemeToggle"
 
 const isAdminPortal = window.location.hostname.startsWith("admin.")
 
@@ -298,6 +299,9 @@ export function AppLayout() {
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-medium">{user?.tenantName}</span>
             <span className="text-xs text-muted-foreground">{user?.tenantSlug}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
           </div>
         </header>
         <main className="flex-1 p-6">

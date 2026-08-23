@@ -14,8 +14,6 @@ public record CreateTenantRequest(
 
     @NotBlank @Email String adminEmail,
 
-    @NotBlank @Size(min = 8, max = 128) String adminPassword,
-
     String adminFirstName,
     String adminLastName
 ) {}

@@ -19,7 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -33,21 +32,10 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final TempPasswordGenerator tempPasswordGenerator;
 
     @Value("${app.frontend.login-url}")
     private String loginUrl;
-
-    private static final String TEMP_PASSWORD_ALPHABET =
-        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; // no 0/O/1/l/I — easy to misread from an email
-    private static final SecureRandom RANDOM = new SecureRandom();
-
-    private static String generateTempPassword() {
-        StringBuilder sb = new StringBuilder(12);
-        for (int i = 0; i < 12; i++) {
-            sb.append(TEMP_PASSWORD_ALPHABET.charAt(RANDOM.nextInt(TEMP_PASSWORD_ALPHABET.length())));
-        }
-        return sb.toString();
-    }
 
     @Transactional(readOnly = true)
     public List<User> listForCurrentTenant() {
@@ -77,7 +65,7 @@ public class UserService {
             .orElseThrow(() -> ApiException.notFound("Tenant not found"));
 
         User invitedBy = SecurityUtil.currentUser();
-        String tempPassword = generateTempPassword();
+        String tempPassword = tempPasswordGenerator.generate();
 
         User user = User.builder()
             .tenant(tenant)

@@ -5,7 +5,6 @@ export interface CreateTenantBody {
   name: string
   slug: string
   adminEmail: string
-  adminPassword: string
   adminFirstName?: string
   adminLastName?: string
 }

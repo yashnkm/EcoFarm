@@ -149,15 +149,25 @@ jobs:
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS sort_order INTEGER;" \
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS zone_order JSONB;" \
             -c 'DO $pgdo$
-            DECLARE t text; cname text;
+            DECLARE
+              rec record;
+              cname text;
+              reftable text;
             BEGIN
-              FOREACH t IN ARRAY ARRAY[$str$refresh_tokens$str$, $str$password_reset_tokens$str$, $str$invitation_tokens$str$] LOOP
-                SELECT conname INTO cname FROM pg_constraint
-                  WHERE conrelid = t::regclass AND confrelid = $str$users$str$::regclass
-                    AND contype = $str$f$str$ AND pg_get_constraintdef(oid) NOT LIKE $str$%ON DELETE CASCADE%$str$;
+              FOR rec IN SELECT * FROM (VALUES
+                ($str$refresh_tokens$str$, $str$user_id$str$, $str$CASCADE$str$),
+                ($str$password_reset_tokens$str$, $str$user_id$str$, $str$CASCADE$str$),
+                ($str$invitation_tokens$str$, $str$user_id$str$, $str$CASCADE$str$),
+                ($str$refresh_tokens$str$, $str$active_tenant_id$str$, $str$SET NULL$str$)
+              ) AS x(tbl, col, act) LOOP
+                SELECT c.conname, r.relname INTO cname, reftable
+                  FROM pg_constraint c JOIN pg_class r ON r.oid = c.confrelid
+                  WHERE c.conrelid = rec.tbl::regclass AND c.contype = $str$f$str$
+                    AND c.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = rec.tbl::regclass AND attname = rec.col)]
+                    AND pg_get_constraintdef(c.oid) NOT LIKE ($str$%ON DELETE $str$ || rec.act || $str$%$str$);
                 IF cname IS NOT NULL THEN
-                  EXECUTE format($str$ALTER TABLE %I DROP CONSTRAINT %I$str$, t, cname);
-                  EXECUTE format($str$ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE$str$, t, cname);
+                  EXECUTE format($str$ALTER TABLE %I DROP CONSTRAINT %I$str$, rec.tbl, cname);
+                  EXECUTE format($str$ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES %I(id) ON DELETE $str$ || rec.act, rec.tbl, cname, rec.col, reftable);
                 END IF;
               END LOOP;
             END $pgdo$;'

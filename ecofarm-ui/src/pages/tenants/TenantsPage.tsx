@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldLabel, FieldError } from "@/components/ui/field"
+import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field"
 import {
   Select,
   SelectContent,
@@ -50,7 +50,6 @@ const createSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Lowercase, numbers, hyphens"),
   adminEmail: z.string().email(),
-  adminPassword: z.string().min(8),
   adminFirstName: z.string().optional(),
   adminLastName: z.string().optional(),
 })
@@ -75,7 +74,7 @@ export function TenantsPage() {
     mutationFn: tenantsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenants"] })
-      toast.success("Tenant created")
+      toast.success("Tenant created — invite sent to the admin's email")
       setCreateOpen(false)
       createForm.reset()
     },
@@ -139,7 +138,10 @@ export function TenantsPage() {
           <form onSubmit={createForm.handleSubmit((d) => createMutation.mutateAsync(d))}>
             <DialogHeader>
               <DialogTitle>Create tenant</DialogTitle>
-              <DialogDescription>Provisions a new organization and its first admin user.</DialogDescription>
+              <DialogDescription>
+                Provisions a new organization. Its first admin gets a welcome email with a
+                one-time password and must set their own before reaching the dashboard.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col gap-4 py-4">
@@ -152,6 +154,9 @@ export function TenantsPage() {
                 <Field data-invalid={createForm.formState.errors.slug ? true : undefined}>
                   <FieldLabel htmlFor="slug">Slug</FieldLabel>
                   <Input id="slug" placeholder="acme-corp" {...createForm.register("slug")} />
+                  <FieldDescription>
+                    A unique internal ID for this org — lets a super admin switch into it. Not shown to the tenant's own users.
+                  </FieldDescription>
                   {createForm.formState.errors.slug && <FieldError>{createForm.formState.errors.slug.message}</FieldError>}
                 </Field>
               </div>
@@ -163,12 +168,6 @@ export function TenantsPage() {
                 <FieldLabel htmlFor="adminEmail">Email</FieldLabel>
                 <Input id="adminEmail" type="email" {...createForm.register("adminEmail")} />
                 {createForm.formState.errors.adminEmail && <FieldError>{createForm.formState.errors.adminEmail.message}</FieldError>}
-              </Field>
-
-              <Field data-invalid={createForm.formState.errors.adminPassword ? true : undefined}>
-                <FieldLabel htmlFor="adminPassword">Password</FieldLabel>
-                <Input id="adminPassword" type="password" {...createForm.register("adminPassword")} />
-                {createForm.formState.errors.adminPassword && <FieldError>{createForm.formState.errors.adminPassword.message}</FieldError>}
               </Field>
 
               <div className="grid grid-cols-2 gap-4">
@@ -187,7 +186,7 @@ export function TenantsPage() {
             <DialogFooter>
               <Button type="submit" disabled={createForm.formState.isSubmitting}>
                 {createForm.formState.isSubmitting && <Spinner data-icon="inline-start" />}
-                Create tenant
+                Create tenant and send invite
               </Button>
             </DialogFooter>
           </form>

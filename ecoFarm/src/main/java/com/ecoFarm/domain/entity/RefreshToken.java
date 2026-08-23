@@ -29,6 +29,7 @@ public class RefreshToken {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "active_tenant_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private Tenant activeTenant;
 
     @Column(name = "token_hash", nullable = false, unique = true)

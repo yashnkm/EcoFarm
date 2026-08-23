@@ -11,7 +11,7 @@ import { sitesApi } from "@/api/sites"
 import { devicesApi } from "@/api/devices"
 import { dataPointsApi } from "@/api/deviceProfiles"
 import { useAuthStore } from "@/store/authStore"
-import { naturalCompare } from "@/lib/utils"
+import { cn, naturalCompare } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -54,6 +54,7 @@ export function SamplingGroupsTab() {
   const [pickerSiteId, setPickerSiteId] = useState("all")
   const [pickerDeviceId, setPickerDeviceId] = useState("")
   const [pickerDeviceFilter, setPickerDeviceFilter] = useState("")
+  const [deviceListOpen, setDeviceListOpen] = useState(false)
   const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set())
 
   const { data: groups, isLoading } = useQuery({ queryKey: ["sampling-groups"], queryFn: samplingGroupsApi.list })
@@ -130,6 +131,7 @@ export function SamplingGroupsTab() {
     setPickerSiteId("all")
     setPickerDeviceId("")
     setPickerDeviceFilter("")
+    setDeviceListOpen(false)
     setPickerSelected(new Set())
   }
 
@@ -206,7 +208,7 @@ export function SamplingGroupsTab() {
                 <div className="grid grid-cols-2 gap-3">
                   <Field>
                     <FieldLabel>Site</FieldLabel>
-                    <Select value={pickerSiteId} onValueChange={(v) => { setPickerSiteId(v ?? "all"); setPickerDeviceId(""); setPickerSelected(new Set()) }}>
+                    <Select value={pickerSiteId} onValueChange={(v) => { setPickerSiteId(v ?? "all"); setPickerDeviceId(""); setPickerDeviceFilter(""); setPickerSelected(new Set()) }}>
                       <SelectTrigger size="sm">
                         <SelectValue placeholder="All sites">
                           {(value: string | null) => value === "all" || !value ? "All sites" : sites?.find((s) => s.id === value)?.name ?? value}
@@ -222,31 +224,52 @@ export function SamplingGroupsTab() {
                   </Field>
                   <Field>
                     <FieldLabel>Device</FieldLabel>
-                    <Select value={pickerDeviceId} onValueChange={(v) => { setPickerDeviceId(v ?? ""); setPickerSelected(new Set()) }}>
-                      <SelectTrigger size="sm">
-                        <SelectValue placeholder="Select device">
-                          {(value: string | null) => devices?.find((d) => d.id === value)?.name ?? "Select device"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-1">
-                          <Input
-                            value={pickerDeviceFilter}
-                            onChange={(e) => setPickerDeviceFilter(e.target.value)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            placeholder="Filter devices…"
-                            className="h-8"
-                          />
-                        </div>
-                        <SelectGroup>
-                          {!devicesForSite.length ? (
-                            <p className="px-2 py-1.5 text-xs text-muted-foreground">No devices match.</p>
-                          ) : (
-                            devicesForSite.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
-                          )}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                    {/* A plain Select can't hold a search box — Base UI's
+                        Select.List only renders Item/Group children, so an
+                        embedded <Input> silently doesn't render at all. This
+                        is the same collapsible-panel pattern the channel
+                        checklist above (OriginalDataTab) already uses. */}
+                    <details
+                      open={deviceListOpen}
+                      onToggle={(e) => setDeviceListOpen(e.currentTarget.open)}
+                      className="relative"
+                    >
+                      <summary className="flex h-7 cursor-pointer list-none items-center justify-between rounded-[min(var(--radius-md),10px)] border border-input bg-transparent px-2.5 text-sm shadow-xs dark:bg-input/30">
+                        <span className="truncate">
+                          {devices?.find((d) => d.id === pickerDeviceId)?.name ?? "Select device"}
+                        </span>
+                      </summary>
+                      <div className="themed-scrollbar absolute z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+                        <Input
+                          value={pickerDeviceFilter}
+                          onChange={(e) => setPickerDeviceFilter(e.target.value)}
+                          placeholder="Filter devices…"
+                          className="mb-1 h-8"
+                          autoFocus
+                        />
+                        {!devicesForSite.length ? (
+                          <p className="px-2 py-1.5 text-xs text-muted-foreground">No devices match.</p>
+                        ) : (
+                          devicesForSite.map((d) => (
+                            <button
+                              key={d.id}
+                              type="button"
+                              onClick={() => {
+                                setPickerDeviceId(d.id)
+                                setPickerSelected(new Set())
+                                setDeviceListOpen(false)
+                              }}
+                              className={cn(
+                                "block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-accent",
+                                d.id === pickerDeviceId && "bg-accent"
+                              )}
+                            >
+                              {d.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </details>
                   </Field>
                 </div>
 

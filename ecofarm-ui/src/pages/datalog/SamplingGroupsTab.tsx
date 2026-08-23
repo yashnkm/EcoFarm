@@ -30,6 +30,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -54,7 +60,6 @@ export function SamplingGroupsTab() {
   const [pickerSiteId, setPickerSiteId] = useState("all")
   const [pickerDeviceId, setPickerDeviceId] = useState("")
   const [pickerDeviceFilter, setPickerDeviceFilter] = useState("")
-  const [deviceListOpen, setDeviceListOpen] = useState(false)
   const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set())
 
   const { data: groups, isLoading } = useQuery({ queryKey: ["sampling-groups"], queryFn: samplingGroupsApi.list })
@@ -131,7 +136,6 @@ export function SamplingGroupsTab() {
     setPickerSiteId("all")
     setPickerDeviceId("")
     setPickerDeviceFilter("")
-    setDeviceListOpen(false)
     setPickerSelected(new Set())
   }
 
@@ -226,50 +230,50 @@ export function SamplingGroupsTab() {
                     <FieldLabel>Device</FieldLabel>
                     {/* A plain Select can't hold a search box — Base UI's
                         Select.List only renders Item/Group children, so an
-                        embedded <Input> silently doesn't render at all. This
-                        is the same collapsible-panel pattern the channel
-                        checklist above (OriginalDataTab) already uses. */}
-                    <details
-                      open={deviceListOpen}
-                      onToggle={(e) => setDeviceListOpen(e.currentTarget.open)}
-                      className="relative"
-                    >
-                      <summary className="flex h-7 cursor-pointer list-none items-center justify-between rounded-[min(var(--radius-md),10px)] border border-input bg-transparent px-2.5 text-sm shadow-xs dark:bg-input/30">
+                        embedded <Input> silently doesn't render at all. A
+                        hand-rolled absolute-positioned panel doesn't work
+                        either — it lives inside this dialog's own scrolling
+                        container, which clips anything positioned outside
+                        its bounds. DropdownMenu sidesteps both: it portals
+                        to the document body (escapes the dialog's clipping)
+                        and doesn't wrap children in a restrictive list. */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="flex h-7 w-full cursor-pointer items-center justify-between rounded-[min(var(--radius-md),10px)] border border-input bg-transparent px-2.5 text-sm shadow-xs dark:bg-input/30"
+                      >
                         <span className="truncate">
                           {devices?.find((d) => d.id === pickerDeviceId)?.name ?? "Select device"}
                         </span>
-                      </summary>
-                      <div className="themed-scrollbar absolute z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-64 p-2">
                         <Input
                           value={pickerDeviceFilter}
                           onChange={(e) => setPickerDeviceFilter(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
                           placeholder="Filter devices…"
                           className="mb-1 h-8"
                           autoFocus
                         />
-                        {!devicesForSite.length ? (
-                          <p className="px-2 py-1.5 text-xs text-muted-foreground">No devices match.</p>
-                        ) : (
-                          devicesForSite.map((d) => (
-                            <button
-                              key={d.id}
-                              type="button"
-                              onClick={() => {
-                                setPickerDeviceId(d.id)
-                                setPickerSelected(new Set())
-                                setDeviceListOpen(false)
-                              }}
-                              className={cn(
-                                "block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-accent",
-                                d.id === pickerDeviceId && "bg-accent"
-                              )}
-                            >
-                              {d.name}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </details>
+                        <div className="themed-scrollbar max-h-56 overflow-y-auto">
+                          {!devicesForSite.length ? (
+                            <p className="px-2 py-1.5 text-xs text-muted-foreground">No devices match.</p>
+                          ) : (
+                            devicesForSite.map((d) => (
+                              <DropdownMenuItem
+                                key={d.id}
+                                onClick={() => {
+                                  setPickerDeviceId(d.id)
+                                  setPickerSelected(new Set())
+                                }}
+                                className={cn(d.id === pickerDeviceId && "bg-accent")}
+                              >
+                                {d.name}
+                              </DropdownMenuItem>
+                            ))
+                          )}
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </Field>
                 </div>
 

@@ -2,12 +2,17 @@ package com.ecoFarm.service;
 
 import com.ecoFarm.api.v1.dto.request.LoginRequest;
 import com.ecoFarm.api.v1.dto.request.RefreshTokenRequest;
+import com.ecoFarm.api.v1.dto.request.ResetPasswordRequest;
+import com.ecoFarm.api.v1.dto.response.LoginResponse;
 import com.ecoFarm.api.v1.dto.response.TokenResponse;
 import com.ecoFarm.config.JwtProperties;
+import com.ecoFarm.domain.entity.PasswordResetToken;
 import com.ecoFarm.domain.entity.RefreshToken;
 import com.ecoFarm.domain.entity.Tenant;
 import com.ecoFarm.domain.entity.User;
 import com.ecoFarm.domain.enums.Role;
+import com.ecoFarm.domain.enums.UserStatus;
+import com.ecoFarm.repository.PasswordResetTokenRepository;
 import com.ecoFarm.repository.RefreshTokenRepository;
 import com.ecoFarm.repository.TenantRepository;
 import com.ecoFarm.repository.UserRepository;
@@ -27,12 +32,15 @@ public class AuthService {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final JwtProperties jwtProperties;
 
+    private static final long RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
     @Transactional
-    public TokenResponse login(LoginRequest req) {
+    public LoginResponse login(LoginRequest req) {
         User user = userRepository.findByEmail(req.email())
             .orElseThrow(() -> ApiException.unauthorized("Invalid credentials"));
 
@@ -40,8 +48,15 @@ public class AuthService {
             throw ApiException.unauthorized("Invalid credentials");
         }
 
-        if (user.getStatus() != com.ecoFarm.domain.enums.UserStatus.ACTIVE) {
+        if (user.getStatus() == UserStatus.SUSPENDED) {
             throw ApiException.forbidden("Account is not active");
+        }
+
+        // Correct one-time invite password — never issue real access from
+        // here. The client must go set a real password first; every login
+        // attempt with the temp password lands back here, not the dashboard.
+        if (user.getStatus() == UserStatus.INVITED) {
+            return LoginResponse.mustSetPassword(issuePasswordResetToken(user));
         }
 
         if (user.getRole() == Role.SUPER_ADMIN && !req.adminPortal()) {
@@ -66,7 +81,46 @@ public class AuthService {
             }
         }
 
-        return issueTokens(user, activeTenant);
+        return LoginResponse.success(issueTokens(user, activeTenant));
+    }
+
+    /** Completes a password-reset token — used both for the forced
+     * first-login change and (once built) a "forgot password" flow. Signs
+     * the user straight in afterward, same as any product that doesn't make
+     * you log in twice after setting a new password. */
+    @Transactional
+    public TokenResponse resetPassword(ResetPasswordRequest req) {
+        String hash = jwtUtil.hashToken(req.token());
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(hash)
+            .orElseThrow(() -> ApiException.badRequest("Invalid or expired token"));
+
+        if (resetToken.getUsedAt() != null) {
+            throw ApiException.badRequest("Invalid or expired token");
+        }
+        if (resetToken.getExpiresAt().isBefore(Instant.now())) {
+            throw ApiException.badRequest("Invalid or expired token");
+        }
+
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
+        if (user.getStatus() == UserStatus.INVITED) {
+            user.setStatus(UserStatus.ACTIVE);
+            user.setActivatedAt(Instant.now());
+        }
+        resetToken.setUsedAt(Instant.now());
+        refreshTokenRepository.revokeAllForUser(user.getId());
+
+        return issueTokens(user, user.getTenant());
+    }
+
+    private String issuePasswordResetToken(User user) {
+        String raw = jwtUtil.generateRefreshToken();
+        passwordResetTokenRepository.save(PasswordResetToken.builder()
+            .user(user)
+            .tokenHash(jwtUtil.hashToken(raw))
+            .expiresAt(Instant.now().plusMillis(RESET_TOKEN_TTL_MS))
+            .build());
+        return raw;
     }
 
     @Transactional

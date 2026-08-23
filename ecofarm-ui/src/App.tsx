@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/authStore"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { LoginPage } from "@/pages/auth/LoginPage"
+import { SetPasswordPage } from "@/pages/auth/SetPasswordPage"
 import { AdminLoginPage } from "@/pages/admin/AdminLoginPage"
 import { AdminOverviewPage } from "@/pages/admin/AdminOverviewPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
@@ -28,6 +29,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={isAdminPortal ? <AdminLoginPage /> : <LoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>

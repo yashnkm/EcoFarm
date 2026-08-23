@@ -14,10 +14,12 @@ import com.ecoFarm.repository.UserRepository;
 import com.ecoFarm.shared.exception.ApiException;
 import com.ecoFarm.shared.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +32,22 @@ public class UserService {
     private final TenantRepository tenantRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
+    @Value("${app.frontend.login-url}")
+    private String loginUrl;
+
+    private static final String TEMP_PASSWORD_ALPHABET =
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; // no 0/O/1/l/I — easy to misread from an email
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+    private static String generateTempPassword() {
+        StringBuilder sb = new StringBuilder(12);
+        for (int i = 0; i < 12; i++) {
+            sb.append(TEMP_PASSWORD_ALPHABET.charAt(RANDOM.nextInt(TEMP_PASSWORD_ALPHABET.length())));
+        }
+        return sb.toString();
+    }
 
     @Transactional(readOnly = true)
     public List<User> listForCurrentTenant() {
@@ -59,21 +77,33 @@ public class UserService {
             .orElseThrow(() -> ApiException.notFound("Tenant not found"));
 
         User invitedBy = SecurityUtil.currentUser();
+        String tempPassword = generateTempPassword();
 
         User user = User.builder()
             .tenant(tenant)
             .email(req.email())
-            .passwordHash(passwordEncoder.encode(req.password()))
+            .passwordHash(passwordEncoder.encode(tempPassword))
             .role(req.role())
             .firstName(req.firstName())
             .lastName(req.lastName())
-            .status(UserStatus.ACTIVE)
+            .status(UserStatus.INVITED)
             .invitedBy(invitedBy)
             .invitedAt(Instant.now())
-            .activatedAt(Instant.now())
             .build();
 
-        return userRepository.save(user);
+        user = userRepository.save(user);
+
+        emailService.sendWelcomeEmail(
+            user.getEmail(),
+            user.getFirstName(),
+            tenant.getName(),
+            user.getRole().name(),
+            user.getEmail(),
+            tempPassword,
+            loginUrl
+        );
+
+        return user;
     }
 
     @Transactional

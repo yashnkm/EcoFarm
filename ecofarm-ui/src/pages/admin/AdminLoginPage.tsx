@@ -44,8 +44,13 @@ export function AdminLoginPage() {
     setSubmitting(true)
     try {
       const res = await authApi.login(data.email, data.password, undefined, true)
-      setAuth(res.accessToken, res.refreshToken, res.user, true)
-      toast.success(`Welcome, ${res.user.firstName ?? res.user.email}`)
+      if (res.mustSetPassword) {
+        navigate("/set-password", { replace: true, state: { resetToken: res.resetToken } })
+        return
+      }
+      const { accessToken, refreshToken, user } = res.tokens!
+      setAuth(accessToken, refreshToken, user, true)
+      toast.success(`Welcome, ${user.firstName ?? user.email}`)
       navigate("/admin/overview", { replace: true })
     } catch (err) {
       toast.error(

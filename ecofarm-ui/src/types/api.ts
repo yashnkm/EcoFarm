@@ -34,6 +34,16 @@ export interface TokenResponse {
   user: UserSummary
 }
 
+/** Login can land in one of two shapes: a normal success (tokens populated),
+ * or — for an account still on its one-time invite password — a signal to
+ * go set a real password first, carrying a short-lived resetToken instead
+ * of any access to the account. */
+export interface LoginResponse {
+  mustSetPassword: boolean
+  resetToken: string | null
+  tokens: TokenResponse | null
+}
+
 // ── User ──────────────────────────────────
 
 export interface User {

@@ -3,7 +3,6 @@ import type { Role, User, UserStatus } from "@/types/api"
 
 export interface CreateUserBody {
   email: string
-  password: string
   role: Role
   firstName?: string
   lastName?: string

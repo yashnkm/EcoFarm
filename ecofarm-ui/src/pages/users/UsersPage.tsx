@@ -49,7 +49,6 @@ const USER_STATUSES = ["ACTIVE", "SUSPENDED"] as const
 
 const createSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
   role: z.enum(["TENANT_ADMIN", "OPERATOR", "VIEWER"]),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
@@ -75,9 +74,9 @@ export function UsersPage() {
 
   const createMutation = useMutation({
     mutationFn: usersApi.create,
-    onSuccess: () => {
+    onSuccess: (user) => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
-      toast.success("User created")
+      toast.success(`Invite sent to ${user.email}`)
       setCreateOpen(false)
       createForm.reset()
     },
@@ -145,8 +144,11 @@ export function UsersPage() {
         <DialogContent>
           <form onSubmit={createForm.handleSubmit((d) => createMutation.mutateAsync(d))}>
             <DialogHeader>
-              <DialogTitle>Create user</DialogTitle>
-              <DialogDescription>Provide an email, password, and role.</DialogDescription>
+              <DialogTitle>Invite a user</DialogTitle>
+              <DialogDescription>
+                They'll get an email with a one-time password and a link to sign in — they'll be asked
+                to set their own password immediately, before they can access anything.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col gap-4 py-4">
@@ -154,11 +156,6 @@ export function UsersPage() {
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input id="email" type="email" {...createForm.register("email")} />
                 {createForm.formState.errors.email && <FieldError>{createForm.formState.errors.email.message}</FieldError>}
-              </Field>
-              <Field data-invalid={createForm.formState.errors.password ? true : undefined}>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input id="password" type="password" {...createForm.register("password")} />
-                {createForm.formState.errors.password && <FieldError>{createForm.formState.errors.password.message}</FieldError>}
               </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field>
@@ -186,7 +183,7 @@ export function UsersPage() {
             <DialogFooter>
               <Button type="submit" disabled={createForm.formState.isSubmitting}>
                 {createForm.formState.isSubmitting && <Spinner data-icon="inline-start" />}
-                Create user
+                Send invite
               </Button>
             </DialogFooter>
           </form>
@@ -196,7 +193,15 @@ export function UsersPage() {
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={(o) => { setEditOpen(o); if (!o) setEditing(null) }}>
         <DialogContent>
-          <form onSubmit={editForm.handleSubmit((d) => editing && updateMutation.mutateAsync({ id: editing.id, body: d }))}>
+          <form onSubmit={editForm.handleSubmit((d) => {
+            if (!editing) return
+            // Editing name/role shouldn't silently activate someone still
+            // on their one-time invite password — the status Select always
+            // has a value, but only actually send it when the admin could
+            // legitimately be choosing between ACTIVE/SUSPENDED.
+            const body = editing.status === "INVITED" ? { ...d, status: undefined } : d
+            return updateMutation.mutateAsync({ id: editing.id, body })
+          })}>
             <DialogHeader>
               <DialogTitle>Edit {editing?.email}</DialogTitle>
               <DialogDescription>Update name, role, or activation status.</DialogDescription>
@@ -226,17 +231,26 @@ export function UsersPage() {
                 </Select>
               </Field>
 
-              <Field>
-                <FieldLabel>Status</FieldLabel>
-                <Select value={editStatus} onValueChange={(v) => editForm.setValue("status", v as EditForm["status"])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {USER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
+              {editing?.status === "INVITED" ? (
+                <Field>
+                  <FieldLabel>Status</FieldLabel>
+                  <p className="text-sm text-muted-foreground">
+                    Still on their one-time invite password — becomes Active automatically once they sign in and set one.
+                  </p>
+                </Field>
+              ) : (
+                <Field>
+                  <FieldLabel>Status</FieldLabel>
+                  <Select value={editStatus} onValueChange={(v) => editForm.setValue("status", v as EditForm["status"])}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {USER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
             </div>
 
             <DialogFooter>

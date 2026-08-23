@@ -44,8 +44,13 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const res = await authApi.login(data.email, data.password, undefined, false)
-      setAuth(res.accessToken, res.refreshToken, res.user)
-      toast.success(`Welcome back, ${res.user.firstName ?? res.user.email}`)
+      if (res.mustSetPassword) {
+        navigate("/set-password", { replace: true, state: { resetToken: res.resetToken } })
+        return
+      }
+      const { accessToken, refreshToken, user } = res.tokens!
+      setAuth(accessToken, refreshToken, user)
+      toast.success(`Welcome back, ${user.firstName ?? user.email}`)
       navigate("/", { replace: true })
     } catch (err) {
       toast.error(

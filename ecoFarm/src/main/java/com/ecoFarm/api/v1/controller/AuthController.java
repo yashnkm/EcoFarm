@@ -2,6 +2,8 @@ package com.ecoFarm.api.v1.controller;
 
 import com.ecoFarm.api.v1.dto.request.LoginRequest;
 import com.ecoFarm.api.v1.dto.request.RefreshTokenRequest;
+import com.ecoFarm.api.v1.dto.request.ResetPasswordRequest;
+import com.ecoFarm.api.v1.dto.response.LoginResponse;
 import com.ecoFarm.api.v1.dto.response.TokenResponse;
 import com.ecoFarm.service.AuthService;
 import jakarta.validation.Valid;
@@ -17,8 +19,17 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest req) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest req) {
         return ResponseEntity.ok(authService.login(req));
+    }
+
+    /** Completes a one-time-use PasswordResetToken (from a forced first
+     * login, or eventually a "forgot password" request) and signs the user
+     * straight in. No prior authentication needed — the token itself is the
+     * proof of identity. */
+    @PostMapping("/set-password")
+    public ResponseEntity<TokenResponse> setPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        return ResponseEntity.ok(authService.resetPassword(req));
     }
 
     @PostMapping("/refresh")

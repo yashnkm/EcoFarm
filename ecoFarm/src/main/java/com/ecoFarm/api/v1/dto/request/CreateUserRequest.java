@@ -4,11 +4,12 @@ import com.ecoFarm.domain.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
+/** No password field — the server generates a one-time invite password and
+ * emails it, rather than the admin choosing (and having to separately
+ * relay) one. See UserService.create(). */
 public record CreateUserRequest(
     @NotBlank @Email String email,
-    @NotBlank @Size(min = 8, max = 128) String password,
     @NotNull Role role,
     String firstName,
     String lastName

@@ -3,6 +3,8 @@ package com.ecoFarm.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -22,6 +24,7 @@ public class InvitationToken {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
     @Column(name = "token_hash", nullable = false, unique = true)

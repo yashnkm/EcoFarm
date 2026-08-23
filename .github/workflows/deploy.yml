@@ -100,6 +100,25 @@ jobs:
           tar -C ecofarm-ui/dist -czf dist.tar.gz .
           retry scp -P "$P" dist.tar.gz "$U@$H:/opt/ecofarm/ui-new.tar.gz"
 
+      - name: Ensure email + login-url config on VPS
+        env:
+          H: ${{ secrets.VPS_HOST }}
+          U: ${{ secrets.VPS_USER }}
+          P: ${{ secrets.VPS_PORT }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          # Idempotent: only append once. The key travels over the ssh stdin
+          # pipe (never a command-line arg, never echoed), so it never lands
+          # in remote `ps` output or these logs.
+          NEEDS_RESEND=$(ssh -p "$P" -o ConnectTimeout=30 "$U@$H" 'grep -q "^  resend:" /opt/ecofarm/config/application.yml && echo yes || echo no')
+          if [ "$NEEDS_RESEND" = "no" ]; then
+            printf '  resend:\n    api-key: "%s"\n    from: "EcoFarm <welcome@mail.chandramaautomation.com>"\n  frontend:\n    login-url: "https://iot.chandramaautomation.com/login"\n' "$RESEND_API_KEY" \
+              | ssh -p "$P" -o ConnectTimeout=30 "$U@$H" "cat >> /opt/ecofarm/config/application.yml"
+            echo "Appended app.resend / app.frontend config to VPS"
+          else
+            echo "app.resend already configured on VPS — skipping"
+          fi
+
       - name: Activate new release
         env:
           H: ${{ secrets.VPS_HOST }}
@@ -128,7 +147,20 @@ jobs:
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS offset_value NUMERIC(12,6);" \
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS unit VARCHAR(50);" \
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS sort_order INTEGER;" \
-            -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS zone_order JSONB;"
+            -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS zone_order JSONB;" \
+            -c 'DO $pgdo$
+            DECLARE t text; cname text;
+            BEGIN
+              FOREACH t IN ARRAY ARRAY[$str$refresh_tokens$str$, $str$password_reset_tokens$str$, $str$invitation_tokens$str$] LOOP
+                SELECT conname INTO cname FROM pg_constraint
+                  WHERE conrelid = t::regclass AND confrelid = $str$users$str$::regclass
+                    AND contype = $str$f$str$ AND pg_get_constraintdef(oid) NOT LIKE $str$%ON DELETE CASCADE%$str$;
+                IF cname IS NOT NULL THEN
+                  EXECUTE format($str$ALTER TABLE %I DROP CONSTRAINT %I$str$, t, cname);
+                  EXECUTE format($str$ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE$str$, t, cname);
+                END IF;
+              END LOOP;
+            END $pgdo$;'
 
           # Add admin subdomain to CORS allowed origins if not already present
           ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"

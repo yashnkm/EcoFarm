@@ -11,8 +11,11 @@ import { sitesApi } from "@/api/sites"
 import { useAuthStore } from "@/store/authStore"
 import { useLiveReadings } from "@/hooks/useLiveReadings"
 import { meetsMinRole } from "@/lib/roles"
-import { cn } from "@/lib/utils"
+import { cn, naturalCompare } from "@/lib/utils"
+import { useSortFilter } from "@/lib/tableSortFilter"
 import { CommandButton } from "@/components/CommandButton"
+import { SortableHead } from "@/components/SortableHead"
+import { TableFilterInput } from "@/components/TableFilterInput"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -338,24 +341,44 @@ function DataPointTable({
   dataPoints, liveReadings, recordedKeys, canRecord, onRecordToggle,
   zones, dataPointGroups, canAssignZone, onZoneChange,
 }: DataPointTableProps) {
+  const { filter, setFilter, sort, toggleSort, result: filteredPoints } = useSortFilter(
+    dataPoints,
+    (dp, q) => dp.label.toLowerCase().includes(q) || dp.key.toLowerCase().includes(q),
+    {
+      label: (a, b) => naturalCompare(a.label, b.label),
+      key: (a, b) => naturalCompare(a.key, b.key),
+      value: (a, b) => (liveReadings.get(a.key)?.value ?? -Infinity) - (liveReadings.get(b.key)?.value ?? -Infinity),
+      unit: (a, b) => naturalCompare(a.unit ?? liveReadings.get(a.key)?.unit ?? "", b.unit ?? liveReadings.get(b.key)?.unit ?? ""),
+      status: (a, b) =>
+        Number(liveReadings.get(a.key)?.quality === "GOOD") - Number(liveReadings.get(b.key)?.quality === "GOOD"),
+      zone: (a, b) => naturalCompare(dataPointGroups[a.key] ?? "", dataPointGroups[b.key] ?? ""),
+    }
+  )
+
   return (
     <div className="rounded-b-lg border-t">
+      <div className="p-3">
+        <TableFilterInput value={filter} onChange={setFilter} placeholder="Filter by label or key…" />
+      </div>
+      {!filteredPoints.length ? (
+        <p className="px-6 pb-6 text-sm text-muted-foreground">No data points match "{filter}".</p>
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="pl-6">Label</TableHead>
-            <TableHead>Key</TableHead>
-            <TableHead className="text-right">Value</TableHead>
-            <TableHead>Unit</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Zone</TableHead>
+            <SortableHead label="Label" sortKey="label" sort={sort} onSort={toggleSort} className="pl-6" />
+            <SortableHead label="Key" sortKey="key" sort={sort} onSort={toggleSort} />
+            <SortableHead label="Value" sortKey="value" sort={sort} onSort={toggleSort} className="text-right" />
+            <SortableHead label="Unit" sortKey="unit" sort={sort} onSort={toggleSort} />
+            <SortableHead label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
+            <SortableHead label="Zone" sortKey="zone" sort={sort} onSort={toggleSort} />
             <TableHead className="pr-6 text-center" title={canRecord ? "Record to database" : "Only admins can enable recording"}>
               Record
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {dataPoints.map((dp) => {
+          {filteredPoints.map((dp) => {
             const r = liveReadings.get(dp.key)
             return (
               <TableRow key={dp.id}>
@@ -419,6 +442,7 @@ function DataPointTable({
           })}
         </TableBody>
       </Table>
+      )}
     </div>
   )
 }
@@ -438,21 +462,38 @@ function CommandTable({
   commands, liveReadings, issuePending, onIssue,
   zones, commandGroups, canAssignZone, onZoneChange,
 }: CommandTableProps) {
+  const { filter, setFilter, sort, toggleSort, result: filteredCommands } = useSortFilter(
+    commands,
+    (cmd, q) => cmd.name.toLowerCase().includes(q) || (cmd.description ?? "").toLowerCase().includes(q),
+    {
+      name: (a, b) => naturalCompare(a.name, b.name),
+      description: (a, b) => naturalCompare(a.description ?? "", b.description ?? ""),
+      registerNumber: (a, b) => a.registerNumber - b.registerNumber,
+      zone: (a, b) => naturalCompare(commandGroups[a.id] ?? "", commandGroups[b.id] ?? ""),
+    }
+  )
+
   return (
     <div className="rounded-b-lg border-t">
+      <div className="p-3">
+        <TableFilterInput value={filter} onChange={setFilter} placeholder="Filter by name or description…" />
+      </div>
+      {!filteredCommands.length ? (
+        <p className="px-6 pb-6 text-sm text-muted-foreground">No commands match "{filter}".</p>
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="pl-6">Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Register</TableHead>
+            <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggleSort} className="pl-6" />
+            <SortableHead label="Description" sortKey="description" sort={sort} onSort={toggleSort} />
+            <SortableHead label="Register" sortKey="registerNumber" sort={sort} onSort={toggleSort} />
             <TableHead>Value</TableHead>
-            <TableHead>Zone</TableHead>
+            <SortableHead label="Zone" sortKey="zone" sort={sort} onSort={toggleSort} />
             <TableHead className="pr-6">Command</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {commands.map((cmd) => (
+          {filteredCommands.map((cmd) => (
             <TableRow key={cmd.id}>
               <TableCell className="pl-6 font-medium">{cmd.name}</TableCell>
               <TableCell className="text-xs text-muted-foreground">{cmd.description ?? "—"}</TableCell>
@@ -501,6 +542,7 @@ function CommandTable({
           ))}
         </TableBody>
       </Table>
+      )}
     </div>
   )
 }

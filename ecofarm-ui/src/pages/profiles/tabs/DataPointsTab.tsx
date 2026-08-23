@@ -8,7 +8,10 @@ import { Plus } from "lucide-react"
 
 import { dataPointsApi, pollGroupsApi, commandTemplatesApi, type DataPointBody, type CommandTemplateBody } from "@/api/deviceProfiles"
 import { ROLES, CATEGORIES, CATEGORY_LABELS } from "./commandConstants"
-import { cn } from "@/lib/utils"
+import { cn, naturalCompare } from "@/lib/utils"
+import { useSortFilter } from "@/lib/tableSortFilter"
+import { SortableHead } from "@/components/SortableHead"
+import { TableFilterInput } from "@/components/TableFilterInput"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -121,6 +124,19 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
     queryFn: () => commandTemplatesApi.list(profileId),
   })
   const linkedCommandFor = (key: string) => commands.find((c) => c.statusDataPointKey === key)
+
+  const { filter, setFilter, sort, toggleSort, result: filteredPoints } = useSortFilter(
+    points ?? [],
+    (dp, q) => dp.label.toLowerCase().includes(q) || dp.key.toLowerCase().includes(q),
+    {
+      label: (a, b) => naturalCompare(a.label, b.label),
+      key: (a, b) => naturalCompare(a.key, b.key),
+      registerNumber: (a, b) => a.registerNumber - b.registerNumber,
+      dataType: (a, b) => naturalCompare(a.dataType, b.dataType),
+      unit: (a, b) => naturalCompare(a.unit ?? "", b.unit ?? ""),
+      mode: (a, b) => Number(!!linkedCommandFor(a.key)) - Number(!!linkedCommandFor(b.key)),
+    }
+  )
 
   const WRITE_DEFAULTS = {
     mode: "readOnly" as Mode,
@@ -366,15 +382,15 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
 
             <div className="flex flex-col gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <Field data-invalid={errors.key ? true : undefined}>
-                  <FieldLabel htmlFor="key">Key</FieldLabel>
-                  <Input id="key" placeholder="voltage_l1" {...register("key")} />
-                  {errors.key && <FieldError>{errors.key.message}</FieldError>}
-                </Field>
                 <Field data-invalid={errors.label ? true : undefined}>
                   <FieldLabel htmlFor="label">Label</FieldLabel>
                   <Input id="label" placeholder="Voltage L1" {...register("label")} />
                   {errors.label && <FieldError>{errors.label.message}</FieldError>}
+                </Field>
+                <Field data-invalid={errors.key ? true : undefined}>
+                  <FieldLabel htmlFor="key">Key</FieldLabel>
+                  <Input id="key" placeholder="voltage_l1" {...register("key")} />
+                  {errors.key && <FieldError>{errors.key.message}</FieldError>}
                 </Field>
               </div>
 
@@ -601,50 +617,57 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       ) : !points?.length ? (
         <p className="text-sm text-muted-foreground">No data points. Add one to define what registers to decode.</p>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Key</TableHead>
-                <TableHead>Label</TableHead>
-                <TableHead>Register</TableHead>
-                <TableHead>Data type</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Mode</TableHead>
-                <TableHead className="w-32"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {points.map((dp) => {
-                const linked = linkedCommandFor(dp.key)
-                return (
-                  <TableRow key={dp.id}>
-                    <TableCell className="font-mono text-xs">{dp.key}</TableCell>
-                    <TableCell>{dp.label}</TableCell>
-                    <TableCell className="font-mono text-xs">{dp.registerNumber}</TableCell>
-                    <TableCell className="text-xs">{dp.dataType}</TableCell>
-                    <TableCell>{dp.unit ?? "—"}</TableCell>
-                    <TableCell>
-                      {linked ? (
-                        <Badge variant="outline" className="text-xs" title={`Command: ${linked.name}`}>
-                          Read/Write
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Read only</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <CloneButton onClick={() => openClone(dp)} />
-                        <EditButton onClick={() => openEdit(dp)} />
-                        <DeleteConfirm onConfirm={() => deleteMutation.mutate(dp.id)} title={`Delete "${dp.label}"?`} />
-                      </div>
-                    </TableCell>
+        <div className="flex flex-col gap-3">
+          <TableFilterInput value={filter} onChange={setFilter} placeholder="Filter by label or key…" />
+          {!filteredPoints.length ? (
+            <p className="text-sm text-muted-foreground">No data points match "{filter}".</p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHead label="Label" sortKey="label" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Key" sortKey="key" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Register" sortKey="registerNumber" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Data type" sortKey="dataType" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Unit" sortKey="unit" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Mode" sortKey="mode" sort={sort} onSort={toggleSort} />
+                    <TableHead className="w-32"></TableHead>
                   </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredPoints.map((dp) => {
+                    const linked = linkedCommandFor(dp.key)
+                    return (
+                      <TableRow key={dp.id}>
+                        <TableCell>{dp.label}</TableCell>
+                        <TableCell className="font-mono text-xs">{dp.key}</TableCell>
+                        <TableCell className="font-mono text-xs">{dp.registerNumber}</TableCell>
+                        <TableCell className="text-xs">{dp.dataType}</TableCell>
+                        <TableCell>{dp.unit ?? "—"}</TableCell>
+                        <TableCell>
+                          {linked ? (
+                            <Badge variant="outline" className="text-xs" title={`Command: ${linked.name}`}>
+                              Read/Write
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Read only</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <CloneButton onClick={() => openClone(dp)} />
+                            <EditButton onClick={() => openEdit(dp)} />
+                            <DeleteConfirm onConfirm={() => deleteMutation.mutate(dp.id)} title={`Delete "${dp.label}"?`} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       )}
     </div>

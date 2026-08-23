@@ -9,7 +9,10 @@ import { Plus } from "lucide-react"
 import { commandTemplatesApi, dataPointsApi, type CommandTemplateBody } from "@/api/deviceProfiles"
 import { classifyCommand } from "@/pages/dashboard/sectionParams"
 import { ROLES, CATEGORIES, CATEGORY_LABELS } from "./commandConstants"
-import { cn } from "@/lib/utils"
+import { cn, naturalCompare } from "@/lib/utils"
+import { useSortFilter } from "@/lib/tableSortFilter"
+import { SortableHead } from "@/components/SortableHead"
+import { TableFilterInput } from "@/components/TableFilterInput"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -129,6 +132,24 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     queryKey: ["data-points", profileId],
     queryFn: () => dataPointsApi.list(profileId),
   })
+
+  const { filter, setFilter, sort, toggleSort, result: filteredCommands } = useSortFilter(
+    commands ?? [],
+    (c, q) =>
+      c.name.toLowerCase().includes(q)
+      || (c.key ?? "").toLowerCase().includes(q)
+      || (c.description ?? "").toLowerCase().includes(q),
+    {
+      name: (a, b) => naturalCompare(a.name, b.name),
+      key: (a, b) => naturalCompare(a.key ?? "", b.key ?? ""),
+      description: (a, b) => naturalCompare(a.description ?? "", b.description ?? ""),
+      registerNumber: (a, b) => a.registerNumber - b.registerNumber,
+      functionCode: (a, b) => a.functionCode - b.functionCode,
+      statusDataPointKey: (a, b) => naturalCompare(a.statusDataPointKey ?? "", b.statusDataPointKey ?? ""),
+      category: (a, b) => naturalCompare(GROUP_LABELS[classifyCommand(a)], GROUP_LABELS[classifyCommand(b)]),
+      minRole: (a, b) => naturalCompare(a.minRole, b.minRole),
+    }
+  )
 
   const toggleForm = useForm<ToggleValues>({
     resolver: zodResolver(toggleSchema) as Resolver<ToggleValues>,
@@ -750,57 +771,64 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       ) : !commands?.length ? (
         <p className="text-sm text-muted-foreground">No commands. Add one to expose a named action on devices.</p>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Register</TableHead>
-                <TableHead>FC</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Status point</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Min role</TableHead>
-                <TableHead className="w-32"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {commands.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{c.key ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{c.description ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">{c.registerNumber}</TableCell>
-                  <TableCell>{c.functionCode}</TableCell>
-                  <TableCell>
-                    {c.promptForValue ? (
-                      <Badge variant="outline" className="text-xs">entered on send</Badge>
-                    ) : c.offValue != null ? (
-                      <span className="font-mono text-xs">{c.value} / {c.offValue}</span>
-                    ) : (
-                      c.value
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {c.statusDataPointKey ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {GROUP_LABELS[classifyCommand(c)]}
-                  </TableCell>
-                  <TableCell><Badge variant="secondary" className="text-xs">{c.minRole}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <CloneButton onClick={() => openClone(c)} />
-                      <EditButton onClick={() => openEdit(c)} />
-                      <DeleteConfirm onConfirm={() => deleteMutation.mutate(c.id)} title={`Delete "${c.name}"?`} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="flex flex-col gap-3">
+          <TableFilterInput value={filter} onChange={setFilter} placeholder="Filter by name, key, or description…" />
+          {!filteredCommands.length ? (
+            <p className="text-sm text-muted-foreground">No commands match "{filter}".</p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Key" sortKey="key" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Description" sortKey="description" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Register" sortKey="registerNumber" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="FC" sortKey="functionCode" sort={sort} onSort={toggleSort} />
+                    <TableHead>Value</TableHead>
+                    <SortableHead label="Status point" sortKey="statusDataPointKey" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Category" sortKey="category" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Min role" sortKey="minRole" sort={sort} onSort={toggleSort} />
+                    <TableHead className="w-32"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCommands.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{c.key ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{c.description ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{c.registerNumber}</TableCell>
+                      <TableCell>{c.functionCode}</TableCell>
+                      <TableCell>
+                        {c.promptForValue ? (
+                          <Badge variant="outline" className="text-xs">entered on send</Badge>
+                        ) : c.offValue != null ? (
+                          <span className="font-mono text-xs">{c.value} / {c.offValue}</span>
+                        ) : (
+                          c.value
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {c.statusDataPointKey ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {GROUP_LABELS[classifyCommand(c)]}
+                      </TableCell>
+                      <TableCell><Badge variant="secondary" className="text-xs">{c.minRole}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <CloneButton onClick={() => openClone(c)} />
+                          <EditButton onClick={() => openEdit(c)} />
+                          <DeleteConfirm onConfirm={() => deleteMutation.mutate(c.id)} title={`Delete "${c.name}"?`} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -349,7 +349,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       </div>
 
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle>{editing ? `Edit "${editing.label}"` : "Add point"}</DialogTitle>

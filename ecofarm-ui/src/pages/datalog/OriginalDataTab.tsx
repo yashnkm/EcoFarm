@@ -29,7 +29,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { cn, naturalCompare } from "@/lib/utils"
 import type { Reading, SamplingChannel } from "@/types/api"
 
 type View = "list" | "chart"
@@ -106,7 +106,11 @@ export function OriginalDataTab() {
 
   const group = groups?.find((g) => g.id === groupId)
   const availableChannels = useMemo(
-    () => (group ? group.channels.filter((c) => siteId === "all" || c.siteId === siteId) : []),
+    () => (group
+      ? group.channels
+          .filter((c) => siteId === "all" || c.siteId === siteId)
+          .sort((a, b) => naturalCompare(a.deviceName, b.deviceName) || naturalCompare(a.label, b.label))
+      : []),
     [group, siteId]
   )
 
@@ -211,11 +215,15 @@ export function OriginalDataTab() {
         <Field className="w-40">
           <FieldLabel>Site</FieldLabel>
           <Select value={siteId} onValueChange={(v) => v && setSiteId(v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="All sites">
+                {(value: string | null) => value === "all" || !value ? "All sites" : sites?.find((s) => s.id === value)?.name ?? value}
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="all">All sites</SelectItem>
-                {sites?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                {[...(sites ?? [])].sort((a, b) => naturalCompare(a.name, b.name)).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -227,7 +235,7 @@ export function OriginalDataTab() {
             <summary className="flex h-9 cursor-pointer list-none items-center justify-between rounded-md border bg-background px-3 text-sm shadow-xs">
               <span>{selectedKeys.size} Selected</span>
             </summary>
-            <div className="absolute z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+            <div className="themed-scrollbar absolute z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
               <div className="flex gap-1 border-b p-1">
                 <button
                   type="button"

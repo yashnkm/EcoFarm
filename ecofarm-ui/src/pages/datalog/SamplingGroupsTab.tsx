@@ -11,6 +11,7 @@ import { sitesApi } from "@/api/sites"
 import { devicesApi } from "@/api/devices"
 import { dataPointsApi } from "@/api/deviceProfiles"
 import { useAuthStore } from "@/store/authStore"
+import { naturalCompare } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -52,6 +53,7 @@ export function SamplingGroupsTab() {
   const [channels, setChannels] = useState<SamplingChannel[]>([])
   const [pickerSiteId, setPickerSiteId] = useState("all")
   const [pickerDeviceId, setPickerDeviceId] = useState("")
+  const [pickerDeviceFilter, setPickerDeviceFilter] = useState("")
   const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set())
 
   const { data: groups, isLoading } = useQuery({ queryKey: ["sampling-groups"], queryFn: samplingGroupsApi.list })
@@ -65,7 +67,11 @@ export function SamplingGroupsTab() {
     enabled: !!pickerDevice?.profileId,
   })
   const recordedOptions = (pickerDataPoints ?? []).filter((dp) => pickerDevice?.recordedDataPoints.includes(dp.key))
-  const devicesForSite = (devices ?? []).filter((d) => pickerSiteId === "all" || d.siteId === pickerSiteId)
+  const sortedSites = [...(sites ?? [])].sort((a, b) => naturalCompare(a.name, b.name))
+  const devicesForSite = (devices ?? [])
+    .filter((d) => pickerSiteId === "all" || d.siteId === pickerSiteId)
+    .filter((d) => d.name.toLowerCase().includes(pickerDeviceFilter.trim().toLowerCase()))
+    .sort((a, b) => naturalCompare(a.name, b.name))
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -123,6 +129,7 @@ export function SamplingGroupsTab() {
   const resetPicker = () => {
     setPickerSiteId("all")
     setPickerDeviceId("")
+    setPickerDeviceFilter("")
     setPickerSelected(new Set())
   }
 
@@ -172,7 +179,7 @@ export function SamplingGroupsTab() {
       )}
 
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl">
           <form onSubmit={handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle>{editing ? `Edit "${editing.name}"` : "Add Sampling Group"}</DialogTitle>
@@ -200,11 +207,15 @@ export function SamplingGroupsTab() {
                   <Field>
                     <FieldLabel>Site</FieldLabel>
                     <Select value={pickerSiteId} onValueChange={(v) => { setPickerSiteId(v ?? "all"); setPickerDeviceId(""); setPickerSelected(new Set()) }}>
-                      <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                      <SelectTrigger size="sm">
+                        <SelectValue placeholder="All sites">
+                          {(value: string | null) => value === "all" || !value ? "All sites" : sites?.find((s) => s.id === value)?.name ?? value}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
                           <SelectItem value="all">All sites</SelectItem>
-                          {sites?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                          {sortedSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -212,10 +223,27 @@ export function SamplingGroupsTab() {
                   <Field>
                     <FieldLabel>Device</FieldLabel>
                     <Select value={pickerDeviceId} onValueChange={(v) => { setPickerDeviceId(v ?? ""); setPickerSelected(new Set()) }}>
-                      <SelectTrigger size="sm"><SelectValue placeholder="Select device" /></SelectTrigger>
+                      <SelectTrigger size="sm">
+                        <SelectValue placeholder="Select device">
+                          {(value: string | null) => devices?.find((d) => d.id === value)?.name ?? "Select device"}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
+                        <div className="p-1">
+                          <Input
+                            value={pickerDeviceFilter}
+                            onChange={(e) => setPickerDeviceFilter(e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            placeholder="Filter devices…"
+                            className="h-8"
+                          />
+                        </div>
                         <SelectGroup>
-                          {devicesForSite.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          {!devicesForSite.length ? (
+                            <p className="px-2 py-1.5 text-xs text-muted-foreground">No devices match.</p>
+                          ) : (
+                            devicesForSite.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)
+                          )}
                         </SelectGroup>
                       </SelectContent>
                     </Select>

@@ -1,10 +1,10 @@
 import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Plus, X } from "lucide-react"
+import { Plus, ChevronRight, ChevronLeft, Search } from "lucide-react"
 
 import { samplingGroupsApi, type ChannelRefBody } from "@/api/samplingGroups"
 import { sitesApi } from "@/api/sites"
@@ -30,12 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +43,15 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
+const channelKeyOf = (c: SamplingChannel) => `${c.deviceId}:${c.dataPointKey}`
+
+function toggle(set: Set<string>, key: string): Set<string> {
+  const next = new Set(set)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  return next
+}
+
 export function SamplingGroupsTab() {
   const user = useAuthStore((s) => s.user)
   const canManage = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
@@ -58,26 +61,58 @@ export function SamplingGroupsTab() {
   const [editing, setEditing] = useState<SamplingGroup | null>(null)
   const [channels, setChannels] = useState<SamplingChannel[]>([])
   const [pickerSiteId, setPickerSiteId] = useState("all")
-  const [pickerDeviceId, setPickerDeviceId] = useState("")
-  const [pickerDeviceFilter, setPickerDeviceFilter] = useState("")
-  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set())
+  const [pickerSearch, setPickerSearch] = useState("")
+  const [leftSelected, setLeftSelected] = useState<Set<string>>(new Set())
+  const [rightSelected, setRightSelected] = useState<Set<string>>(new Set())
 
   const { data: groups, isLoading } = useQuery({ queryKey: ["sampling-groups"], queryFn: samplingGroupsApi.list })
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: sitesApi.list })
   const { data: devices } = useQuery({ queryKey: ["devices"], queryFn: () => devicesApi.list() })
 
-  const pickerDevice = devices?.find((d) => d.id === pickerDeviceId)
-  const { data: pickerDataPoints } = useQuery({
-    queryKey: ["data-points", pickerDevice?.profileId],
-    queryFn: () => dataPointsApi.list(pickerDevice!.profileId),
-    enabled: !!pickerDevice?.profileId,
+  // Every device's profile's data points, fetched once per unique profile
+  // (most devices share a profile, and react-query dedupes identical keys
+  // anyway) — needed to resolve each recorded key into a label/unit for
+  // display, without a per-device round trip.
+  const uniqueProfileIds = [...new Set((devices ?? []).map((d) => d.profileId))]
+  const dataPointQueries = useQueries({
+    queries: uniqueProfileIds.map((profileId) => ({
+      queryKey: ["data-points", profileId],
+      queryFn: () => dataPointsApi.list(profileId),
+    })),
   })
-  const recordedOptions = (pickerDataPoints ?? []).filter((dp) => pickerDevice?.recordedDataPoints.includes(dp.key))
+  const dataPointsByProfile = new Map(uniqueProfileIds.map((id, i) => [id, dataPointQueries[i]?.data ?? []]))
+
+  // Every (device, data point) pair across the whole tenant that's eligible
+  // to become a channel — i.e. recording is already enabled for it.
+  const allCandidates: SamplingChannel[] = (devices ?? []).flatMap((d) => {
+    const dps = dataPointsByProfile.get(d.profileId) ?? []
+    return d.recordedDataPoints
+      .map((key) => dps.find((dp) => dp.key === key))
+      .filter((dp): dp is NonNullable<typeof dp> => !!dp)
+      .map((dp) => ({
+        deviceId: d.id,
+        deviceName: d.name,
+        siteId: d.siteId,
+        siteName: sites?.find((s) => s.id === d.siteId)?.name ?? null,
+        dataPointKey: dp.key,
+        label: dp.label,
+        unit: dp.unit,
+      }))
+  })
+
   const sortedSites = [...(sites ?? [])].sort((a, b) => naturalCompare(a.name, b.name))
-  const devicesForSite = (devices ?? [])
-    .filter((d) => pickerSiteId === "all" || d.siteId === pickerSiteId)
-    .filter((d) => d.name.toLowerCase().includes(pickerDeviceFilter.trim().toLowerCase()))
-    .sort((a, b) => naturalCompare(a.name, b.name))
+  const enabledKeys = new Set(channels.map(channelKeyOf))
+  const searchQuery = pickerSearch.trim().toLowerCase()
+  const availableChannels = allCandidates
+    .filter((c) => !enabledKeys.has(channelKeyOf(c)))
+    .filter((c) => pickerSiteId === "all" || c.siteId === pickerSiteId)
+    .filter((c) =>
+      !searchQuery
+      || c.label.toLowerCase().includes(searchQuery)
+      || c.dataPointKey.toLowerCase().includes(searchQuery)
+      || c.deviceName.toLowerCase().includes(searchQuery)
+    )
+    .sort((a, b) => naturalCompare(a.deviceName, b.deviceName) || naturalCompare(a.label, b.label))
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -134,33 +169,19 @@ export function SamplingGroupsTab() {
   }
   const resetPicker = () => {
     setPickerSiteId("all")
-    setPickerDeviceId("")
-    setPickerDeviceFilter("")
-    setPickerSelected(new Set())
+    setPickerSearch("")
+    setLeftSelected(new Set())
+    setRightSelected(new Set())
   }
 
-  const addSelectedChannels = () => {
-    if (!pickerDevice) return
-    const toAdd: SamplingChannel[] = recordedOptions
-      .filter((dp) => pickerSelected.has(dp.key))
-      .map((dp) => ({
-        deviceId: pickerDevice.id,
-        deviceName: pickerDevice.name,
-        siteId: pickerDevice.siteId,
-        siteName: sites?.find((s) => s.id === pickerDevice.siteId)?.name ?? null,
-        dataPointKey: dp.key,
-        label: dp.label,
-        unit: dp.unit,
-      }))
-    setChannels((prev) => {
-      const existing = new Set(prev.map((c) => `${c.deviceId}:${c.dataPointKey}`))
-      return [...prev, ...toAdd.filter((c) => !existing.has(`${c.deviceId}:${c.dataPointKey}`))]
-    })
-    setPickerSelected(new Set())
+  const moveToEnabled = () => {
+    const toAdd = availableChannels.filter((c) => leftSelected.has(channelKeyOf(c)))
+    setChannels((prev) => [...prev, ...toAdd])
+    setLeftSelected(new Set())
   }
-
-  const removeChannel = (deviceId: string, dataPointKey: string) => {
-    setChannels((prev) => prev.filter((c) => !(c.deviceId === deviceId && c.dataPointKey === dataPointKey)))
+  const moveToAvailable = () => {
+    setChannels((prev) => prev.filter((c) => !rightSelected.has(channelKeyOf(c))))
+    setRightSelected(new Set())
   }
 
   const onSubmit = (d: FormValues) => {
@@ -185,7 +206,7 @@ export function SamplingGroupsTab() {
       )}
 
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-2xl">
           <form onSubmit={handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle>{editing ? `Edit "${editing.name}"` : "Add Sampling Group"}</DialogTitle>
@@ -205,14 +226,14 @@ export function SamplingGroupsTab() {
               <div className="flex flex-col gap-3 rounded-lg border p-3">
                 <p className="text-xs font-medium uppercase text-muted-foreground">Add channels</p>
                 <FieldDescription className="-mt-1">
-                  Only data points with recording enabled on the device show up here — enable recording from the
-                  device's own page first if the one you want is missing.
+                  Only data points with recording enabled on a device show up as available — enable recording from
+                  the device's own page first if the one you want is missing.
                 </FieldDescription>
 
                 <div className="grid grid-cols-2 gap-3">
                   <Field>
                     <FieldLabel>Site</FieldLabel>
-                    <Select value={pickerSiteId} onValueChange={(v) => { setPickerSiteId(v ?? "all"); setPickerDeviceId(""); setPickerDeviceFilter(""); setPickerSelected(new Set()) }}>
+                    <Select value={pickerSiteId} onValueChange={(v) => { setPickerSiteId(v ?? "all"); setLeftSelected(new Set()) }}>
                       <SelectTrigger size="sm">
                         <SelectValue placeholder="All sites">
                           {(value: string | null) => value === "all" || !value ? "All sites" : sites?.find((s) => s.id === value)?.name ?? value}
@@ -227,106 +248,83 @@ export function SamplingGroupsTab() {
                     </Select>
                   </Field>
                   <Field>
-                    <FieldLabel>Device</FieldLabel>
-                    {/* A plain Select can't hold a search box — Base UI's
-                        Select.List only renders Item/Group children, so an
-                        embedded <Input> silently doesn't render at all. A
-                        hand-rolled absolute-positioned panel doesn't work
-                        either — it lives inside this dialog's own scrolling
-                        container, which clips anything positioned outside
-                        its bounds. DropdownMenu sidesteps both: it portals
-                        to the document body (escapes the dialog's clipping)
-                        and doesn't wrap children in a restrictive list. */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="flex h-7 w-full cursor-pointer items-center justify-between rounded-[min(var(--radius-md),10px)] border border-input bg-transparent px-2.5 text-sm shadow-xs dark:bg-input/30"
-                      >
-                        <span className="truncate">
-                          {devices?.find((d) => d.id === pickerDeviceId)?.name ?? "Select device"}
-                        </span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-64 p-2">
-                        <Input
-                          value={pickerDeviceFilter}
-                          onChange={(e) => setPickerDeviceFilter(e.target.value)}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          placeholder="Filter devices…"
-                          className="mb-1 h-8"
-                          autoFocus
-                        />
-                        <div className="themed-scrollbar max-h-56 overflow-y-auto">
-                          {!devicesForSite.length ? (
-                            <p className="px-2 py-1.5 text-xs text-muted-foreground">No devices match.</p>
-                          ) : (
-                            devicesForSite.map((d) => (
-                              <DropdownMenuItem
-                                key={d.id}
-                                onClick={() => {
-                                  setPickerDeviceId(d.id)
-                                  setPickerSelected(new Set())
-                                }}
-                                className={cn(d.id === pickerDeviceId && "bg-accent")}
-                              >
-                                {d.name}
-                              </DropdownMenuItem>
-                            ))
-                          )}
-                        </div>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <FieldLabel>Search</FieldLabel>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={pickerSearch}
+                        onChange={(e) => setPickerSearch(e.target.value)}
+                        placeholder="Key, label, or device…"
+                        className="h-7 pl-7"
+                      />
+                    </div>
                   </Field>
                 </div>
 
-                {pickerDeviceId && (
-                  !recordedOptions.length ? (
-                    <p className="text-xs text-muted-foreground">
-                      No recording-enabled data points on this device.
-                    </p>
-                  ) : (
-                    <div className="flex flex-col gap-1 rounded-md border p-2">
-                      {recordedOptions.map((dp) => (
-                        <label key={dp.key} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-accent">
-                          <input
-                            type="checkbox"
-                            checked={pickerSelected.has(dp.key)}
-                            onChange={() => setPickerSelected((prev) => {
-                              const next = new Set(prev)
-                              if (next.has(dp.key)) next.delete(dp.key)
-                              else next.add(dp.key)
-                              return next
-                            })}
-                            className="size-4 rounded border-input"
-                          />
-                          {dp.label} <span className="font-mono text-xs text-muted-foreground">({dp.key})</span>
-                        </label>
-                      ))}
-                    </div>
-                  )
-                )}
-
-                <Button type="button" size="sm" variant="outline" disabled={!pickerSelected.size} onClick={addSelectedChannels}>
-                  Add selected
-                </Button>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium uppercase text-muted-foreground">
-                  Channels in this group ({channels.length})
-                </p>
-                {!channels.length ? (
-                  <p className="text-sm text-muted-foreground">No channels added yet.</p>
-                ) : (
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <div className="flex flex-col gap-1">
-                    {channels.map((c) => (
-                      <div key={`${c.deviceId}:${c.dataPointKey}`} className="flex items-center justify-between rounded-md border px-2 py-1.5 text-sm">
-                        <span>{c.deviceName} · {c.label}{c.unit ? ` (${c.unit})` : ""}</span>
-                        <button type="button" onClick={() => removeChannel(c.deviceId, c.dataPointKey)} className="text-muted-foreground hover:text-destructive">
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                    <p className="text-xs text-muted-foreground">Available Channels ({availableChannels.length})</p>
+                    <div className="themed-scrollbar h-56 overflow-y-auto rounded-md border p-1">
+                      {!availableChannels.length ? (
+                        <p className="p-2 text-xs text-muted-foreground">No channels match.</p>
+                      ) : (
+                        availableChannels.map((c) => {
+                          const key = channelKeyOf(c)
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setLeftSelected((prev) => toggle(prev, key))}
+                              className={cn(
+                                "block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-accent",
+                                leftSelected.has(key) && "bg-accent"
+                              )}
+                            >
+                              <span className="font-medium">{c.deviceName}</span> · {c.label}
+                              <span className="ml-1 font-mono text-xs text-muted-foreground">({c.dataPointKey})</span>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
-                )}
+
+                  <div className="flex flex-col gap-2">
+                    <Button type="button" size="icon-sm" variant="outline" disabled={!leftSelected.size} onClick={moveToEnabled} title="Add">
+                      <ChevronRight className="size-4" />
+                    </Button>
+                    <Button type="button" size="icon-sm" variant="outline" disabled={!rightSelected.size} onClick={moveToAvailable} title="Remove">
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <p className="text-xs text-muted-foreground">Enabled Channels ({channels.length})</p>
+                    <div className="themed-scrollbar h-56 overflow-y-auto rounded-md border p-1">
+                      {!channels.length ? (
+                        <p className="p-2 text-xs text-muted-foreground">None yet.</p>
+                      ) : (
+                        channels.map((c) => {
+                          const key = channelKeyOf(c)
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setRightSelected((prev) => toggle(prev, key))}
+                              className={cn(
+                                "block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-accent",
+                                rightSelected.has(key) && "bg-accent"
+                              )}
+                            >
+                              <span className="font-medium">{c.deviceName}</span> · {c.label}
+                              <span className="ml-1 font-mono text-xs text-muted-foreground">({c.dataPointKey})</span>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

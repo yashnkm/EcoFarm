@@ -57,6 +57,7 @@ type CreateMode = "toggle" | "value"
 
 const sharedFields = {
   name: z.string().min(1),
+  key: z.string().min(1),
   description: z.string().optional(),
   registerNumber: z.coerce.number().int().min(0),
   functionCode: z.coerce.number().int().min(1).max(127),
@@ -98,9 +99,12 @@ const valueSchema = z.object({
 type ValueValues = z.infer<typeof valueSchema>
 
 // Editing covers all three kinds through one superset schema — only the
-// fields relevant to the command being edited are shown.
+// fields relevant to the command being edited are shown. key is optional
+// here (unlike creating) so commands from before this field existed can
+// still be edited without being forced to backfill one.
 const editSchema = z.object({
   ...sharedFields,
+  key: z.string().optional(),
   value: z.coerce.number().int(),
   offValue: z.coerce.number().int().optional(),
   statusDataPointKey: z.string().optional(),
@@ -206,6 +210,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     setCreateMode("toggle")
     toggleForm.reset({
       name: "",
+      key: "",
       description: "",
       registerNumber: 0,
       functionCode: 6,
@@ -217,6 +222,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     })
     valueForm.reset({
       name: "",
+      key: "",
       description: "",
       registerNumber: 0,
       functionCode: 6,
@@ -234,6 +240,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     setEditing(c)
     editForm.reset({
       name: c.name,
+      key: c.key ?? "",
       description: c.description ?? "",
       registerNumber: c.registerNumber,
       functionCode: c.functionCode,
@@ -259,6 +266,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     if (isToggle) {
       toggleForm.reset({
         name: "",
+        key: "",
         description: c.description ?? "",
         registerNumber: c.registerNumber,
         functionCode: c.functionCode,
@@ -271,6 +279,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
     } else {
       valueForm.reset({
         name: "",
+        key: "",
         description: c.description ?? "",
         registerNumber: c.registerNumber,
         functionCode: c.functionCode,
@@ -325,11 +334,21 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               </DialogHeader>
 
               <div className="flex flex-col gap-4 py-4">
-                <Field data-invalid={editForm.formState.errors.name ? true : undefined}>
-                  <FieldLabel htmlFor="ename">Name</FieldLabel>
-                  <Input id="ename" placeholder="Section-3" {...editForm.register("name")} />
-                  {editForm.formState.errors.name && <FieldError>{editForm.formState.errors.name.message}</FieldError>}
-                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field data-invalid={editForm.formState.errors.name ? true : undefined}>
+                    <FieldLabel htmlFor="ename">Name</FieldLabel>
+                    <Input id="ename" placeholder="Section-3" {...editForm.register("name")} />
+                    {editForm.formState.errors.name && <FieldError>{editForm.formState.errors.name.message}</FieldError>}
+                  </Field>
+                  <Field data-invalid={editForm.formState.errors.key ? true : undefined}>
+                    <FieldLabel htmlFor="ekey">Key</FieldLabel>
+                    <Input id="ekey" placeholder="section_3" {...editForm.register("key")} />
+                    {!editing?.key && (
+                      <FieldDescription>Created before keys existed — set one now, or leave blank to keep it unset.</FieldDescription>
+                    )}
+                    {editForm.formState.errors.key && <FieldError>{editForm.formState.errors.key.message}</FieldError>}
+                  </Field>
+                </div>
 
                 <Field>
                   <FieldLabel htmlFor="edesc">Description</FieldLabel>
@@ -512,14 +531,21 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               {createMode === "toggle" ? (
                 <form onSubmit={toggleForm.handleSubmit((d) => createToggleMutation.mutateAsync(d))}>
                   <div className="flex flex-col gap-4 py-4">
-                    <Field data-invalid={toggleForm.formState.errors.name ? true : undefined}>
-                      <FieldLabel htmlFor="cname">Name</FieldLabel>
-                      <Input id="cname" placeholder="Section-3" {...toggleForm.register("name")} />
-                      <FieldDescription>
-                        Creates one command, shown as a single button — green &quot;{toggleForm.watch("name") || "Section-3"} ON&quot; or red &quot;{toggleForm.watch("name") || "Section-3"} OFF&quot; depending on live status.
-                      </FieldDescription>
-                      {toggleForm.formState.errors.name && <FieldError>{toggleForm.formState.errors.name.message}</FieldError>}
-                    </Field>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field data-invalid={toggleForm.formState.errors.name ? true : undefined}>
+                        <FieldLabel htmlFor="cname">Name</FieldLabel>
+                        <Input id="cname" placeholder="Section-3" {...toggleForm.register("name")} />
+                        {toggleForm.formState.errors.name && <FieldError>{toggleForm.formState.errors.name.message}</FieldError>}
+                      </Field>
+                      <Field data-invalid={toggleForm.formState.errors.key ? true : undefined}>
+                        <FieldLabel htmlFor="ckey">Key</FieldLabel>
+                        <Input id="ckey" placeholder="section_3" {...toggleForm.register("key")} />
+                        {toggleForm.formState.errors.key && <FieldError>{toggleForm.formState.errors.key.message}</FieldError>}
+                      </Field>
+                    </div>
+                    <FieldDescription className="-mt-2">
+                      Creates one command, shown as a single button — green &quot;{toggleForm.watch("name") || "Section-3"} ON&quot; or red &quot;{toggleForm.watch("name") || "Section-3"} OFF&quot; depending on live status.
+                    </FieldDescription>
 
                     <Field>
                       <FieldLabel htmlFor="cdesc">Description</FieldLabel>
@@ -594,14 +620,21 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               ) : (
                 <form onSubmit={valueForm.handleSubmit((d) => createValueMutation.mutateAsync(d))}>
                   <div className="flex flex-col gap-4 py-4">
-                    <Field data-invalid={valueForm.formState.errors.name ? true : undefined}>
-                      <FieldLabel htmlFor="vname">Name</FieldLabel>
-                      <Input id="vname" placeholder="Set1" {...valueForm.register("name")} />
-                      <FieldDescription>
-                        Creates one command. Sending it asks for a value each time — nothing fixed at creation.
-                      </FieldDescription>
-                      {valueForm.formState.errors.name && <FieldError>{valueForm.formState.errors.name.message}</FieldError>}
-                    </Field>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field data-invalid={valueForm.formState.errors.name ? true : undefined}>
+                        <FieldLabel htmlFor="vname">Name</FieldLabel>
+                        <Input id="vname" placeholder="Set1" {...valueForm.register("name")} />
+                        {valueForm.formState.errors.name && <FieldError>{valueForm.formState.errors.name.message}</FieldError>}
+                      </Field>
+                      <Field data-invalid={valueForm.formState.errors.key ? true : undefined}>
+                        <FieldLabel htmlFor="vkey">Key</FieldLabel>
+                        <Input id="vkey" placeholder="set1" {...valueForm.register("key")} />
+                        {valueForm.formState.errors.key && <FieldError>{valueForm.formState.errors.key.message}</FieldError>}
+                      </Field>
+                    </div>
+                    <FieldDescription className="-mt-2">
+                      Creates one command. Sending it asks for a value each time — nothing fixed at creation.
+                    </FieldDescription>
 
                     <Field>
                       <FieldLabel htmlFor="vdesc">Description</FieldLabel>
@@ -722,6 +755,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Key</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Register</TableHead>
                 <TableHead>FC</TableHead>
@@ -736,6 +770,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               {commands.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{c.key ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground text-xs">{c.description ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{c.registerNumber}</TableCell>
                   <TableCell>{c.functionCode}</TableCell>

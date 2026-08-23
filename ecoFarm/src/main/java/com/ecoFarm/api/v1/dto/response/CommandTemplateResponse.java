@@ -10,6 +10,7 @@ public record CommandTemplateResponse(
     UUID id,
     UUID profileId,
     String name,
+    String key,
     String description,
     Integer registerNumber,
     Integer functionCode,

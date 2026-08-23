@@ -14,6 +14,7 @@ public class CommandTemplateMapper {
             c.getId(),
             c.getProfile().getId(),
             c.getName(),
+            c.getKey(),
             c.getDescription(),
             c.getRegisterNumber(),
             c.getFunctionCode(),

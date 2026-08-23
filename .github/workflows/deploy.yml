@@ -148,6 +148,7 @@ jobs:
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS unit VARCHAR(50);" \
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS sort_order INTEGER;" \
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS zone_order JSONB;" \
+            -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS key VARCHAR(100);" \
             -c 'DO $pgdo$
             DECLARE
               rec record;

@@ -196,6 +196,7 @@ export interface CommandTemplate {
   id: string
   profileId: string
   name: string
+  key: string | null
   description: string | null
   registerNumber: number
   functionCode: number

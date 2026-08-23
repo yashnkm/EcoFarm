@@ -47,12 +47,19 @@ public class CommandTemplateService {
         if (repo.findByProfileIdAndName(profileId, req.name()).isPresent()) {
             throw ApiException.conflict("A command with this name already exists in the profile");
         }
+        if (req.key() == null || req.key().isBlank()) {
+            throw ApiException.badRequest("Key is required");
+        }
+        if (repo.findByProfileIdAndKey(profileId, req.key()).isPresent()) {
+            throw ApiException.conflict("A command with this key already exists in the profile");
+        }
         requireStatusDataPointExists(profileId, req.statusDataPointKey());
         requireNonZeroScale(req.scaleFactor());
 
         CommandTemplate c = CommandTemplate.builder()
             .profile(profile)
             .name(req.name())
+            .key(req.key())
             .description(req.description())
             .registerNumber(req.registerNumber())
             .functionCode(req.functionCode())
@@ -79,10 +86,19 @@ public class CommandTemplateService {
             && repo.findByProfileIdAndName(profileId, req.name()).isPresent()) {
             throw ApiException.conflict("A command with this name already exists in the profile");
         }
+        // Key wasn't required on commands created before this field existed —
+        // editing one of those without setting a key is still allowed. Only
+        // guard against colliding with a key some other command already has.
+        if (req.key() != null && !req.key().isBlank()
+            && !req.key().equals(c.getKey())
+            && repo.findByProfileIdAndKey(profileId, req.key()).isPresent()) {
+            throw ApiException.conflict("A command with this key already exists in the profile");
+        }
         requireStatusDataPointExists(profileId, req.statusDataPointKey());
         requireNonZeroScale(req.scaleFactor());
 
         c.setName(req.name());
+        c.setKey(req.key() != null && !req.key().isBlank() ? req.key() : c.getKey());
         c.setDescription(req.description());
         c.setRegisterNumber(req.registerNumber());
         c.setFunctionCode(req.functionCode());

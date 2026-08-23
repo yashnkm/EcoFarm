@@ -14,4 +14,6 @@ public interface CommandTemplateRepository extends JpaRepository<CommandTemplate
     List<CommandTemplate> findByProfileId(UUID profileId);
 
     Optional<CommandTemplate> findByProfileIdAndName(UUID profileId, String name);
+
+    Optional<CommandTemplate> findByProfileIdAndKey(UUID profileId, String key);
 }

@@ -28,6 +28,13 @@ public class CommandTemplate {
     @Column(nullable = false)
     private String name;
 
+    /** Technical identifier, unique within the profile — mirrors {@link DataPoint#getKey()}.
+     * For a Read & Write point's command this is always set to the same key
+     * as its paired data point. Nullable because commands created before
+     * this field existed have none; new commands always require one. */
+    @Column(name = "key", length = 100)
+    private String key;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

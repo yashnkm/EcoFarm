@@ -141,6 +141,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
         ...WRITE_DEFAULTS,
       },
     })
+  const key = watch("key")
   const dataType = watch("dataType")
   const byteOrder = watch("byteOrder")
   const widget = watch("displayWidget")
@@ -194,6 +195,9 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       const isToggle = values.dataType === "BOOLEAN"
       const cmdBody: CommandTemplateBody = {
         name: values.commandName!,
+        // Same key as the data point it controls — one identifier for both
+        // halves of the pair, not just linked via statusDataPointKey.
+        key: dp.key,
         registerNumber: values.writeRegisterNumber!,
         functionCode: values.commandFunctionCode!,
         value: isToggle ? values.onValue! : 0,
@@ -490,6 +494,9 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                   <Field data-invalid={errors.commandName ? true : undefined}>
                     <FieldLabel htmlFor="commandName">Command name</FieldLabel>
                     <Input id="commandName" placeholder="Section-3" {...register("commandName")} />
+                    <FieldDescription>
+                      Key: <span className="font-mono">{key || "—"}</span> — same key as the data point, so both halves share one identifier.
+                    </FieldDescription>
                     {errors.commandName && <FieldError>{errors.commandName.message}</FieldError>}
                   </Field>
 

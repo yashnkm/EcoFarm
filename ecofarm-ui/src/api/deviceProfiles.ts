@@ -108,6 +108,7 @@ export const dataPointsApi = {
 
 export interface CommandTemplateBody {
   name: string
+  key?: string
   description?: string
   registerNumber: number
   functionCode: number

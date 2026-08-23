@@ -11,6 +11,7 @@ import { sitesApi } from "@/api/sites"
 import { useAuthStore } from "@/store/authStore"
 import { useLiveReadings } from "@/hooks/useLiveReadings"
 import { meetsMinRole } from "@/lib/roles"
+import { cn } from "@/lib/utils"
 import { CommandButton } from "@/components/CommandButton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -346,8 +347,7 @@ function DataPointTable({
             <TableHead>Key</TableHead>
             <TableHead className="text-right">Value</TableHead>
             <TableHead>Unit</TableHead>
-            <TableHead>Quality</TableHead>
-            <TableHead>Last seen</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Zone</TableHead>
             <TableHead className="pr-6 text-center" title={canRecord ? "Record to database" : "Only admins can enable recording"}>
               Record
@@ -368,18 +368,18 @@ function DataPointTable({
                   {dp.unit ?? r?.unit ?? "—"}
                 </TableCell>
                 <TableCell>
-                  {r ? (
-                    r.quality !== "GOOD" ? (
-                      <Badge variant="secondary" className="text-xs">{r.quality}</Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Good</span>
+                  {(() => {
+                    const online = !!r && r.quality === "GOOD"
+                    const detail = r
+                      ? `Quality: ${r.quality} · Last seen ${formatDistanceToNow(new Date(r.time), { addSuffix: true })}`
+                      : "No data received yet"
+                    return (
+                      <span className="inline-flex items-center gap-1.5" title={detail}>
+                        <span className={cn("size-2 rounded-full", online ? "bg-emerald-400" : "bg-destructive")} />
+                        <span className="text-xs text-muted-foreground">{online ? "Online" : "Offline"}</span>
+                      </span>
                     )
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {r ? formatDistanceToNow(new Date(r.time), { addSuffix: true }) : "No data"}
+                  })()}
                 </TableCell>
                 <TableCell>
                   {zones.length === 0 ? (

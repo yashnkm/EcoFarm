@@ -21,6 +21,7 @@ import { GatewayDriversPage } from "@/pages/drivers/GatewayDriversPage"
 import { BrokersPage } from "@/pages/brokers/BrokersPage"
 import { OpsPage } from "@/pages/admin/OpsPage"
 import { AlertsPage } from "@/pages/alerts/AlertsPage"
+import { DataLogPage } from "@/pages/datalog/DataLogPage"
 
 const isAdminPortal = window.location.hostname.startsWith("admin.")
 
@@ -46,6 +47,7 @@ export default function App() {
             </Route>
             <Route path="/gateway-drivers" element={<GatewayDriversPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/data-log" element={<DataLogPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/admin/brokers" element={<BrokersPage />} />
             <Route path="/admin/tenants" element={<TenantsPage />} />

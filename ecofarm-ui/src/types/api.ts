@@ -305,3 +305,23 @@ export interface Reading {
   quality: ReadingQuality
   unit: string | null
 }
+
+// ── Sampling Group ────────────────────────
+
+export interface SamplingChannel {
+  deviceId: string
+  deviceName: string
+  siteId: string | null
+  siteName: string | null
+  dataPointKey: string
+  label: string
+  unit: string | null
+}
+
+export interface SamplingGroup {
+  id: string
+  name: string
+  description: string | null
+  createdAt: string
+  channels: SamplingChannel[]
+}

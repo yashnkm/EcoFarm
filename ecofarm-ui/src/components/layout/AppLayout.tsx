@@ -19,6 +19,7 @@ import {
   BarChart3,
   ArrowLeft,
   Terminal,
+  LineChart,
 } from "lucide-react"
 
 import { useAuthStore } from "@/store/authStore"
@@ -62,6 +63,7 @@ const PAGE_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/admin/ops",       title: "Ops Console" },
   { prefix: "/users",           title: "Users" },
   { prefix: "/alerts",          title: "Alerts" },
+  { prefix: "/data-log",        title: "Data Log" },
   { prefix: "/settings",        title: "Settings" },
   { prefix: "/",                title: "Dashboard" },
 ]
@@ -72,6 +74,7 @@ const clientNavItems = [
   { to: "/gateways", label: "Gateways", icon: Radio },
   { to: "/devices", label: "Devices", icon: Cpu },
   { to: "/alerts", label: "Alerts", icon: Bell },
+  { to: "/data-log", label: "Data Log", icon: LineChart },
 ]
 
 export function AppLayout() {

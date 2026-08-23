@@ -149,6 +149,8 @@ jobs:
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS sort_order INTEGER;" \
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS zone_order JSONB;" \
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS key VARCHAR(100);" \
+            -c "CREATE TABLE IF NOT EXISTS sampling_groups (id UUID PRIMARY KEY, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, description TEXT, created_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());" \
+            -c "CREATE TABLE IF NOT EXISTS sampling_group_channels (id UUID PRIMARY KEY, sampling_group_id UUID NOT NULL REFERENCES sampling_groups(id) ON DELETE CASCADE, device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE, data_point_key VARCHAR(100) NOT NULL, CONSTRAINT uq_sampling_group_channel UNIQUE (sampling_group_id, device_id, data_point_key));" \
             -c 'DO $pgdo$
             DECLARE
               rec record;
@@ -159,7 +161,11 @@ jobs:
                 ($str$refresh_tokens$str$, $str$user_id$str$, $str$CASCADE$str$),
                 ($str$password_reset_tokens$str$, $str$user_id$str$, $str$CASCADE$str$),
                 ($str$invitation_tokens$str$, $str$user_id$str$, $str$CASCADE$str$),
-                ($str$refresh_tokens$str$, $str$active_tenant_id$str$, $str$SET NULL$str$)
+                ($str$refresh_tokens$str$, $str$active_tenant_id$str$, $str$SET NULL$str$),
+                ($str$sampling_groups$str$, $str$tenant_id$str$, $str$CASCADE$str$),
+                ($str$sampling_groups$str$, $str$created_by$str$, $str$SET NULL$str$),
+                ($str$sampling_group_channels$str$, $str$sampling_group_id$str$, $str$CASCADE$str$),
+                ($str$sampling_group_channels$str$, $str$device_id$str$, $str$CASCADE$str$)
               ) AS x(tbl, col, act) LOOP
                 SELECT c.conname, r.relname INTO cname, reftable
                   FROM pg_constraint c JOIN pg_class r ON r.oid = c.confrelid

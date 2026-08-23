@@ -357,7 +357,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               <div className="flex flex-col gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <Field data-invalid={editForm.formState.errors.name ? true : undefined}>
-                    <FieldLabel htmlFor="ename">Name</FieldLabel>
+                    <FieldLabel htmlFor="ename">Label</FieldLabel>
                     <Input id="ename" placeholder="Section-3" {...editForm.register("name")} />
                     {editForm.formState.errors.name && <FieldError>{editForm.formState.errors.name.message}</FieldError>}
                   </Field>
@@ -554,7 +554,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                   <div className="flex flex-col gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <Field data-invalid={toggleForm.formState.errors.name ? true : undefined}>
-                        <FieldLabel htmlFor="cname">Name</FieldLabel>
+                        <FieldLabel htmlFor="cname">Label</FieldLabel>
                         <Input id="cname" placeholder="Section-3" {...toggleForm.register("name")} />
                         {toggleForm.formState.errors.name && <FieldError>{toggleForm.formState.errors.name.message}</FieldError>}
                       </Field>
@@ -643,7 +643,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                   <div className="flex flex-col gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <Field data-invalid={valueForm.formState.errors.name ? true : undefined}>
-                        <FieldLabel htmlFor="vname">Name</FieldLabel>
+                        <FieldLabel htmlFor="vname">Label</FieldLabel>
                         <Input id="vname" placeholder="Set1" {...valueForm.register("name")} />
                         {valueForm.formState.errors.name && <FieldError>{valueForm.formState.errors.name.message}</FieldError>}
                       </Field>
@@ -780,7 +780,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Label" sortKey="name" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Key" sortKey="key" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Description" sortKey="description" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Register" sortKey="registerNumber" sort={sort} onSort={toggleSort} />

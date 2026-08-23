@@ -484,7 +484,7 @@ function CommandTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggleSort} className="pl-6" />
+            <SortableHead label="Label" sortKey="name" sort={sort} onSort={toggleSort} className="pl-6" />
             <SortableHead label="Description" sortKey="description" sort={sort} onSort={toggleSort} />
             <SortableHead label="Register" sortKey="registerNumber" sort={sort} onSort={toggleSort} />
             <TableHead>Value</TableHead>

@@ -641,7 +641,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                     return (
                       <TableRow key={dp.id}>
                         <TableCell>{dp.label}</TableCell>
-                        <TableCell className="font-mono text-xs">{dp.key}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">{dp.key}</TableCell>
                         <TableCell className="font-mono text-xs">{dp.registerNumber}</TableCell>
                         <TableCell className="text-xs">{dp.dataType}</TableCell>
                         <TableCell>{dp.unit ?? "—"}</TableCell>

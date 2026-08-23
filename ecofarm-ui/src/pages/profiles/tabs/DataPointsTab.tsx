@@ -74,7 +74,6 @@ const schema = z.object({
   trueLabel: z.string().max(100).optional(),
 
   mode: z.enum(MODES),
-  commandName: z.string().optional(),
   writeRegisterNumber: z.coerce.number().int().min(0).optional(),
   commandFunctionCode: z.coerce.number().int().min(1).max(127).optional(),
   onValue: z.coerce.number().int().optional(),
@@ -87,7 +86,6 @@ const schema = z.object({
   confirmationRequired: z.boolean().optional(),
 }).superRefine((d, ctx) => {
   if (d.mode !== "readWrite") return
-  if (!d.commandName) ctx.addIssue({ path: ["commandName"], code: z.ZodIssueCode.custom, message: "Required" })
   if (d.writeRegisterNumber == null) ctx.addIssue({ path: ["writeRegisterNumber"], code: z.ZodIssueCode.custom, message: "Required" })
   if (d.commandFunctionCode == null) ctx.addIssue({ path: ["commandFunctionCode"], code: z.ZodIssueCode.custom, message: "Required" })
   if (d.dataType === "BOOLEAN") {
@@ -126,7 +124,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
 
   const WRITE_DEFAULTS = {
     mode: "readOnly" as Mode,
-    commandName: "", writeRegisterNumber: 0, commandFunctionCode: 6,
+    writeRegisterNumber: 0, commandFunctionCode: 6,
     onValue: 1, offValue: 0, category: "OTHER" as const,
     writeScaleFactor: 1, writeOffset: 0, writeUnit: "",
     minRole: "OPERATOR" as const, confirmationRequired: false,
@@ -142,6 +140,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       },
     })
   const key = watch("key")
+  const label = watch("label")
   const dataType = watch("dataType")
   const byteOrder = watch("byteOrder")
   const widget = watch("displayWidget")
@@ -155,12 +154,12 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
   // Flipping to Read & Write seeds the command fields from what's already
   // been typed on the read side (same register, same units is the common
   // case) — a one-time starting point, not a re-sync, so it never fights
-  // edits made after switching.
+  // edits made after switching. Name and key always mirror the data point
+  // exactly (not just seeded) — enforced at submit time, not editable here.
   const switchMode = (next: Mode) => {
     setValue("mode", next)
     if (next === "readWrite") {
       const v = getValues()
-      setValue("commandName", v.commandName || v.label)
       setValue("writeRegisterNumber", v.registerNumber)
       setValue("writeScaleFactor", v.scaleFactor)
       setValue("writeOffset", v.offset)
@@ -194,7 +193,7 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
       }
       const isToggle = values.dataType === "BOOLEAN"
       const cmdBody: CommandTemplateBody = {
-        name: values.commandName!,
+        name: dp.label,
         // Same key as the data point it controls — one identifier for both
         // halves of the pair, not just linked via statusDataPointKey.
         key: dp.key,
@@ -491,14 +490,15 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                       : "Non-boolean data type, so this is a setpoint: the operator supplies the value each time."}
                   </FieldDescription>
 
-                  <Field data-invalid={errors.commandName ? true : undefined}>
-                    <FieldLabel htmlFor="commandName">Command name</FieldLabel>
-                    <Input id="commandName" placeholder="Section-3" {...register("commandName")} />
-                    <FieldDescription>
-                      Key: <span className="font-mono">{key || "—"}</span> — same key as the data point, so both halves share one identifier.
-                    </FieldDescription>
-                    {errors.commandName && <FieldError>{errors.commandName.message}</FieldError>}
-                  </Field>
+                  <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">Name and key: </span>
+                    <span className="font-medium">{label || "—"}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="font-mono">{key || "—"}</span>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Same as the data point above — one identity for both halves of the pair.
+                    </p>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <Field data-invalid={errors.writeRegisterNumber ? true : undefined}>

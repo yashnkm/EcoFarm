@@ -171,7 +171,40 @@ jobs:
                   EXECUTE format($str$ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES %I(id) ON DELETE $str$ || rec.act, rec.tbl, cname, rec.col, reftable);
                 END IF;
               END LOOP;
-            END $pgdo$;'
+            END $pgdo$;' \
+            -c 'DO $pgdo2$
+            DECLARE
+              cmd record;
+              dp record;
+            BEGIN
+              FOR cmd IN
+                SELECT c.id, c.profile_id, c.status_data_point_key, c.key AS cur_key, c.name AS cur_name
+                FROM command_templates c
+                WHERE c.status_data_point_key IS NOT NULL
+              LOOP
+                SELECT d.key, d.label INTO dp
+                FROM data_points d
+                WHERE d.profile_id = cmd.profile_id AND d.key = cmd.status_data_point_key;
+
+                IF FOUND THEN
+                  IF cmd.cur_key IS DISTINCT FROM dp.key
+                     AND NOT EXISTS (
+                       SELECT 1 FROM command_templates o
+                       WHERE o.profile_id = cmd.profile_id AND o.id <> cmd.id AND o.key = dp.key
+                     ) THEN
+                    UPDATE command_templates SET key = dp.key WHERE id = cmd.id;
+                  END IF;
+
+                  IF cmd.cur_name IS DISTINCT FROM dp.label
+                     AND NOT EXISTS (
+                       SELECT 1 FROM command_templates o
+                       WHERE o.profile_id = cmd.profile_id AND o.id <> cmd.id AND o.name = dp.label
+                     ) THEN
+                    UPDATE command_templates SET name = dp.label WHERE id = cmd.id;
+                  END IF;
+                END IF;
+              END LOOP;
+            END $pgdo2$;'
 
           # Add admin subdomain to CORS allowed origins if not already present
           ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"

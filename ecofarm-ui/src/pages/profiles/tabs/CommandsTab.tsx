@@ -8,6 +8,7 @@ import { Plus } from "lucide-react"
 
 import { commandTemplatesApi, dataPointsApi, type CommandTemplateBody } from "@/api/deviceProfiles"
 import { classifyCommand } from "@/pages/dashboard/sectionParams"
+import { ROLES, CATEGORIES, CATEGORY_LABELS } from "./commandConstants"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,13 +43,6 @@ import { EditButton } from "@/components/EditButton"
 import { CloneButton } from "@/components/CloneButton"
 import type { CommandTemplate } from "@/types/api"
 
-const ROLES = ["OPERATOR", "TENANT_ADMIN", "SUPER_ADMIN"] as const
-const CATEGORIES = ["TEMPERATURE", "FOGGING", "OTHER"] as const
-const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
-  TEMPERATURE: "Temperature Control",
-  FOGGING: "Fogging",
-  OTHER: "Other",
-}
 // Same labels, extended with the SECTION group classifyCommand() can also
 // return (toggle commands) — used to describe a command's live-dashboard
 // grouping in the admin table, matching classifyCommand's own fallback

@@ -232,6 +232,7 @@ export interface Device {
   lastReadingAt: string | null
   createdAt: string
   recordedDataPoints: string[]
+  recordedDataPointRetentionDays: Record<string, number>
   dataPointGroups: Record<string, string>
   commandGroups: Record<string, string>
   sortOrder: number | null

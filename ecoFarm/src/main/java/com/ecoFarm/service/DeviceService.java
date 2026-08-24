@@ -216,6 +216,9 @@ public class DeviceService {
     public Device updateRecordedDataPoints(UUID id, RecordedDataPointsRequest req) {
         Device device = findInTenant(id);
         device.setRecordedDataPoints(req.dataPoints());
+        if (req.retentionDays() != null) {
+            device.setRecordedDataPointRetentionDays(req.retentionDays());
+        }
         return device;
     }
 

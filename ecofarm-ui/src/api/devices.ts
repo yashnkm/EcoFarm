@@ -59,9 +59,9 @@ export const devicesApi = {
   latestReadings: (id: string) =>
     apiClient.get<Reading[]>(`/devices/${id}/readings/latest`).then((r) => r.data),
 
-  updateRecordedDataPoints: (id: string, dataPoints: string[]) =>
+  updateRecordedDataPoints: (id: string, dataPoints: string[], retentionDays?: Record<string, number>) =>
     apiClient
-      .patch<Device>(`/devices/${id}/recorded-data-points`, { dataPoints })
+      .patch<Device>(`/devices/${id}/recorded-data-points`, { dataPoints, retentionDays })
       .then((r) => r.data),
 
   updateDataPointGroups: (id: string, dataPointGroups: Record<string, string>) =>

@@ -2,6 +2,7 @@ package com.ecoFarm.repository;
 
 import com.ecoFarm.domain.entity.Reading;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -71,4 +72,18 @@ public interface ReadingRepository extends JpaRepository<Reading, Reading.Readin
         ORDER BY device_id, data_point, time DESC
     """, nativeQuery = true)
     List<Reading> findLatestForTenant(@Param("tenantId") UUID tenantId);
+
+    /**
+     * Bulk-deletes old readings for one device+data point — used by the
+     * nightly retention cleanup. A plain @Modifying query so Postgres does
+     * the deletion directly instead of Hibernate loading every row as an
+     * entity first, which matters once a device+key has months of history.
+     */
+    @Modifying
+    @Query("DELETE FROM Reading r WHERE r.deviceId = :deviceId AND r.dataPoint = :dataPoint AND r.time < :cutoff")
+    int deleteOlderThan(
+        @Param("deviceId") UUID deviceId,
+        @Param("dataPoint") String dataPoint,
+        @Param("cutoff") Instant cutoff
+    );
 }

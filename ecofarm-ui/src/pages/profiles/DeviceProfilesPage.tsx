@@ -5,10 +5,11 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Plus, Package } from "lucide-react"
+import { Plus, Package, Upload } from "lucide-react"
 
 import { deviceProfilesApi } from "@/api/deviceProfiles"
 import { useAuthStore } from "@/store/authStore"
+import { ImportDialog } from "./ImportDialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -59,9 +60,11 @@ type FormValues = z.infer<typeof schema>
 export function DeviceProfilesPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<DeviceProfile | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
+  const canManage = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["device-profiles"],
@@ -151,8 +154,22 @@ export function DeviceProfilesPage() {
             Templates describing how to talk to a specific device model.
           </p>
         </div>
-        <Button onClick={openCreate}><Plus data-icon="inline-start" />New Profile</Button>
+        <div className="flex items-center gap-2">
+          {canManage && (
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload data-icon="inline-start" />
+              Import as new profile
+            </Button>
+          )}
+          <Button onClick={openCreate}><Plus data-icon="inline-start" />New Profile</Button>
+        </div>
       </div>
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => queryClient.invalidateQueries({ queryKey: ["device-profiles"] })}
+      />
 
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
         <DialogContent>

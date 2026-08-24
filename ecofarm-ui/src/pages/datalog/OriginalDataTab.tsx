@@ -44,6 +44,16 @@ function toLocalInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// Bucket keys are UTC, truncated to the second by mergeReadings (which also
+// strips the trailing "Z") — appending it back before parsing is what makes
+// this an actual UTC instant instead of being silently misread as
+// already-local. Forced to Asia/Kolkata rather than the viewer's own device
+// timezone: the farm's actual local time is what matters here, not
+// whichever timezone happens to be set on whoever's looking at the screen.
+function formatIst(bucketTime: string, opts: Intl.DateTimeFormatOptions) {
+  return new Date(`${bucketTime}Z`).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", ...opts })
+}
+
 interface MergedRow {
   time: string // ISO, truncated to the second
   values: Record<string, number | null>
@@ -179,7 +189,7 @@ export function OriginalDataTab() {
     if (!mergedRows.length) return
     const header = ["Time", ...selectedChannels.map((c) => `${c.label} (${c.unit ?? ""})`.trim())]
     const rows = listRows.map((row) => [
-      row.time.replace("T", " "),
+      formatIst(row.time, { dateStyle: "medium", timeStyle: "medium" }),
       ...selectedChannels.map((c) => row.values[channelKey(c.deviceId, c.dataPointKey)] ?? ""),
     ])
     downloadCsv(`${group?.name ?? "data-log"}.csv`, header, rows)
@@ -327,13 +337,13 @@ export function OriginalDataTab() {
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 dataKey="time"
-                tickFormatter={(t: string) => t.slice(5, 16).replace("T", " ")}
+                tickFormatter={(t: string) => formatIst(t, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                 className="text-xs fill-muted-foreground"
                 minTickGap={40}
               />
               <YAxis className="text-xs fill-muted-foreground" />
               <Tooltip
-                labelFormatter={(t) => String(t).replace("T", " ")}
+                labelFormatter={(t) => formatIst(String(t), { dateStyle: "medium", timeStyle: "medium" })}
                 contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }}
               />
               <Legend />
@@ -372,7 +382,9 @@ export function OriginalDataTab() {
               <TableBody>
                 {pageItems.map((row) => (
                   <TableRow key={row.time}>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{row.time.replace("T", " ")}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {formatIst(row.time, { dateStyle: "medium", timeStyle: "medium" })}
+                    </TableCell>
                     {selectedChannels.map((c) => (
                       <TableCell key={channelKey(c.deviceId, c.dataPointKey)} className="tabular-nums">
                         {row.values[channelKey(c.deviceId, c.dataPointKey)] ?? "—"}

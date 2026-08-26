@@ -1,5 +1,6 @@
 package com.ecoFarm.api.v1.controller;
 
+import com.ecoFarm.api.v1.dto.request.ForgotPasswordRequest;
 import com.ecoFarm.api.v1.dto.request.LoginRequest;
 import com.ecoFarm.api.v1.dto.request.RefreshTokenRequest;
 import com.ecoFarm.api.v1.dto.request.ResetPasswordRequest;
@@ -21,6 +22,14 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest req) {
         return ResponseEntity.ok(authService.login(req));
+    }
+
+    /** Mails a fresh temp password if the address has an account — always
+     * responds 204 either way so this can't be used to enumerate accounts. */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        authService.forgotPassword(req);
+        return ResponseEntity.noContent().build();
     }
 
     /** Completes a one-time-use PasswordResetToken (from a forced first

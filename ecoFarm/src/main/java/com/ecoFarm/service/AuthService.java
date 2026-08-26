@@ -1,5 +1,6 @@
 package com.ecoFarm.service;
 
+import com.ecoFarm.api.v1.dto.request.ForgotPasswordRequest;
 import com.ecoFarm.api.v1.dto.request.LoginRequest;
 import com.ecoFarm.api.v1.dto.request.RefreshTokenRequest;
 import com.ecoFarm.api.v1.dto.request.ResetPasswordRequest;
@@ -19,12 +20,15 @@ import com.ecoFarm.repository.UserRepository;
 import com.ecoFarm.security.JwtUtil;
 import com.ecoFarm.shared.exception.ApiException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -36,6 +40,11 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final JwtProperties jwtProperties;
+    private final EmailService emailService;
+    private final TempPasswordGenerator tempPasswordGenerator;
+
+    @Value("${app.frontend.login-url}")
+    private String loginUrl;
 
     private static final long RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -52,10 +61,11 @@ public class AuthService {
             throw ApiException.forbidden("Account is not active");
         }
 
-        // Correct one-time invite password — never issue real access from
+        // Correct one-time invite password, or a temp password just mailed
+        // by a "forgot password" request — never issue real access from
         // here. The client must go set a real password first; every login
         // attempt with the temp password lands back here, not the dashboard.
-        if (user.getStatus() == UserStatus.INVITED) {
+        if (user.getStatus() == UserStatus.INVITED || user.isMustResetPassword()) {
             return LoginResponse.mustSetPassword(issuePasswordResetToken(user));
         }
 
@@ -107,10 +117,33 @@ public class AuthService {
             user.setStatus(UserStatus.ACTIVE);
             user.setActivatedAt(Instant.now());
         }
+        user.setMustResetPassword(false);
         resetToken.setUsedAt(Instant.now());
         refreshTokenRepository.revokeAllForUser(user.getId());
 
         return issueTokens(user, user.getTenant());
+    }
+
+    /** Mails a fresh one-time temp password, same mechanism as inviting a
+     * user — the client must sign in with it and set a real password before
+     * anything else works. Always succeeds from the caller's point of view
+     * regardless of whether the email matches an account, so this endpoint
+     * can't be used to test which emails have accounts. */
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest req) {
+        userRepository.findByEmail(req.email()).ifPresent(user -> {
+            if (user.getStatus() == UserStatus.SUSPENDED) {
+                log.info("Forgot-password requested for suspended account {} — ignoring", user.getEmail());
+                return;
+            }
+
+            String tempPassword = tempPasswordGenerator.generate();
+            user.setPasswordHash(passwordEncoder.encode(tempPassword));
+            user.setMustResetPassword(true);
+            refreshTokenRepository.revokeAllForUser(user.getId());
+
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), tempPassword, loginUrl);
+        });
     }
 
     private String issuePasswordResetToken(User user) {

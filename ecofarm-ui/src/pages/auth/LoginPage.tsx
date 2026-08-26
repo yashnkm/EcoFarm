@@ -8,6 +8,7 @@ import { Sprout } from "lucide-react"
 
 import { authApi } from "@/api/auth"
 import { useAuthStore } from "@/store/authStore"
+import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -32,8 +33,9 @@ export function LoginPage() {
   const authenticated = useAuthStore((s) => !!s.accessToken)
   const setAuth = useAuthStore((s) => s.setAuth)
   const [submitting, setSubmitting] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   })
@@ -82,7 +84,16 @@ export function LoginPage() {
               {errors.email && <FieldError>{errors.email.message}</FieldError>}
             </Field>
             <Field data-invalid={errors.password ? true : undefined}>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  onClick={() => setForgotOpen(true)}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <Input id="password" type="password" autoComplete="current-password" {...register("password")} />
               {errors.password && <FieldError>{errors.password.message}</FieldError>}
             </Field>
@@ -95,6 +106,8 @@ export function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+
+      <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} defaultEmail={watch("email")} />
     </div>
   )
 }

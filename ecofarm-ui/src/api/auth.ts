@@ -5,10 +5,22 @@ export const authApi = {
   login: (email: string, password: string, slug?: string, adminPortal = false) =>
     apiClient.post<LoginResponse>("/auth/login", { email, password, slug: slug || undefined, adminPortal }).then((r) => r.data),
 
-  /** Completes a forced first-login password change (and, later, "forgot
-   * password") — signs the user straight in on success. */
+  /** Completes a forced first-login password change (or a "forgot password"
+   * reset) — signs the user straight in on success. */
   setPassword: (token: string, newPassword: string) =>
     apiClient.post<TokenResponse>("/auth/set-password", { token, newPassword }).then((r) => r.data),
+
+  /** Mails a fresh one-time temp password if the address has an account.
+   * Always resolves — the backend responds 204 either way so this can't be
+   * used to test which emails have accounts. */
+  forgotPassword: (email: string) =>
+    apiClient.post<void>("/auth/forgot-password", { email }).then(() => undefined),
+
+  /** Proactive change while already signed in — requires the current
+   * password. Revokes all sessions (including this one) on success, so the
+   * caller should sign the user out afterward. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.patch<void>("/me/password", { currentPassword, newPassword }).then(() => undefined),
 
   switchTenant: (slug: string) =>
     apiClient.post<TokenResponse>("/admin/switch-tenant", { slug }).then((r) => r.data),

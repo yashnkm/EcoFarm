@@ -137,6 +137,7 @@ public class UserService {
             throw ApiException.badRequest("Current password is incorrect");
         }
         user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
+        user.setMustResetPassword(false);
         refreshTokenRepository.revokeAllForUser(user.getId());
     }
 

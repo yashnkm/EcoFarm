@@ -73,4 +73,30 @@ public class EmailService {
 
         send(to, "You've been added to " + tenantName + " on EcoFarm", html);
     }
+
+    public void sendPasswordResetEmail(String to, String firstName, String tempPassword, String loginUrl) {
+        String greeting = firstName != null && !firstName.isBlank() ? "Hi " + firstName + "," : "Hi,";
+        String html = """
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+              <h2 style="margin-bottom: 4px;">Reset your password</h2>
+              <p>%s</p>
+              <p>We received a request to reset the password on your EcoFarm account. Use this
+                 temporary password to sign back in:</p>
+              <table style="border-collapse: collapse; margin: 16px 0;">
+                <tr><td style="padding: 4px 12px 4px 0; color: #666;">Temporary password</td><td><strong>%s</strong></td></tr>
+              </table>
+              <p>This password only works once — you'll be asked to set your own password
+                 immediately after signing in. Any other devices you were signed in on have
+                 been signed out.</p>
+              <p><a href="%s" style="display: inline-block; background: #16a34a; color: white;
+                 padding: 10px 20px; border-radius: 6px; text-decoration: none;">Sign in</a></p>
+              <p style="color: #888; font-size: 13px; margin-top: 24px;">
+                 If you didn't request this, your password has already been changed to the
+                 temporary one above — sign in with it and set a new password right away,
+                 or contact your administrator.</p>
+            </div>
+            """.formatted(greeting, tempPassword, loginUrl);
+
+        send(to, "Reset your EcoFarm password", html);
+    }
 }

@@ -22,6 +22,7 @@ import { BrokersPage } from "@/pages/brokers/BrokersPage"
 import { OpsPage } from "@/pages/admin/OpsPage"
 import { AlertsPage } from "@/pages/alerts/AlertsPage"
 import { DataLogPage } from "@/pages/datalog/DataLogPage"
+import { SettingsPage } from "@/pages/settings/SettingsPage"
 
 const isAdminPortal = window.location.hostname.startsWith("admin.")
 
@@ -52,7 +53,7 @@ export default function App() {
             <Route path="/admin/brokers" element={<BrokersPage />} />
             <Route path="/admin/tenants" element={<TenantsPage />} />
             <Route path="/admin/ops" element={<OpsPage />} />
-            <Route path="/settings" element={<Placeholder title="Settings" />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Route>
       </Routes>
@@ -64,13 +65,4 @@ function SuperAdminRoute() {
   const role = useAuthStore((s) => s.user?.role)
   if (role !== "SUPER_ADMIN") return <Navigate to="/" replace />
   return <Outlet />
-}
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="text-sm text-muted-foreground">This page will be built next.</p>
-    </div>
-  )
 }

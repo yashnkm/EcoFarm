@@ -152,6 +152,8 @@ jobs:
             -c "CREATE TABLE IF NOT EXISTS sampling_groups (id UUID PRIMARY KEY, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, description TEXT, created_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());" \
             -c "CREATE TABLE IF NOT EXISTS sampling_group_channels (id UUID PRIMARY KEY, sampling_group_id UUID NOT NULL REFERENCES sampling_groups(id) ON DELETE CASCADE, device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE, data_point_key VARCHAR(100) NOT NULL, CONSTRAINT uq_sampling_group_channel UNIQUE (sampling_group_id, device_id, data_point_key));" \
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS recorded_data_point_retention_days JSONB;" \
+            -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_reset_password BOOLEAN NOT NULL DEFAULT false;" \
+            -c "ALTER TABLE users ALTER COLUMN must_reset_password DROP DEFAULT;" \
             -c 'DO $pgdo$
             DECLARE
               rec record;

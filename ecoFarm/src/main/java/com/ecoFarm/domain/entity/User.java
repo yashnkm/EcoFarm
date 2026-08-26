@@ -48,6 +48,16 @@ public class User {
     @Builder.Default
     private UserStatus status = UserStatus.INVITED;
 
+    /** Set when a "forgot password" request hands out a fresh temp password
+     * by email — forces the same must-set-a-real-password gate at login as
+     * a brand-new INVITED account, without touching status (which the admin
+     * user list reads as "still-pending invite"). Cleared once the user
+     * actually sets a new password, either via the forced flow or by
+     * proactively changing it in Settings. */
+    @Column(name = "must_reset_password", nullable = false)
+    @Builder.Default
+    private boolean mustResetPassword = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invited_by")
     private User invitedBy;

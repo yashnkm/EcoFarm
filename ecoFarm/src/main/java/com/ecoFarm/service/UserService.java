@@ -1,5 +1,6 @@
 package com.ecoFarm.service;
 
+import com.ecoFarm.api.v1.dto.request.ChangeEmailRequest;
 import com.ecoFarm.api.v1.dto.request.ChangePasswordRequest;
 import com.ecoFarm.api.v1.dto.request.CreateUserRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateProfileRequest;
@@ -138,6 +139,32 @@ public class UserService {
         }
         user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
         user.setMustResetPassword(false);
+        refreshTokenRepository.revokeAllForUser(user.getId());
+    }
+
+    /** Self-service email change — requires the current password as proof
+     * of identity, same bar as changing the password itself. Revokes all
+     * sessions afterward: the JWT auth filter looks the user up by the
+     * email baked into the access token, so a stale token would otherwise
+     * fail to authenticate at all on the very next request. */
+    @Transactional
+    public void changeEmail(ChangeEmailRequest req) {
+        User user = userRepository.findById(SecurityUtil.currentUserId())
+            .orElseThrow(() -> ApiException.notFound("User not found"));
+
+        if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
+            throw ApiException.badRequest("Current password is incorrect");
+        }
+
+        String newEmail = req.newEmail().trim();
+        if (newEmail.equals(user.getEmail())) {
+            throw ApiException.badRequest("That's already your email");
+        }
+        if (userRepository.existsByEmail(newEmail)) {
+            throw ApiException.conflict("Email already in use");
+        }
+
+        user.setEmail(newEmail);
         refreshTokenRepository.revokeAllForUser(user.getId());
     }
 

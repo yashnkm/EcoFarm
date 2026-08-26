@@ -99,4 +99,72 @@ public class EmailService {
 
         send(to, "Reset your EcoFarm password", html);
     }
+
+    public void sendEmailChangeRequestNotification(String to, String adminFirstName, String requesterName,
+                                                     String requesterEmail, String requestedEmail, String note,
+                                                     String loginUrl) {
+        String greeting = adminFirstName != null && !adminFirstName.isBlank() ? "Hi " + adminFirstName + "," : "Hi,";
+        String noteHtml = note != null && !note.isBlank()
+            ? "<p style=\"color: #666;\">Their note: “" + escapeHtml(note) + "”</p>" : "";
+        String html = """
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+              <h2 style="margin-bottom: 4px;">Email change request</h2>
+              <p>%s</p>
+              <p><strong>%s</strong> (%s) couldn't verify their password to change their own email,
+                 and is asking you to update it for them.</p>
+              <table style="border-collapse: collapse; margin: 16px 0;">
+                <tr><td style="padding: 4px 12px 4px 0; color: #666;">Current email</td><td><strong>%s</strong></td></tr>
+                <tr><td style="padding: 4px 12px 4px 0; color: #666;">Requested email</td><td><strong>%s</strong></td></tr>
+              </table>
+              %s
+              <p>Review it from the Users page — verify their identity before approving.</p>
+              <p><a href="%s" style="display: inline-block; background: #16a34a; color: white;
+                 padding: 10px 20px; border-radius: 6px; text-decoration: none;">Sign in</a></p>
+            </div>
+            """.formatted(greeting, requesterName, requesterEmail, requesterEmail, requestedEmail, noteHtml, loginUrl);
+
+        send(to, "Email change request from " + requesterName, html);
+    }
+
+    public void sendEmailChangeApprovedEmail(String to, String firstName, String loginUrl) {
+        String greeting = firstName != null && !firstName.isBlank() ? "Hi " + firstName + "," : "Hi,";
+        String html = """
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+              <h2 style="margin-bottom: 4px;">Your email has been updated</h2>
+              <p>%s</p>
+              <p>An administrator approved your request and this address is now the one you'll
+                 sign in with.</p>
+              <p><a href="%s" style="display: inline-block; background: #16a34a; color: white;
+                 padding: 10px 20px; border-radius: 6px; text-decoration: none;">Sign in</a></p>
+              <p style="color: #888; font-size: 13px; margin-top: 24px;">
+                 If you didn't request this, contact your administrator right away.</p>
+            </div>
+            """.formatted(greeting, loginUrl);
+
+        send(to, "Your EcoFarm email was updated", html);
+    }
+
+    public void sendEmailChangeRejectedEmail(String to, String firstName, String reason) {
+        String greeting = firstName != null && !firstName.isBlank() ? "Hi " + firstName + "," : "Hi,";
+        String reasonHtml = reason != null && !reason.isBlank()
+            ? "<p style=\"color: #666;\">Reason given: “" + escapeHtml(reason) + "”</p>" : "";
+        String html = """
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+              <h2 style="margin-bottom: 4px;">Email change request declined</h2>
+              <p>%s</p>
+              <p>An administrator declined your request to change your account's email.
+                 Your email address hasn't changed.</p>
+              %s
+              <p>Contact your administrator if you have questions.</p>
+            </div>
+            """.formatted(greeting, reasonHtml);
+
+        send(to, "Your EcoFarm email change request was declined", html);
+    }
+
+    /** The note/reason fields on email-change requests are free text typed
+     * by a user — escape before splicing into HTML. */
+    private String escapeHtml(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
 }

@@ -22,6 +22,16 @@ export const authApi = {
   changePassword: (currentPassword: string, newPassword: string) =>
     apiClient.patch<void>("/me/password", { currentPassword, newPassword }).then(() => undefined),
 
+  /** Same "prove you're really you" bar as changing the password — requires
+   * the current password. Revokes all sessions on success. */
+  changeEmail: (currentPassword: string, newEmail: string) =>
+    apiClient.patch<void>("/me/email", { currentPassword, newEmail }).then(() => undefined),
+
+  /** Fallback when the password check above can't be cleared — files a
+   * request a tenant admin or super admin can approve or reject. */
+  requestEmailChange: (requestedEmail: string, note?: string) =>
+    apiClient.post<void>("/me/email-change-requests", { requestedEmail, note: note || undefined }).then(() => undefined),
+
   switchTenant: (slug: string) =>
     apiClient.post<TokenResponse>("/admin/switch-tenant", { slug }).then((r) => r.data),
 

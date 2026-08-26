@@ -4,10 +4,11 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Plus, Users } from "lucide-react"
+import { Plus, Users, Mail, Check, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
 import { usersApi, type UpdateUserBody } from "@/api/users"
+import { emailChangeRequestsApi } from "@/api/emailChangeRequests"
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import {
   Select,
@@ -40,6 +52,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Spinner } from "@/components/ui/spinner"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { DeleteConfirm } from "@/components/DeleteConfirm"
 import { EditButton } from "@/components/EditButton"
 import type { Role, User } from "@/types/api"
@@ -67,10 +80,40 @@ export function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
+  const [rejecting, setRejecting] = useState<{ id: string; email: string } | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
   const queryClient = useQueryClient()
   const currentUser = useAuthStore((s) => s.user)
 
   const { data: users, isLoading } = useQuery({ queryKey: ["users"], queryFn: usersApi.list })
+
+  const { data: pendingEmailRequests } = useQuery({
+    queryKey: ["email-change-requests"],
+    queryFn: emailChangeRequestsApi.listPending,
+  })
+
+  const approveEmailMutation = useMutation({
+    mutationFn: emailChangeRequestsApi.approve,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-change-requests"] })
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast.success("Email updated")
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? "Failed"),
+  })
+
+  const rejectEmailMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => emailChangeRequestsApi.reject(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-change-requests"] })
+      toast.success("Request declined")
+      setRejecting(null)
+      setRejectReason("")
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? "Failed"),
+  })
 
   const createMutation = useMutation({
     mutationFn: usersApi.create,
@@ -138,6 +181,93 @@ export function UsersPage() {
           <Plus data-icon="inline-start" />Add User
         </Button>
       </div>
+
+      {!!pendingEmailRequests?.length && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="size-4" />
+              Pending email change requests
+            </CardTitle>
+            <CardDescription>
+              These users couldn't verify their current password — review before approving.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {pendingEmailRequests.map((r) => (
+              <div key={r.id} className="flex items-start justify-between gap-4 rounded-md border p-3 text-sm">
+                <div className="flex flex-col gap-0.5">
+                  <div>
+                    <span className="font-medium">{r.requesterName ?? r.requesterEmail}</span>
+                    <span className="text-muted-foreground"> wants to change their email</span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    <span className="font-mono text-xs">{r.requesterEmail}</span>
+                    {" → "}
+                    <span className="font-mono text-xs">{r.requestedEmail}</span>
+                  </div>
+                  {r.note && <p className="text-muted-foreground italic">“{r.note}”</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRejecting({ id: r.id, email: r.requesterEmail })}
+                  >
+                    <X className="text-destructive" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger render={<Button variant="ghost" size="sm" aria-label="Approve" />}>
+                      <Check className="text-primary" />
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Change {r.requesterEmail} to {r.requestedEmail}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Make sure you've verified this is really them before approving — they'll be
+                          signed out everywhere and will sign back in with the new email.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => approveEmailMutation.mutate(r.id)}>
+                          Approve
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reject email-change-request dialog */}
+      <Dialog open={!!rejecting} onOpenChange={(o) => { if (!o) { setRejecting(null); setRejectReason("") } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Decline request from {rejecting?.email}</DialogTitle>
+            <DialogDescription>Optionally let them know why — this gets emailed to them.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Field>
+              <FieldLabel htmlFor="rejectReason">Reason (optional)</FieldLabel>
+              <Input id="rejectReason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="destructive"
+              disabled={rejectEmailMutation.isPending}
+              onClick={() => rejecting && rejectEmailMutation.mutate({ id: rejecting.id, reason: rejectReason || undefined })}
+            >
+              {rejectEmailMutation.isPending && <Spinner data-icon="inline-start" />}
+              Decline request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

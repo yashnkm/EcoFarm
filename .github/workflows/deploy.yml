@@ -154,6 +154,7 @@ jobs:
             -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS recorded_data_point_retention_days JSONB;" \
             -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_reset_password BOOLEAN NOT NULL DEFAULT false;" \
             -c "ALTER TABLE users ALTER COLUMN must_reset_password DROP DEFAULT;" \
+            -c "CREATE TABLE IF NOT EXISTS email_change_requests (id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, requested_email VARCHAR(255) NOT NULL, note VARCHAR(500), status VARCHAR(20) NOT NULL DEFAULT 'PENDING', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ, resolved_by UUID REFERENCES users(id) ON DELETE SET NULL);" \
             -c 'DO $pgdo$
             DECLARE
               rec record;

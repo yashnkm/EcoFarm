@@ -69,6 +69,7 @@ public class SamplingGroup {
     private Instant createdAt;
 
     @OneToMany(mappedBy = "samplingGroup", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("sortOrder ASC")
     @Builder.Default
     private List<SamplingGroupChannel> channels = new ArrayList<>();
 }

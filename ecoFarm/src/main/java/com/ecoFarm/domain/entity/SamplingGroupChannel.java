@@ -44,6 +44,14 @@ public class SamplingGroupChannel {
     @Column(name = "data_point_key", nullable = false, length = 100)
     private String dataPointKey;
 
+    /** Position within the group, in the order the admin added it —
+     * SamplingGroup.channels is loaded ordered by this, so both the edit
+     * dialog's "Enabled Channels" list and the Original Data table's
+     * columns show up in the sequence they were deliberately added, not
+     * whatever order the database happens to return rows in. */
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder;
+
     /** When a reading was last actually persisted for this channel — how
      * IngestionService knows whether the group's sample interval has
      * elapsed yet, without querying the (potentially huge) readings table

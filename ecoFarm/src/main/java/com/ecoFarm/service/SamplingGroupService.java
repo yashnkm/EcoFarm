@@ -110,7 +110,8 @@ public class SamplingGroupService {
     // genuinely belongs to some other group.
     private List<SamplingGroupChannel> buildChannels(SamplingGroup group, List<ChannelRefRequest> refs, UUID tenantId) {
         List<SamplingGroupChannel> channels = new ArrayList<>();
-        for (ChannelRefRequest ref : refs) {
+        for (int i = 0; i < refs.size(); i++) {
+            ChannelRefRequest ref = refs.get(i);
             Device device = deviceRepository.findByIdAndTenantId(ref.deviceId(), tenantId)
                 .orElseThrow(() -> ApiException.badRequest("Device not found: " + ref.deviceId()));
 
@@ -121,10 +122,15 @@ public class SamplingGroupService {
                             + "' is already in another Sampling Group ('" + existing.getSamplingGroup().getName() + "')");
                 });
 
+            // Position mirrors the order channels arrive in the request —
+            // i.e. the order the admin added them in the "Enabled Channels"
+            // list — so re-fetching the group always shows them back in
+            // that same sequence, not whatever order the DB returns rows in.
             channels.add(SamplingGroupChannel.builder()
                 .samplingGroup(group)
                 .device(device)
                 .dataPointKey(ref.dataPointKey())
+                .sortOrder(i)
                 .build());
         }
         return channels;

@@ -45,7 +45,7 @@ public class SiteController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         siteService.delete(id);
         return ResponseEntity.noContent().build();

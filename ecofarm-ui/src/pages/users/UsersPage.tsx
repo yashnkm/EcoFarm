@@ -84,6 +84,7 @@ export function UsersPage() {
   const [rejectReason, setRejectReason] = useState("")
   const queryClient = useQueryClient()
   const currentUser = useAuthStore((s) => s.user)
+  const currentIsSuperAdmin = currentUser?.role === "SUPER_ADMIN"
 
   const { data: users, isLoading } = useQuery({ queryKey: ["users"], queryFn: usersApi.list })
 
@@ -440,7 +441,7 @@ export function UsersPage() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {!isSuperAdmin && <EditButton onClick={() => openEdit(u)} />}
-                        {!isSelf && (
+                        {!isSelf && currentIsSuperAdmin && (
                           <DeleteConfirm
                             onConfirm={() => deleteMutation.mutate(u.id)}
                             title={`Remove ${u.email}?`}

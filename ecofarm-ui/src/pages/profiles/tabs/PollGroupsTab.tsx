@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { pollGroupsApi, type PollGroupBody } from "@/api/deviceProfiles"
+import { useAuthStore } from "@/store/authStore"
 import { naturalCompare } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,6 +66,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function PollGroupsTab({ profileId }: { profileId: string }) {
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === "SUPER_ADMIN")
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<PollGroup | null>(null)
   const queryClient = useQueryClient()
@@ -241,7 +243,9 @@ export function PollGroupsTab({ profileId }: { profileId: string }) {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <EditButton onClick={() => openEdit(g)} />
-                      <DeleteConfirm onConfirm={() => deleteMutation.mutate(g.id)} title={`Delete "${g.name}"?`} />
+                      {isSuperAdmin && (
+                        <DeleteConfirm onConfirm={() => deleteMutation.mutate(g.id)} title={`Delete "${g.name}"?`} />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

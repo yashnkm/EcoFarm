@@ -299,11 +299,13 @@ export function GatewaysPage() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <EditButton onClick={() => openEdit(gw)} />
-                      <DeleteConfirm
-                        onConfirm={() => deleteMutation.mutate(gw.id)}
-                        title={`Delete "${gw.name ?? gw.serialNumber}"?`}
-                        description="This will also remove all devices attached to this gateway."
-                      />
+                      {isSuperAdmin && (
+                        <DeleteConfirm
+                          onConfirm={() => deleteMutation.mutate(gw.id)}
+                          title={`Delete "${gw.name ?? gw.serialNumber}"?`}
+                          description="This will also remove all devices attached to this gateway."
+                        />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -48,7 +48,7 @@ public class ZoneController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID siteId, @PathVariable UUID id) {
         zoneService.delete(siteId, id);
         return ResponseEntity.noContent().build();

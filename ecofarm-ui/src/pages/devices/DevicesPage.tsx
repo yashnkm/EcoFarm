@@ -10,6 +10,7 @@ import { formatDistanceToNow } from "date-fns"
 
 import { devicesApi, deviceProfilesApi } from "@/api/devices"
 import { gatewaysApi } from "@/api/gateways"
+import { useAuthStore } from "@/store/authStore"
 import { cn, sortByPositionOrName } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,6 +60,7 @@ export function DevicesPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Device | null>(null)
   const queryClient = useQueryClient()
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === "SUPER_ADMIN")
 
   const { data: devices, isLoading } = useQuery({
     queryKey: ["devices"],
@@ -334,11 +336,13 @@ export function DevicesPage() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <EditButton onClick={() => openEdit(d)} />
-                      <DeleteConfirm
-                        onConfirm={() => deleteMutation.mutate(d.id)}
-                        title={`Delete "${d.name}"?`}
-                        description="This permanently deletes all of its historical readings, alerts, and command history. This cannot be undone."
-                      />
+                      {isSuperAdmin && (
+                        <DeleteConfirm
+                          onConfirm={() => deleteMutation.mutate(d.id)}
+                          title={`Delete "${d.name}"?`}
+                          description="This permanently deletes all of its historical readings, alerts, and command history. This cannot be undone."
+                        />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

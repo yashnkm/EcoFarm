@@ -49,7 +49,7 @@ public class DataPointController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID profileId, @PathVariable UUID id) {
         service.delete(profileId, id);
         return ResponseEntity.noContent().build();

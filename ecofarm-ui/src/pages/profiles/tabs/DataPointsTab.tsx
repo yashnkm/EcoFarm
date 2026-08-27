@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { dataPointsApi, pollGroupsApi, commandTemplatesApi, type DataPointBody, type CommandTemplateBody } from "@/api/deviceProfiles"
+import { useAuthStore } from "@/store/authStore"
 import { ROLES, CATEGORIES, CATEGORY_LABELS } from "./commandConstants"
 import { cn, naturalCompare } from "@/lib/utils"
 import { useSortFilter } from "@/lib/tableSortFilter"
@@ -104,6 +105,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function DataPointsTab({ profileId }: { profileId: string }) {
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === "SUPER_ADMIN")
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<DataPoint | null>(null)
   const queryClient = useQueryClient()
@@ -658,7 +660,9 @@ export function DataPointsTab({ profileId }: { profileId: string }) {
                           <div className="flex items-center gap-1">
                             <CloneButton onClick={() => openClone(dp)} />
                             <EditButton onClick={() => openEdit(dp)} />
-                            <DeleteConfirm onConfirm={() => deleteMutation.mutate(dp.id)} title={`Delete "${dp.label}"?`} />
+                            {isSuperAdmin && (
+                              <DeleteConfirm onConfirm={() => deleteMutation.mutate(dp.id)} title={`Delete "${dp.label}"?`} />
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

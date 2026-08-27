@@ -267,6 +267,7 @@ function AlertRulesTab() {
   const queryClient = useQueryClient()
   const role = useAuthStore((s) => s.user?.role)
   const canManage = role === "SUPER_ADMIN" || role === "TENANT_ADMIN"
+  const isSuperAdmin = role === "SUPER_ADMIN"
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ["alert-rules"],
@@ -626,11 +627,13 @@ function AlertRulesTab() {
                           {rule.enabled ? <Bell className="size-4" /> : <BellOff className="size-4" />}
                         </Button>
                         <EditButton onClick={() => openEdit(rule)} />
-                        <DeleteConfirm
-                          onConfirm={() => deleteMutation.mutate(rule.id)}
-                          title={`Delete "${rule.name}"?`}
-                          description="All alerts triggered by this rule will also be deleted."
-                        />
+                        {isSuperAdmin && (
+                          <DeleteConfirm
+                            onConfirm={() => deleteMutation.mutate(rule.id)}
+                            title={`Delete "${rule.name}"?`}
+                            description="All alerts triggered by this rule will also be deleted."
+                          />
+                        )}
                       </div>
                     </TableCell>
                   )}

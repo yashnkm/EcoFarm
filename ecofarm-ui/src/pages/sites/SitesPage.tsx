@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus, MapPin, Layers } from "lucide-react"
 
 import { sitesApi } from "@/api/sites"
+import { useAuthStore } from "@/store/authStore"
 import { NewSiteWizard } from "./NewSiteWizard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +43,7 @@ const zoneSchema = z.object({
 type ZoneFormValues = z.infer<typeof zoneSchema>
 
 function ZonesDialog({ site, open, onClose }: { site: Site; open: boolean; onClose: () => void }) {
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === "SUPER_ADMIN")
   const [editingZone, setEditingZone] = useState<Zone | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const queryClient = useQueryClient()
@@ -148,11 +150,13 @@ function ZonesDialog({ site, open, onClose }: { site: Site; open: boolean; onClo
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <EditButton onClick={() => openEdit(z)} />
-                          <DeleteConfirm
-                            onConfirm={() => deleteZone.mutate(z.id)}
-                            title={`Delete "${z.name}"?`}
-                            description="Devices assigned to this zone will become unassigned."
-                          />
+                          {isSuperAdmin && (
+                            <DeleteConfirm
+                              onConfirm={() => deleteZone.mutate(z.id)}
+                              title={`Delete "${z.name}"?`}
+                              description="Devices assigned to this zone will become unassigned."
+                            />
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -201,6 +205,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function SitesPage() {
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === "SUPER_ADMIN")
   const [wizardOpen, setWizardOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Site | null>(null)
@@ -355,11 +360,13 @@ export function SitesPage() {
                         <Layers className="size-4" />
                       </Button>
                       <EditButton onClick={() => openEdit(site)} />
-                      <DeleteConfirm
-                        onConfirm={() => deleteMutation.mutate(site.id)}
-                        title={`Delete "${site.name}"?`}
-                        description="This will also remove any zones, gateways and devices attached to this site."
-                      />
+                      {isSuperAdmin && (
+                        <DeleteConfirm
+                          onConfirm={() => deleteMutation.mutate(site.id)}
+                          title={`Delete "${site.name}"?`}
+                          description="This will also remove any zones, gateways and devices attached to this site."
+                        />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

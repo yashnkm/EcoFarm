@@ -274,11 +274,13 @@ export function DeviceProfilesPage() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <EditButton onClick={() => openEdit(p)} />
-                      <DeleteConfirm
-                        onConfirm={() => deleteMutation.mutate(p.id)}
-                        title={`Delete "${p.name}"?`}
-                        description="Devices using this profile will also be affected."
-                      />
+                      {isSuperAdmin && (
+                        <DeleteConfirm
+                          onConfirm={() => deleteMutation.mutate(p.id)}
+                          title={`Delete "${p.name}"?`}
+                          description="Devices using this profile will also be affected."
+                        />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

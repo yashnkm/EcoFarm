@@ -55,6 +55,7 @@ function toggle(set: Set<string>, key: string): Set<string> {
 export function SamplingGroupsTab() {
   const user = useAuthStore((s) => s.user)
   const canManage = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
+  const isSuperAdmin = user?.role === "SUPER_ADMIN"
   const queryClient = useQueryClient()
 
   const [open, setOpen] = useState(false)
@@ -366,7 +367,9 @@ export function SamplingGroupsTab() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <EditButton onClick={() => openEdit(g)} />
-                        <DeleteConfirm onConfirm={() => deleteMutation.mutate(g.id)} title={`Delete "${g.name}"?`} />
+                        {isSuperAdmin && (
+                          <DeleteConfirm onConfirm={() => deleteMutation.mutate(g.id)} title={`Delete "${g.name}"?`} />
+                        )}
                       </div>
                     </TableCell>
                   )}

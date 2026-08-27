@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
 import { commandTemplatesApi, dataPointsApi, type CommandTemplateBody } from "@/api/deviceProfiles"
+import { useAuthStore } from "@/store/authStore"
 import { classifyCommand } from "@/pages/dashboard/sectionParams"
 import { ROLES, CATEGORIES, CATEGORY_LABELS } from "./commandConstants"
 import { cn, naturalCompare } from "@/lib/utils"
@@ -119,6 +120,7 @@ const editSchema = z.object({
 type EditValues = z.infer<typeof editSchema>
 
 export function CommandsTab({ profileId }: { profileId: string }) {
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === "SUPER_ADMIN")
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<CommandTemplate | null>(null)
   const [createMode, setCreateMode] = useState<CreateMode>("toggle")
@@ -820,7 +822,9 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                         <div className="flex items-center gap-1">
                           <CloneButton onClick={() => openClone(c)} />
                           <EditButton onClick={() => openEdit(c)} />
-                          <DeleteConfirm onConfirm={() => deleteMutation.mutate(c.id)} title={`Delete "${c.name}"?`} />
+                          {isSuperAdmin && (
+                            <DeleteConfirm onConfirm={() => deleteMutation.mutate(c.id)} title={`Delete "${c.name}"?`} />
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

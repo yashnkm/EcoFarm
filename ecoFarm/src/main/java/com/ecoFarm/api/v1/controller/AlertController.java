@@ -46,7 +46,7 @@ public class AlertController {
     }
 
     @DeleteMapping("/api/v1/alert-rules/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> deleteRule(@PathVariable UUID id) {
         service.deleteRule(id);
         return ResponseEntity.noContent().build();

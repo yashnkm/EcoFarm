@@ -5,6 +5,8 @@ import com.ecoFarm.domain.enums.LogStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -32,6 +34,7 @@ public class CommunicationLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Device device;
 
     @Enumerated(EnumType.STRING)

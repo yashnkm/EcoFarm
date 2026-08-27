@@ -4,6 +4,8 @@ import com.ecoFarm.domain.enums.AlertSeverity;
 import com.ecoFarm.domain.enums.AlertStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,6 +34,7 @@ public class Alert {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "device_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Device device;
 
     @Column(name = "data_point_key", nullable = false, length = 100)

@@ -169,7 +169,12 @@ jobs:
                 ($str$sampling_groups$str$, $str$tenant_id$str$, $str$CASCADE$str$),
                 ($str$sampling_groups$str$, $str$created_by$str$, $str$SET NULL$str$),
                 ($str$sampling_group_channels$str$, $str$sampling_group_id$str$, $str$CASCADE$str$),
-                ($str$sampling_group_channels$str$, $str$device_id$str$, $str$CASCADE$str$)
+                ($str$sampling_group_channels$str$, $str$device_id$str$, $str$CASCADE$str$),
+                ($str$alerts$str$, $str$device_id$str$, $str$CASCADE$str$),
+                ($str$alert_rules$str$, $str$device_id$str$, $str$CASCADE$str$),
+                ($str$control_commands$str$, $str$device_id$str$, $str$CASCADE$str$),
+                ($str$communication_logs$str$, $str$device_id$str$, $str$CASCADE$str$),
+                ($str$system_event_logs$str$, $str$device_id$str$, $str$CASCADE$str$)
               ) AS x(tbl, col, act) LOOP
                 SELECT c.conname, r.relname INTO cname, reftable
                   FROM pg_constraint c JOIN pg_class r ON r.oid = c.confrelid

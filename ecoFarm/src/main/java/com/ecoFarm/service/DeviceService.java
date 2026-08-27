@@ -125,19 +125,22 @@ public class DeviceService {
     public void delete(UUID id) {
         Device device = findInTenant(id);
 
-        // Cascade children of this device: readings, commands, alerts, alert_rules.
-        // Using native queries for bulk deletes — readings can be millions of rows.
+        // alerts/alert_rules/control_commands/communication_logs/system_event_logs
+        // all have ON DELETE CASCADE on their device_id FK (DB-level, see
+        // deploy.yml) — deviceRepository.delete() below removes them
+        // atomically as part of the same statement. This used to be five
+        // manual pre-cleanup DELETEs here, which raced against the poll
+        // scheduler: a fresh communication_logs/system_event_logs row for
+        // an actively-polled device could land in the gap between the
+        // cleanup and the final device delete, making deletion fail
+        // intermittently with a raw FK-violation error. CASCADE closes
+        // that window — Postgres handles it as one atomic operation.
+        //
+        // readings has no FK to devices at all (deviceId is a plain
+        // column, not a relation) — this DELETE is a deliberate choice to
+        // wipe historical readings when a device is removed, not an FK
+        // workaround. Using a native query since it can be millions of rows.
         em.createNativeQuery("DELETE FROM readings WHERE device_id = :id")
-          .setParameter("id", device.getId()).executeUpdate();
-        em.createNativeQuery("DELETE FROM alerts WHERE device_id = :id")
-          .setParameter("id", device.getId()).executeUpdate();
-        em.createNativeQuery("DELETE FROM alert_rules WHERE device_id = :id")
-          .setParameter("id", device.getId()).executeUpdate();
-        em.createNativeQuery("DELETE FROM control_commands WHERE device_id = :id")
-          .setParameter("id", device.getId()).executeUpdate();
-        em.createNativeQuery("DELETE FROM communication_logs WHERE device_id = :id")
-          .setParameter("id", device.getId()).executeUpdate();
-        em.createNativeQuery("DELETE FROM system_event_logs WHERE device_id = :id")
           .setParameter("id", device.getId()).executeUpdate();
 
         deviceRepository.delete(device);

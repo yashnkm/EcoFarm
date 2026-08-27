@@ -15,6 +15,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -66,15 +68,55 @@ public class GlobalExceptionHandler {
             .body(error(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed"));
     }
 
+    // Postgres includes the referencing table's name in a FK violation's
+    // detail line, e.g. "...Detail: Key (id)=(...) is still referenced
+    // from table "sampling_group_channels"." — pulling it out turns "it
+    // may still be referenced elsewhere" into "still referenced by a Data
+    // Sampling group", which is the difference between a dead end and
+    // something the user can actually go act on.
+    private static final Pattern FK_REFERENCED_FROM = Pattern.compile("referenced from table \"(\\w+)\"");
+
     // Catches both: a unique-constraint clash slipping past a service's own
     // pre-check under a race, and a foreign-key violation from deleting
     // something still referenced elsewhere (e.g. a poll group that still has
     // data points attached) — both used to reach handleGeneric() as a 500.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(error(HttpStatus.CONFLICT, "This operation conflicts with existing data — it may still be referenced elsewhere, or duplicate a value that must be unique."));
+        String cause = ex.getMostSpecificCause().getMessage();
+        log.warn("Data integrity violation: {}", cause);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error(HttpStatus.CONFLICT, conflictMessage(cause)));
+    }
+
+    private String conflictMessage(String cause) {
+        if (cause == null) return DEFAULT_CONFLICT_MESSAGE;
+        Matcher m = FK_REFERENCED_FROM.matcher(cause);
+        if (!m.find()) return DEFAULT_CONFLICT_MESSAGE;
+        return "Can't complete this — it's still referenced by " + friendlyTableName(m.group(1)) + ". Remove that first, then try again.";
+    }
+
+    private static final String DEFAULT_CONFLICT_MESSAGE =
+        "This operation conflicts with existing data — it may still be referenced elsewhere, or duplicate a value that must be unique.";
+
+    private String friendlyTableName(String table) {
+        return switch (table) {
+            case "readings" -> "recorded readings";
+            case "alerts" -> "alert history";
+            case "alert_rules" -> "an alert rule";
+            case "control_commands" -> "command history";
+            case "communication_logs" -> "communication logs";
+            case "system_event_logs" -> "system event logs";
+            case "sampling_group_channels" -> "a Data Sampling group";
+            case "sampling_groups" -> "a Data Sampling group";
+            case "data_points" -> "a data point";
+            case "poll_groups" -> "a poll group";
+            case "command_templates" -> "a command";
+            case "devices" -> "a device";
+            case "device_profiles" -> "a device profile";
+            case "zones" -> "a zone";
+            case "sites" -> "a site";
+            case "users" -> "a user";
+            default -> table.replace("_", " ");
+        };
     }
 
     @ExceptionHandler(Exception.class)

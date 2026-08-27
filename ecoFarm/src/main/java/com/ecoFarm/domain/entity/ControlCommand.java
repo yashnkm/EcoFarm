@@ -4,6 +4,8 @@ import com.ecoFarm.domain.enums.CommandStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -27,6 +29,7 @@ public class ControlCommand {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "device_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Device device;
 
     @ManyToOne(fetch = FetchType.LAZY)

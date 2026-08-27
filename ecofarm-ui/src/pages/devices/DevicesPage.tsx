@@ -337,7 +337,7 @@ export function DevicesPage() {
                       <DeleteConfirm
                         onConfirm={() => deleteMutation.mutate(d.id)}
                         title={`Delete "${d.name}"?`}
-                        description="All historical readings for this device remain, but no new readings will be collected."
+                        description="This permanently deletes all of its historical readings, alerts, and command history. This cannot be undone."
                       />
                     </div>
                   </TableCell>

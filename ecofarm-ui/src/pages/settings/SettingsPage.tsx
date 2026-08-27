@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { authApi } from "@/api/auth"
 import { useAuthStore } from "@/store/authStore"
 import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog"
+import { InstallAppCard } from "@/components/pwa/InstallAppCard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel, FieldError } from "@/components/ui/field"
@@ -144,6 +145,8 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <InstallAppCard />
 
       <Card className="max-w-lg">
         <form onSubmit={emailForm.handleSubmit((d) => changeEmailMutation.mutate(d))}>

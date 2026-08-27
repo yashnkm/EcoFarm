@@ -1,0 +1,73 @@
+<!doctype html>
+<!--
+  Offline fallback shell — served by sw.js only when a page navigation
+  fails with no network AND nothing for that page is already cached.
+  Deliberately plain static HTML (no React, no Tailwind build step): it
+  has to work even if the app's own JS bundle can't be fetched, so it
+  can't depend on anything the build pipeline produces. Colors below are
+  copied from the existing brand mark (public/favicon.svg) and the
+  app's light-theme background, not new branding.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoFarm — Offline</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #ffffff;
+        color: #18181b;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      .icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        background: #18181b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      h1 { font-size: 18px; margin: 0; }
+      p { font-size: 14px; color: #71717a; margin: 0; max-width: 320px; }
+      button {
+        margin-top: 8px;
+        padding: 8px 20px;
+        border-radius: 6px;
+        border: none;
+        background: #18181b;
+        color: #ffffff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #0a0a0a; color: #fafafa; }
+        p { color: #a1a1aa; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+        <g transform="translate(7.5 5)" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <line x1="8.5" y1="22" x2="8.5" y2="11"/>
+          <path d="M8.5 16 C8.5 11 15 9 15 5.5 C15 5.5 8.5 5.5 8.5 11"/>
+          <path d="M8.5 19 C8.5 14 2 12 2 8.5 C2 8.5 8.5 8.5 8.5 14"/>
+        </g>
+      </svg>
+    </div>
+    <h1>You're offline</h1>
+    <p>EcoFarm couldn't reach the server. Check your connection and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+  </body>
+</html>

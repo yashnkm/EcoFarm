@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "@/components/theme-provider"
+import { UpdateBanner } from "@/components/pwa/UpdateBanner"
 
 import "./index.css"
 import App from "./App"
@@ -25,6 +26,7 @@ createRoot(document.getElementById("root")!).render(
         <TooltipProvider>
           <App />
           <Toaster richColors position="top-right" />
+          <UpdateBanner />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

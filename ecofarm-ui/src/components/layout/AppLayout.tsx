@@ -48,6 +48,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { InstallAppHeaderButton } from "@/components/pwa/InstallAppHeaderButton"
 
 const isAdminPortal = window.location.hostname.startsWith("admin.")
 
@@ -304,6 +305,7 @@ export function AppLayout() {
             <span className="text-xs text-muted-foreground">{user?.tenantSlug}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <InstallAppHeaderButton />
             <ThemeToggle />
           </div>
         </header>

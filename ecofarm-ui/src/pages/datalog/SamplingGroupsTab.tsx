@@ -6,7 +6,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { Plus, ChevronRight, ChevronLeft, Search } from "lucide-react"
 
-import { samplingGroupsApi, type ChannelRefBody } from "@/api/samplingGroups"
+import { samplingGroupsApi } from "@/api/samplingGroups"
 import { sitesApi } from "@/api/sites"
 import { devicesApi } from "@/api/devices"
 import { dataPointsApi } from "@/api/deviceProfiles"
@@ -43,6 +43,25 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
+const SAMPLE_INTERVAL_OPTIONS = [
+  { value: 1, label: "1 min" },
+  { value: 2, label: "2 min" },
+  { value: 5, label: "5 min" },
+  { value: 10, label: "10 min" },
+  { value: 15, label: "15 min" },
+  { value: 30, label: "30 min" },
+  { value: 60, label: "1 hr" },
+  { value: 120, label: "2 hr" },
+]
+
+const RETENTION_OPTIONS = [
+  { value: "forever", label: "Forever" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "180", label: "180 days" },
+  { value: "365", label: "365 days" },
+]
+
 const channelKeyOf = (c: SamplingChannel) => `${c.deviceId}:${c.dataPointKey}`
 
 function toggle(set: Set<string>, key: string): Set<string> {
@@ -61,7 +80,10 @@ export function SamplingGroupsTab() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<SamplingGroup | null>(null)
   const [channels, setChannels] = useState<SamplingChannel[]>([])
+  const [sampleIntervalMinutes, setSampleIntervalMinutes] = useState(5)
+  const [retentionDays, setRetentionDays] = useState<number | null>(null)
   const [pickerSiteId, setPickerSiteId] = useState("all")
+  const [pickerDeviceId, setPickerDeviceId] = useState("all")
   const [pickerSearch, setPickerSearch] = useState("")
   const [leftSelected, setLeftSelected] = useState<Set<string>>(new Set())
   const [rightSelected, setRightSelected] = useState<Set<string>>(new Set())
@@ -83,30 +105,42 @@ export function SamplingGroupsTab() {
   })
   const dataPointsByProfile = new Map(uniqueProfileIds.map((id, i) => [id, dataPointQueries[i]?.data ?? []]))
 
-  // Every (device, data point) pair across the whole tenant that's eligible
-  // to become a channel — i.e. recording is already enabled for it.
+  // Every (device, data point) pair across the whole tenant — a channel
+  // becomes "recorded" purely by being added to a Sampling Group, so
+  // there's no separate per-device eligibility to filter by anymore.
   const allCandidates: SamplingChannel[] = (devices ?? []).flatMap((d) => {
     const dps = dataPointsByProfile.get(d.profileId) ?? []
-    return d.recordedDataPoints
-      .map((key) => dps.find((dp) => dp.key === key))
-      .filter((dp): dp is NonNullable<typeof dp> => !!dp)
-      .map((dp) => ({
-        deviceId: d.id,
-        deviceName: d.name,
-        siteId: d.siteId,
-        siteName: sites?.find((s) => s.id === d.siteId)?.name ?? null,
-        dataPointKey: dp.key,
-        label: dp.label,
-        unit: dp.unit,
-      }))
+    return dps.map((dp) => ({
+      deviceId: d.id,
+      deviceName: d.name,
+      siteId: d.siteId,
+      siteName: sites?.find((s) => s.id === d.siteId)?.name ?? null,
+      dataPointKey: dp.key,
+      label: dp.label,
+      unit: dp.unit,
+    }))
   })
 
   const sortedSites = [...(sites ?? [])].sort((a, b) => naturalCompare(a.name, b.name))
+  const sortedDevices = [...(devices ?? [])]
+    .filter((d) => pickerSiteId === "all" || d.siteId === pickerSiteId)
+    .sort((a, b) => naturalCompare(a.name, b.name))
+
+  // A channel already claimed by some OTHER group can't be added here too —
+  // it can only ever belong to one group, so it's excluded entirely rather
+  // than shown-but-disabled.
+  const claimedElsewhere = new Set(
+    (groups ?? [])
+      .filter((g) => g.id !== editing?.id)
+      .flatMap((g) => g.channels.map(channelKeyOf))
+  )
+
   const enabledKeys = new Set(channels.map(channelKeyOf))
   const searchQuery = pickerSearch.trim().toLowerCase()
   const availableChannels = allCandidates
-    .filter((c) => !enabledKeys.has(channelKeyOf(c)))
+    .filter((c) => !enabledKeys.has(channelKeyOf(c)) && !claimedElsewhere.has(channelKeyOf(c)))
     .filter((c) => pickerSiteId === "all" || c.siteId === pickerSiteId)
+    .filter((c) => pickerDeviceId === "all" || c.deviceId === pickerDeviceId)
     .filter((c) =>
       !searchQuery
       || c.label.toLowerCase().includes(searchQuery)
@@ -128,13 +162,12 @@ export function SamplingGroupsTab() {
     toast.error(err.response?.data?.message ?? "Failed")
 
   const createMutation = useMutation({
-    mutationFn: (body: { name: string; description?: string; channels: ChannelRefBody[] }) =>
-      samplingGroupsApi.create(body),
+    mutationFn: samplingGroupsApi.create,
     onSuccess: () => invalidateAndClose("Sampling group created"),
     onError,
   })
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { name: string; description?: string; channels: ChannelRefBody[] } }) =>
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof samplingGroupsApi.create>[0] }) =>
       samplingGroupsApi.update(id, body),
     onSuccess: () => invalidateAndClose("Sampling group updated"),
     onError,
@@ -150,6 +183,8 @@ export function SamplingGroupsTab() {
   const openCreate = () => {
     setEditing(null)
     setChannels([])
+    setSampleIntervalMinutes(5)
+    setRetentionDays(null)
     resetPicker()
     reset({ name: "", description: "" })
     setOpen(true)
@@ -157,6 +192,8 @@ export function SamplingGroupsTab() {
   const openEdit = (g: SamplingGroup) => {
     setEditing(g)
     setChannels(g.channels)
+    setSampleIntervalMinutes(g.sampleIntervalMinutes)
+    setRetentionDays(g.retentionDays)
     resetPicker()
     reset({ name: g.name, description: g.description ?? "" })
     setOpen(true)
@@ -170,6 +207,7 @@ export function SamplingGroupsTab() {
   }
   const resetPicker = () => {
     setPickerSiteId("all")
+    setPickerDeviceId("all")
     setPickerSearch("")
     setLeftSelected(new Set())
     setRightSelected(new Set())
@@ -193,6 +231,8 @@ export function SamplingGroupsTab() {
     const body = {
       name: d.name,
       description: d.description || undefined,
+      sampleIntervalMinutes,
+      retentionDays,
       channels: channels.map((c) => ({ deviceId: c.deviceId, dataPointKey: c.dataPointKey })),
     }
     return editing ? updateMutation.mutateAsync({ id: editing.id, body }) : createMutation.mutateAsync(body)
@@ -224,17 +264,61 @@ export function SamplingGroupsTab() {
                 <Input id="sgdesc" placeholder="Optional" {...register("description")} />
               </Field>
 
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel>Sampling rate</FieldLabel>
+                  <Select
+                    value={String(sampleIntervalMinutes)}
+                    onValueChange={(v) => setSampleIntervalMinutes(Number(v))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {SAMPLE_INTERVAL_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>How often a reading actually gets saved for this group's channels.</FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel>Retention</FieldLabel>
+                  <Select
+                    value={retentionDays == null ? "forever" : String(retentionDays)}
+                    onValueChange={(v) => setRetentionDays(v === "forever" ? null : Number(v))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {RETENTION_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>How long to keep this group's history.</FieldDescription>
+                </Field>
+              </div>
+
               <div className="flex flex-col gap-3 rounded-lg border p-3">
                 <p className="text-xs font-medium uppercase text-muted-foreground">Add channels</p>
                 <FieldDescription className="-mt-1">
-                  Only data points with recording enabled on a device show up as available — enable recording from
-                  the device's own page first if the one you want is missing.
+                  A data point can only belong to one Sampling Group at a time — one already in another group
+                  won't show up here.
                 </FieldDescription>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <Field>
                     <FieldLabel>Site</FieldLabel>
-                    <Select value={pickerSiteId} onValueChange={(v) => { setPickerSiteId(v ?? "all"); setLeftSelected(new Set()) }}>
+                    <Select
+                      value={pickerSiteId}
+                      onValueChange={(v) => {
+                        setPickerSiteId(v ?? "all")
+                        setPickerDeviceId("all")
+                        setLeftSelected(new Set())
+                      }}
+                    >
                       <SelectTrigger size="sm">
                         <SelectValue placeholder="All sites">
                           {(value: string | null) => value === "all" || !value ? "All sites" : sites?.find((s) => s.id === value)?.name ?? value}
@@ -244,6 +328,22 @@ export function SamplingGroupsTab() {
                         <SelectGroup>
                           <SelectItem value="all">All sites</SelectItem>
                           {sortedSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Device</FieldLabel>
+                    <Select value={pickerDeviceId} onValueChange={(v) => { setPickerDeviceId(v ?? "all"); setLeftSelected(new Set()) }}>
+                      <SelectTrigger size="sm">
+                        <SelectValue placeholder="All devices">
+                          {(value: string | null) => value === "all" || !value ? "All devices" : sortedDevices.find((d) => d.id === value)?.name ?? value}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="all">All devices</SelectItem>
+                          {sortedDevices.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -350,6 +450,8 @@ export function SamplingGroupsTab() {
                 <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Channels</TableHead>
+                <TableHead>Rate</TableHead>
+                <TableHead>Retention</TableHead>
                 <TableHead>Created</TableHead>
                 {canManage && <TableHead className="w-24"></TableHead>}
               </TableRow>
@@ -360,6 +462,12 @@ export function SamplingGroupsTab() {
                   <TableCell className="font-medium">{g.name}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{g.description ?? "—"}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs">{g.channels.length}</Badge></TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {SAMPLE_INTERVAL_OPTIONS.find((o) => o.value === g.sampleIntervalMinutes)?.label ?? `${g.sampleIntervalMinutes} min`}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {g.retentionDays == null ? "Forever" : `${g.retentionDays} days`}
+                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(g.createdAt).toLocaleDateString()}
                   </TableCell>

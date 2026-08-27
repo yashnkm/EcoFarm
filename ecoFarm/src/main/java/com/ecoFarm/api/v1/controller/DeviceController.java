@@ -4,7 +4,6 @@ import com.ecoFarm.api.v1.dto.request.CommandGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.CreateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.DataPointGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.IssueCommandRequest;
-import com.ecoFarm.api.v1.dto.request.RecordedDataPointsRequest;
 import com.ecoFarm.api.v1.dto.request.ReorderDevicesRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.ZoneOrderRequest;
@@ -59,14 +58,6 @@ public class DeviceController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PatchMapping("/{id}/recorded-data-points")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TENANT_ADMIN')")
-    public DeviceResponse updateRecordedDataPoints(
-        @PathVariable UUID id,
-        @Valid @RequestBody RecordedDataPointsRequest req) {
-        return mapper.toResponse(service.updateRecordedDataPoints(id, req));
     }
 
     @PatchMapping("/{id}/data-point-groups")

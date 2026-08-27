@@ -9,6 +9,8 @@ export interface ChannelRefBody {
 export interface SamplingGroupBody {
   name: string
   description?: string
+  sampleIntervalMinutes: number
+  retentionDays: number | null
   channels: ChannelRefBody[]
 }
 

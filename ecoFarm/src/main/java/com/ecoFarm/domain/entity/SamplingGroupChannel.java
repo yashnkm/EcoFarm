@@ -5,15 +5,19 @@ import lombok.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import java.time.Instant;
 import java.util.UUID;
 
-/** One channel (a device + one of its data point keys) within a SamplingGroup. */
+/** One channel (a device + one of its data point keys) within a SamplingGroup.
+ * The unique constraint is deliberately NOT scoped to sampling_group_id — a
+ * channel can only ever belong to one group at a time, so its recording
+ * rate/retention is always unambiguous. */
 @Entity
 @Table(
     name = "sampling_group_channels",
     uniqueConstraints = @UniqueConstraint(
         name = "uq_sampling_group_channel",
-        columnNames = {"sampling_group_id", "device_id", "data_point_key"}
+        columnNames = {"device_id", "data_point_key"}
     )
 )
 @Getter
@@ -39,4 +43,11 @@ public class SamplingGroupChannel {
 
     @Column(name = "data_point_key", nullable = false, length = 100)
     private String dataPointKey;
+
+    /** When a reading was last actually persisted for this channel — how
+     * IngestionService knows whether the group's sample interval has
+     * elapsed yet, without querying the (potentially huge) readings table
+     * on every poll tick. Null until the first reading is recorded. */
+    @Column(name = "last_recorded_at")
+    private Instant lastRecordedAt;
 }

@@ -151,10 +151,39 @@ jobs:
             -c "ALTER TABLE command_templates ADD COLUMN IF NOT EXISTS key VARCHAR(100);" \
             -c "CREATE TABLE IF NOT EXISTS sampling_groups (id UUID PRIMARY KEY, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, description TEXT, created_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());" \
             -c "CREATE TABLE IF NOT EXISTS sampling_group_channels (id UUID PRIMARY KEY, sampling_group_id UUID NOT NULL REFERENCES sampling_groups(id) ON DELETE CASCADE, device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE, data_point_key VARCHAR(100) NOT NULL, CONSTRAINT uq_sampling_group_channel UNIQUE (sampling_group_id, device_id, data_point_key));" \
-            -c "ALTER TABLE devices ADD COLUMN IF NOT EXISTS recorded_data_point_retention_days JSONB;" \
             -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_reset_password BOOLEAN NOT NULL DEFAULT false;" \
             -c "ALTER TABLE users ALTER COLUMN must_reset_password DROP DEFAULT;" \
             -c "CREATE TABLE IF NOT EXISTS email_change_requests (id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, requested_email VARCHAR(255) NOT NULL, note VARCHAR(500), status VARCHAR(20) NOT NULL DEFAULT 'PENDING', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ, resolved_by UUID REFERENCES users(id) ON DELETE SET NULL);" \
+            -c 'DO $samplingv2$
+            BEGIN
+              -- One-time cutover to the "Sampling Group is the only recording
+              -- config" model: Record/Retention move off Device entirely and
+              -- onto the group (rate + retention), a channel can only belong
+              -- to one group (constraint no longer scoped per-group), and
+              -- everything recorded under the old model is wiped rather than
+              -- migrated — nothing here to carry forward once Record is gone.
+              -- Guarded so this whole block, including the truncates, only
+              -- ever runs once (the first deploy after this column exists on
+              -- neither table yet); every deploy after that is a no-op.
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = $str$sampling_groups$str$ AND column_name = $str$sample_interval_minutes$str$
+              ) THEN
+                ALTER TABLE sampling_groups ADD COLUMN sample_interval_minutes INTEGER NOT NULL DEFAULT 5;
+                ALTER TABLE sampling_groups ALTER COLUMN sample_interval_minutes DROP DEFAULT;
+                ALTER TABLE sampling_groups ADD COLUMN retention_days INTEGER;
+                ALTER TABLE sampling_group_channels ADD COLUMN last_recorded_at TIMESTAMPTZ;
+
+                TRUNCATE TABLE sampling_group_channels, sampling_groups RESTART IDENTITY CASCADE;
+                TRUNCATE TABLE readings;
+
+                ALTER TABLE devices DROP COLUMN IF EXISTS recorded_data_points;
+                ALTER TABLE devices DROP COLUMN IF EXISTS recorded_data_point_retention_days;
+
+                ALTER TABLE sampling_group_channels DROP CONSTRAINT IF EXISTS uq_sampling_group_channel;
+                ALTER TABLE sampling_group_channels ADD CONSTRAINT uq_sampling_group_channel UNIQUE (device_id, data_point_key);
+              END IF;
+            END $samplingv2$;' \
             -c 'DO $pgdo$
             DECLARE
               rec record;

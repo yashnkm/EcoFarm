@@ -45,7 +45,6 @@ export function DeviceDetailPage() {
   const [historyPage, setHistoryPage] = useState(0)
   const HISTORY_PAGE_SIZE = 15
 
-  const canRecord = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
   const canAssignZone = user?.role === "SUPER_ADMIN" || user?.role === "TENANT_ADMIN"
 
   const { data: device } = useQuery({
@@ -93,15 +92,6 @@ export function DeviceDetailPage() {
     },
   })
 
-  const recordMutation = useMutation({
-    mutationFn: ({ dataPoints, retentionDays }: { dataPoints: string[]; retentionDays: Record<string, number> }) =>
-      devicesApi.updateRecordedDataPoints(id, dataPoints, retentionDays),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(["device", id], updated)
-    },
-    onError: () => toast.error("Failed to update recording settings"),
-  })
-
   const groupsMutation = useMutation({
     mutationFn: (groups: Record<string, string>) => devicesApi.updateDataPointGroups(id, groups),
     onSuccess: (updated) => {
@@ -119,26 +109,6 @@ export function DeviceDetailPage() {
     },
     onError: () => toast.error("Failed to update zone assignment"),
   })
-
-  const handleRecordToggle = (key: string, checked: boolean) => {
-    if (!device) return
-    const current = new Set(device.recordedDataPoints ?? [])
-    const retention = { ...(device.recordedDataPointRetentionDays ?? {}) }
-    if (checked) current.add(key)
-    else {
-      current.delete(key)
-      delete retention[key] // no longer meaningful once recording is off
-    }
-    recordMutation.mutate({ dataPoints: [...current], retentionDays: retention })
-  }
-
-  const handleRetentionChange = (key: string, days: number | null) => {
-    if (!device) return
-    const retention = { ...(device.recordedDataPointRetentionDays ?? {}) }
-    if (days == null) delete retention[key] // "Forever"
-    else retention[key] = days
-    recordMutation.mutate({ dataPoints: device.recordedDataPoints ?? [], retentionDays: retention })
-  }
 
   const handleZoneChange = (dpKey: string, zoneName: string) => {
     if (!device) return
@@ -195,7 +165,7 @@ export function DeviceDetailPage() {
         <CardHeader>
           <CardTitle>Data points</CardTitle>
           <CardDescription>
-            Live readings pushed via WebSocket · record to save history
+            Live readings pushed via WebSocket · set up a Sampling Group in Data Log to save history
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -226,11 +196,6 @@ export function DeviceDetailPage() {
             <DataPointTable
               dataPoints={dataPoints}
               liveReadings={liveReadings}
-              recordedKeys={new Set(device?.recordedDataPoints ?? [])}
-              retentionDays={device?.recordedDataPointRetentionDays ?? {}}
-              canRecord={canRecord}
-              onRecordToggle={handleRecordToggle}
-              onRetentionChange={handleRetentionChange}
               zones={zones}
               dataPointGroups={device?.dataPointGroups ?? {}}
               canAssignZone={canAssignZone}
@@ -343,27 +308,14 @@ export function DeviceDetailPage() {
 interface DataPointTableProps {
   dataPoints: DataPoint[]
   liveReadings: Map<string, { value: number | null; unit: string | null; quality: string; time: string }>
-  recordedKeys: Set<string>
-  retentionDays: Record<string, number>
-  canRecord: boolean
-  onRecordToggle: (key: string, checked: boolean) => void
-  onRetentionChange: (key: string, days: number | null) => void
   zones: Zone[]
   dataPointGroups: Record<string, string>
   canAssignZone: boolean
   onZoneChange: (dpKey: string, zoneName: string) => void
 }
 
-const RETENTION_OPTIONS = [
-  { value: "forever", label: "Forever" },
-  { value: "30", label: "30 days" },
-  { value: "90", label: "90 days" },
-  { value: "180", label: "180 days" },
-  { value: "365", label: "365 days" },
-]
-
 function DataPointTable({
-  dataPoints, liveReadings, recordedKeys, retentionDays, canRecord, onRecordToggle, onRetentionChange,
+  dataPoints, liveReadings,
   zones, dataPointGroups, canAssignZone, onZoneChange,
 }: DataPointTableProps) {
   const { filter, setFilter, sort, toggleSort, result: filteredPoints } = useSortFilter(
@@ -396,13 +348,7 @@ function DataPointTable({
             <SortableHead label="Value" sortKey="value" sort={sort} onSort={toggleSort} className="text-right" />
             <SortableHead label="Unit" sortKey="unit" sort={sort} onSort={toggleSort} />
             <SortableHead label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
-            <SortableHead label="Zone" sortKey="zone" sort={sort} onSort={toggleSort} />
-            <TableHead className="text-center" title={canRecord ? "Record to database" : "Only admins can enable recording"}>
-              Record
-            </TableHead>
-            <TableHead className="pr-6" title="How long to keep this point's history — only matters while Record is on">
-              Retention
-            </TableHead>
+            <SortableHead label="Zone" sortKey="zone" sort={sort} onSort={toggleSort} className="pr-6" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -432,7 +378,7 @@ function DataPointTable({
                     )
                   })()}
                 </TableCell>
-                <TableCell>
+                <TableCell className="pr-6">
                   {zones.length === 0 ? (
                     <span className="text-xs text-muted-foreground">No zones</span>
                   ) : (
@@ -454,29 +400,6 @@ function DataPointTable({
                       </SelectContent>
                     </Select>
                   )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <input
-                    type="checkbox"
-                    checked={recordedKeys.has(dp.key)}
-                    disabled={!canRecord}
-                    onChange={(e) => onRecordToggle(dp.key, e.target.checked)}
-                    className={`h-4 w-4 rounded border-input ${canRecord ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
-                    title={canRecord ? "Toggle database recording" : "Requires admin role"}
-                  />
-                </TableCell>
-                <TableCell className="pr-6">
-                  <select
-                    value={retentionDays[dp.key] != null ? String(retentionDays[dp.key]) : "forever"}
-                    disabled={!canRecord || !recordedKeys.has(dp.key)}
-                    onChange={(e) => onRetentionChange(dp.key, e.target.value === "forever" ? null : Number(e.target.value))}
-                    className="h-7 rounded-md border border-input bg-transparent px-2 text-xs shadow-xs disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
-                    title={recordedKeys.has(dp.key) ? "How long to keep this point's history" : "Enable Record first"}
-                  >
-                    {RETENTION_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
                 </TableCell>
               </TableRow>
             )

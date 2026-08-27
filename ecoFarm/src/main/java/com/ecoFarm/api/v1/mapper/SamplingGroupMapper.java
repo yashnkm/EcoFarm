@@ -21,6 +21,8 @@ public class SamplingGroupMapper {
             g.getId(),
             g.getName(),
             g.getDescription(),
+            g.getSampleIntervalMinutes(),
+            g.getRetentionDays(),
             g.getCreatedAt(),
             g.getChannels().stream().map(this::toChannelResponse).toList()
         );

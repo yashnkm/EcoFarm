@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -31,6 +32,7 @@ public class IngestionService {
     private final ControlCommandRepository controlCommandRepository;
     private final CommandTemplateRepository commandTemplateRepository;
     private final CommunicationLogRepository communicationLogRepository;
+    private final SamplingGroupChannelRepository samplingGroupChannelRepository;
     private final RegisterDecoder decoder;
     private final RequestTracker tracker;
     private final LivePushService livePushService;
@@ -110,7 +112,23 @@ public class IngestionService {
                 log.warn("Alert evaluation failed for device {} key {}: {}", device.getId(), dp.getKey(), ex.getMessage());
             }
 
-            if (device.getRecordedDataPoints().contains(dp.getKey()) || statusPointKeys.contains(dp.getKey())) {
+            Optional<SamplingGroupChannel> channel =
+                samplingGroupChannelRepository.findByDevice_IdAndDataPointKey(device.getId(), dp.getKey());
+            boolean isStatusKey = statusPointKeys.contains(dp.getKey());
+
+            // A toggle command resolves its on/off direction by reading the
+            // latest persisted value for its statusDataPointKey — that has
+            // to stay fresh every tick regardless of any group's sample
+            // interval, or a command could act on stale data. Sampling
+            // rate only throttles the "history for charts" concern; a
+            // point that's both a status key AND grouped still writes
+            // every tick, but its retention (below) follows the group.
+            boolean rateElapsed = channel.isPresent() && (
+                channel.get().getLastRecordedAt() == null
+                || !now.isBefore(channel.get().getLastRecordedAt()
+                    .plus(channel.get().getSamplingGroup().getSampleIntervalMinutes(), ChronoUnit.MINUTES)));
+
+            if (isStatusKey || rateElapsed) {
                 readingRepository.save(Reading.builder()
                     .time(now)
                     .tenantId(device.getTenant().getId())
@@ -123,6 +141,10 @@ public class IngestionService {
                     .quality(quality)
                     .unit(dp.getUnit())
                     .build());
+                channel.ifPresent(c -> {
+                    c.setLastRecordedAt(now);
+                    samplingGroupChannelRepository.save(c);
+                });
             }
         }
 

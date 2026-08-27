@@ -27,8 +27,6 @@ public class DeviceMapper {
             d.getStatus(),
             d.getLastReadingAt(),
             d.getCreatedAt(),
-            d.getRecordedDataPoints(),
-            d.getRecordedDataPointRetentionDays(),
             d.getDataPointGroups(),
             d.getCommandGroups(),
             d.getSortOrder(),

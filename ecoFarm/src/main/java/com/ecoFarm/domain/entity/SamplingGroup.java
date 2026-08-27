@@ -12,11 +12,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A named, user-defined set of data-point channels to view together on the
- * Data Log page — independent of Poll Groups (which govern polling, not
- * reporting) so an admin can mix channels from different devices/sites into
- * one chart. Every channel must point at a data point that already has
- * per-device recording enabled — enforced in SamplingGroupService, not here.
+ * A named, user-defined set of data-point channels to record and view
+ * together on the Data Log page — independent of Poll Groups (which govern
+ * polling, not recording) so an admin can mix channels from different
+ * devices/sites into one chart. This is now the *only* thing that makes
+ * IngestionService actually persist a reading for a channel — being in a
+ * SamplingGroup at some rate, for some retention window, is what "recording"
+ * means; there's no separate per-device opt-in anymore. A channel belongs to
+ * at most one group at a time (enforced by a DB-level unique constraint on
+ * device_id+data_point_key in SamplingGroupChannel, not scoped per-group).
  */
 @Entity
 @Table(name = "sampling_groups")
@@ -41,6 +45,19 @@ public class SamplingGroup {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    /** How often (in minutes) a fresh reading actually gets persisted for
+     * this group's channels — IngestionService still polls at whatever rate
+     * the device's Poll Group is set to, this just throttles how much of
+     * that gets written to history. One of 1/2/5/10/15/30/60/120, enforced
+     * in SamplingGroupService, not here. */
+    @Column(name = "sample_interval_minutes", nullable = false)
+    private Integer sampleIntervalMinutes;
+
+    /** Days of history to keep for this group's channels; null = forever.
+     * One of 30/90/180/365/null, enforced in SamplingGroupService. */
+    @Column(name = "retention_days")
+    private Integer retentionDays;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

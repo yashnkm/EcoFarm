@@ -4,7 +4,6 @@ import com.ecoFarm.api.v1.dto.request.CommandGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.CreateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.DataPointGroupsRequest;
 import com.ecoFarm.api.v1.dto.request.IssueCommandRequest;
-import com.ecoFarm.api.v1.dto.request.RecordedDataPointsRequest;
 import com.ecoFarm.api.v1.dto.request.ReorderDevicesRequest;
 import com.ecoFarm.api.v1.dto.request.UpdateDeviceRequest;
 import com.ecoFarm.api.v1.dto.request.ZoneOrderRequest;
@@ -213,16 +212,6 @@ public class DeviceService {
 
         return controlCommandRepository.save(cmd);
         // MQTT dispatcher will pick this up (when built) and publish to the gateway.
-    }
-
-    @Transactional
-    public Device updateRecordedDataPoints(UUID id, RecordedDataPointsRequest req) {
-        Device device = findInTenant(id);
-        device.setRecordedDataPoints(req.dataPoints());
-        if (req.retentionDays() != null) {
-            device.setRecordedDataPointRetentionDays(req.retentionDays());
-        }
-        return device;
     }
 
     @Transactional

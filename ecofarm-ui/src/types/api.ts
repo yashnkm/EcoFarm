@@ -231,8 +231,6 @@ export interface Device {
   status: DeviceStatus
   lastReadingAt: string | null
   createdAt: string
-  recordedDataPoints: string[]
-  recordedDataPointRetentionDays: Record<string, number>
   dataPointGroups: Record<string, string>
   commandGroups: Record<string, string>
   sortOrder: number | null
@@ -323,6 +321,8 @@ export interface SamplingGroup {
   id: string
   name: string
   description: string | null
+  sampleIntervalMinutes: number
+  retentionDays: number | null
   createdAt: string
   channels: SamplingChannel[]
 }

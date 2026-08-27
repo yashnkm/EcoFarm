@@ -11,9 +11,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -87,21 +85,6 @@ public class Device {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "recorded_data_points", columnDefinition = "jsonb")
-    @Builder.Default
-    private Set<String> recordedDataPoints = new HashSet<>();
-
-    /** How long to keep history for a recorded point, keyed by data point key.
-     * A key absent from this map means unlimited — the safe default, so
-     * turning this feature on never silently prunes history nobody asked to
-     * limit. Only keys also present in recordedDataPoints are meaningful;
-     * a value here for a point that isn't recorded does nothing. */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "recorded_data_point_retention_days", columnDefinition = "jsonb")
-    @Builder.Default
-    private Map<String, Integer> recordedDataPointRetentionDays = new HashMap<>();
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "data_point_groups", columnDefinition = "jsonb")

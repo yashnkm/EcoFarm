@@ -305,18 +305,6 @@ export interface Reading {
   unit: string | null
 }
 
-// One bucket from the aggregated readings endpoint — the avg/min/max/count
-// of every raw reading whose timestamp fell into that Hour/Day/Week window.
-export interface ReadingBucket {
-  bucketStart: string
-  avgValue: number | null
-  minValue: number | null
-  maxValue: number | null
-  count: number
-}
-
-export type ReadingGranularity = "HOUR" | "DAY" | "WEEK"
-
 // ── Sampling Group ────────────────────────
 
 export interface SamplingChannel {

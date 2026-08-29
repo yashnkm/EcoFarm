@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react"
+import { toast } from "sonner"
 
 import { samplingGroupsApi } from "@/api/samplingGroups"
 import { sitesApi } from "@/api/sites"
@@ -49,6 +50,24 @@ const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
   { value: "DAY", label: "Daily Average" },
   { value: "WEEK", label: "Weekly Average" },
 ]
+const GRANULARITY_LABELS: Record<Granularity, string> = Object.fromEntries(
+  GRANULARITY_OPTIONS.map((o) => [o.value, o.label])
+) as Record<Granularity, string>
+
+// The backend caps raw-reading queries at 90 days (a deliberate limit —
+// fetching years of point-by-point data isn't useful or fast); aggregate
+// queries have no such cap, just a bucket-count sanity limit instead. Rather
+// than let "All Time" (or any Custom Range past 90 days) hit that cap and
+// surface as a bare "Range too large" error, pick a coarser resolution
+// automatically whenever the current pick is Raw and won't fit — narrower
+// ranges are left alone so they still default to Raw.
+function autoResolveGranularity(fromIso: string, toIso: string, current: Granularity): Granularity {
+  const hours = (new Date(toIso).getTime() - new Date(fromIso).getTime()) / 3_600_000
+  if (current !== "RAW" || hours <= 24 * 90) return current
+  if (hours <= 5000) return "HOUR"
+  if (hours / 24 <= 5000) return "DAY"
+  return "WEEK"
+}
 
 function channelKey(deviceId: string, dataPointKey: string) {
   return `${deviceId}:${dataPointKey}`
@@ -167,14 +186,24 @@ export function OriginalDataTab() {
         })
       }
       setReadingsData(data)
-    } catch {
-      setSearchError("Failed to load readings")
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setSearchError((err as any)?.response?.data?.message ?? "Failed to load readings")
     } finally {
       setSearching(false)
     }
   }
 
-  const handleSearch = () => runSearch(new Date(from).toISOString(), new Date(to).toISOString(), granularity)
+  const runWithAutoGranularity = (fromIso: string, toIso: string) => {
+    const resolved = autoResolveGranularity(fromIso, toIso, granularity)
+    if (resolved !== granularity) {
+      setGranularity(resolved)
+      toast.info(`Raw data is limited to 90-day ranges — showing ${GRANULARITY_LABELS[resolved]} instead.`)
+    }
+    runSearch(fromIso, toIso, resolved)
+  }
+
+  const handleSearch = () => runWithAutoGranularity(new Date(from).toISOString(), new Date(to).toISOString())
 
   const handlePreset = (p: TimePreset) => {
     setPreset(p)
@@ -182,7 +211,7 @@ export function OriginalDataTab() {
     const { from: presetFrom, to: presetTo } = getPresetRange(p)
     setFrom(toLocalInputValue(presetFrom))
     setTo(toLocalInputValue(presetTo))
-    runSearch(presetFrom.toISOString(), presetTo.toISOString(), granularity)
+    runWithAutoGranularity(presetFrom.toISOString(), presetTo.toISOString())
   }
 
   const handleGranularityChange = (g: Granularity) => {

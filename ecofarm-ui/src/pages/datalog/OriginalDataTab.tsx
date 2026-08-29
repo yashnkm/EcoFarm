@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react"
 import { toast } from "sonner"
@@ -218,6 +218,21 @@ export function OriginalDataTab() {
     setGranularity(g)
     if (readingsData) runSearch(new Date(from).toISOString(), new Date(to).toISOString(), g)
   }
+
+  // Land on today's data automatically instead of the "pick channels and a
+  // time range" prompt — the group and its channels are already
+  // auto-selected above, and "Today" is already the default preset, so
+  // there's nothing left for the admin to actually pick on a normal visit.
+  // Fires once, as soon as a group's channels are available; the ref guard
+  // stops it from re-firing on every re-render once selectedChannels
+  // (a freshly-filtered array each render) changes identity.
+  const autoSearchedRef = useRef(false)
+  useEffect(() => {
+    if (autoSearchedRef.current || !selectedChannels.length) return
+    autoSearchedRef.current = true
+    handlePreset("today")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChannels.length])
 
   const selectedKeysList = selectedChannels.map((c) => channelKey(c.deviceId, c.dataPointKey))
   const mergedRows = useMemo(

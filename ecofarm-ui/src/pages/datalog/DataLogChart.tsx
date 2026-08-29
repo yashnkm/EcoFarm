@@ -105,6 +105,9 @@ export function DataLogChart({ rows, channels, channelKeyOf, granularity }: Data
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: resolveThemeColor("--muted-foreground"),
+        // Library default is to show a "TradingView" attribution logo in
+        // the corner — turned off per product decision, not a bug.
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: resolveThemeColor("--border") },

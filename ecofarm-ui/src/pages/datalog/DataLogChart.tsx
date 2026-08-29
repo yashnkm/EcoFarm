@@ -36,20 +36,30 @@ const LABEL_FORMATS: Record<ChartGranularity, Intl.DateTimeFormatOptions> = {
   WEEK: { dateStyle: "medium" },
 }
 
-/** Resolves any CSS color — including this app's oklch() theme tokens —
- * to a plain rgb()/rgba() string. The browser's own computed-style
- * resolution already understands oklch(); lightweight-charts' internal
- * color parser (used for its canvas rendering) does not, so this is the
- * bridge between the two. Re-run whenever the theme toggles, since a
- * canvas chart's colors are baked in at applyOptions time rather than
- * continuously read from CSS the way the previous SVG-based chart's were. */
-function resolveCssColor(cssValue: string): string {
-  const probe = document.createElement("span")
-  probe.style.color = cssValue
-  document.body.appendChild(probe)
-  const resolved = getComputedStyle(probe).color
-  document.body.removeChild(probe)
-  return resolved
+/** Resolves one of this app's CSS custom properties (theme tokens declared
+ * as oklch(), e.g. "--muted-foreground") to a plain rgb()/rgba() string
+ * lightweight-charts' own color parser can actually read — it doesn't
+ * understand oklch(). Re-run whenever the theme toggles, since a canvas
+ * chart's colors are baked in at applyOptions time rather than
+ * continuously read from CSS the way the previous SVG-based chart's were.
+ *
+ * getComputedStyle(...).color turned out NOT to reliably normalize to
+ * rgb() the way earlier browser versions did — a modern Chrome echoes
+ * oklch(0.708 0 0) straight back, crashing lightweight-charts (caught by
+ * actually loading the chart, not visible from the code). A canvas's 2D
+ * context has to rasterize whatever it's given into concrete pixels
+ * regardless, so reading a color back through an actual pixel is the
+ * robust way to force real RGB out of any CSS color the browser accepts. */
+function resolveThemeColor(cssVarName: string): string {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(cssVarName).trim()
+  const canvas = document.createElement("canvas")
+  canvas.width = 1
+  canvas.height = 1
+  const ctx = canvas.getContext("2d")!
+  ctx.fillStyle = raw
+  ctx.fillRect(0, 0, 1, 1)
+  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data
+  return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`
 }
 
 interface HoverValue {
@@ -97,15 +107,15 @@ export function DataLogChart({ rows, channels, channelKeyOf, chartType, granular
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: resolveCssColor("var(--muted-foreground)"),
+        textColor: resolveThemeColor("--muted-foreground"),
       },
       grid: {
-        vertLines: { color: resolveCssColor("var(--border)") },
-        horzLines: { color: resolveCssColor("var(--border)") },
+        vertLines: { color: resolveThemeColor("--border") },
+        horzLines: { color: resolveThemeColor("--border") },
       },
       crosshair: { mode: CrosshairMode.Normal },
-      timeScale: { timeVisible: true, secondsVisible: false, borderColor: resolveCssColor("var(--border)") },
-      rightPriceScale: { borderColor: resolveCssColor("var(--border)") },
+      timeScale: { timeVisible: true, secondsVisible: false, borderColor: resolveThemeColor("--border") },
+      rightPriceScale: { borderColor: resolveThemeColor("--border") },
     })
     chartRef.current = chart
 
@@ -150,13 +160,13 @@ export function DataLogChart({ rows, channels, channelKeyOf, chartType, granular
   // Re-theme on light/dark toggle.
   useEffect(() => {
     chartRef.current?.applyOptions({
-      layout: { textColor: resolveCssColor("var(--muted-foreground)") },
+      layout: { textColor: resolveThemeColor("--muted-foreground") },
       grid: {
-        vertLines: { color: resolveCssColor("var(--border)") },
-        horzLines: { color: resolveCssColor("var(--border)") },
+        vertLines: { color: resolveThemeColor("--border") },
+        horzLines: { color: resolveThemeColor("--border") },
       },
-      timeScale: { borderColor: resolveCssColor("var(--border)") },
-      rightPriceScale: { borderColor: resolveCssColor("var(--border)") },
+      timeScale: { borderColor: resolveThemeColor("--border") },
+      rightPriceScale: { borderColor: resolveThemeColor("--border") },
     })
   }, [theme])
 

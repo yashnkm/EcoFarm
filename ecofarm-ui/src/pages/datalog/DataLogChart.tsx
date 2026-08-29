@@ -4,7 +4,6 @@ import {
   ColorType,
   CrosshairMode,
   LineSeries,
-  HistogramSeries,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
@@ -19,13 +18,11 @@ import { detectGaps, formatIst, type MergedRow } from "./chartHelpers"
 import type { SamplingChannel, ReadingGranularity } from "@/types/api"
 
 type ChartGranularity = ReadingGranularity | "RAW"
-export type ChartType = "line" | "bar"
 
 interface DataLogChartProps {
   rows: MergedRow[] // full range, already sorted ascending by time
   channels: SamplingChannel[]
   channelKeyOf: (c: SamplingChannel) => string
-  chartType: ChartType
   granularity: ChartGranularity
 }
 
@@ -77,14 +74,14 @@ interface HoverInfo {
   values: HoverValue[]
 }
 
-/** Line/histogram rendering for the Data Log chart, via lightweight-charts
- * (the library TradingView built and uses themselves) instead of Recharts —
- * this is the one chart in the app that uses it; nothing else changed.
+/** Line rendering for the Data Log chart, via lightweight-charts (the
+ * library TradingView built and uses themselves) instead of Recharts — this
+ * is the one chart in the app that uses it; nothing else changed.
  * Mouse-wheel/pinch zoom and click-drag pan are the library's own defaults,
  * not custom code — that's the whole reason for the switch: Recharts has no
  * native equivalent, only a hand-rolled drag-to-select-then-redraw
  * workaround, which is what this component used to do. */
-export function DataLogChart({ rows, channels, channelKeyOf, chartType, granularity }: DataLogChartProps) {
+export function DataLogChart({ rows, channels, channelKeyOf, granularity }: DataLogChartProps) {
   const { theme } = useTheme()
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -152,8 +149,8 @@ export function DataLogChart({ rows, channels, channelKeyOf, chartType, granular
       chartRef.current = null
       seriesRef.current.clear()
     }
-    // Recreated only on mount/unmount — channels/chartType/rows are all
-    // handled by the effects below via the already-created chart instance.
+    // Recreated only on mount/unmount — channels/rows are all handled by
+    // the effects below via the already-created chart instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -172,8 +169,8 @@ export function DataLogChart({ rows, channels, channelKeyOf, chartType, granular
 
   const channelKeysSignature = channels.map(channelKeyOf).join(",")
 
-  // Rebuild series (not just their data) when the active channel set or
-  // chart type changes — a series' type can't be changed after creation.
+  // Rebuild series (not just their data) when the active channel set
+  // changes — a series can't have channels added/removed after creation.
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
@@ -183,13 +180,11 @@ export function DataLogChart({ rows, channels, channelKeyOf, chartType, granular
     channels.forEach((c, i) => {
       const key = channelKeyOf(c)
       const color = channelColor(i)
-      const series = chartType === "bar"
-        ? chart.addSeries(HistogramSeries, { color })
-        : chart.addSeries(LineSeries, { color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false })
+      const series = chart.addSeries(LineSeries, { color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false })
       seriesRef.current.set(key, series)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartType, channelKeysSignature])
+  }, [channelKeysSignature])
 
   // Push data. A real gap (see chartHelpers#detectGaps) gets an explicit
   // whitespace point (a time with no value) at each boundary — the

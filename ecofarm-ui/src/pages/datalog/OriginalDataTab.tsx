@@ -9,13 +9,11 @@ import { channelColor } from "./channelColors"
 import {
   formatIst,
   mergeReadings,
-  buildHeatmap,
   getPresetRange,
   type NormalizedPoint,
   type TimePreset,
 } from "./chartHelpers"
-import { DataLogChart, type ChartType as LineOrBarType } from "./DataLogChart"
-import { DataLogHeatmap } from "./DataLogHeatmap"
+import { DataLogChart } from "./DataLogChart"
 import { StatsSummary } from "./StatsSummary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,9 +33,6 @@ import type { Reading, ReadingBucket, ReadingGranularity } from "@/types/api"
 
 type View = "list" | "chart"
 type Granularity = ReadingGranularity | "RAW"
-// Heatmap is a page-level concept only — DataLogChart (Recharts) never
-// receives it, since a day/hour heatmap isn't a Recharts chart at all.
-type ChartType = LineOrBarType | "heatmap"
 const PAGE_SIZE = 25
 
 const TIME_PRESETS: { value: TimePreset; label: string }[] = [
@@ -94,7 +89,6 @@ export function OriginalDataTab() {
   const [from, setFrom] = useState(() => toLocalInputValue(new Date(Date.now() - 24 * 3600 * 1000)))
   const [to, setTo] = useState(() => toLocalInputValue(new Date()))
   const [granularity, setGranularity] = useState<Granularity>("RAW")
-  const [chartType, setChartType] = useState<ChartType>("line")
   const [view, setView] = useState<View>("chart")
   const [page, setPage] = useState(0)
 
@@ -216,13 +210,6 @@ export function OriginalDataTab() {
     ])
     downloadCsv(`${group?.name ?? "data-log"}.csv`, header, rows)
   }
-
-  const heatmapChannel = chartType === "heatmap" && selectedChannels.length === 1 ? selectedChannels[0] : null
-  const heatmapGrid = useMemo(() => {
-    if (!heatmapChannel) return null
-    const key = channelKey(heatmapChannel.deviceId, heatmapChannel.dataPointKey)
-    return buildHeatmap(mergedRows.map((r) => ({ time: `${r.time}Z`, value: r.values[key] ?? null })))
-  }, [heatmapChannel, mergedRows])
 
   if (groupsLoading) return <Skeleton className="h-64 w-full" />
 
@@ -347,8 +334,8 @@ export function OriginalDataTab() {
         </div>
       </div>
 
-      {/* Time range presets + chart type — its own row so the control bar
-          above doesn't get overcrowded on narrower screens. */}
+      {/* Time range presets — its own row so the control bar above doesn't
+          get overcrowded on narrower screens. */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-wrap items-center gap-1 rounded-lg border p-1">
           {TIME_PRESETS.map((p) => (
@@ -380,22 +367,6 @@ export function OriginalDataTab() {
             </Button>
           </>
         )}
-
-        {view === "chart" && (
-          <div className="ml-auto flex rounded-lg border p-1">
-            {(["line", "bar", "heatmap"] as ChartType[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setChartType(t)}
-                className={cn("rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
-                  chartType === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {searchError && <p className="text-sm text-destructive">{searchError}</p>}
@@ -417,25 +388,12 @@ export function OriginalDataTab() {
             getValues={(key) => mergedRows.map((r) => r.values[key])}
           />
 
-          {chartType === "heatmap" ? (
-            selectedChannels.length !== 1 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                Heatmap shows one channel at a time — select exactly one channel above.
-              </p>
-            ) : heatmapGrid ? (
-              <div className="rounded-lg border p-4">
-                <DataLogHeatmap grid={heatmapGrid} unit={selectedChannels[0].unit} />
-              </div>
-            ) : null
-          ) : (
-            <DataLogChart
-              rows={mergedRows}
-              channels={selectedChannels}
-              channelKeyOf={(c) => channelKey(c.deviceId, c.dataPointKey)}
-              chartType={chartType}
-              granularity={granularity}
-            />
-          )}
+          <DataLogChart
+            rows={mergedRows}
+            channels={selectedChannels}
+            channelKeyOf={(c) => channelKey(c.deviceId, c.dataPointKey)}
+            granularity={granularity}
+          />
         </div>
       ) : (
         <div className="flex flex-col gap-3">

@@ -245,33 +245,47 @@ export function DataLogChart({ rows, channels, channelKeyOf, granularity }: Data
   }, [channelKeysSignature])
 
   // Push data. A real gap (see chartHelpers#detectGaps) gets an explicit
-  // whitespace point (a time with no value) at each boundary — the
-  // library's own documented mechanism for a visible break in the line,
-  // rather than a shaded ReferenceArea like the previous Recharts version
-  // used (that primitive doesn't have a direct equivalent here, and a
-  // broken line reads just as clearly as "no data" without needing one).
+  // whitespace point (a time with no value) inserted strictly *inside* it
+  // — the library's own documented mechanism for a visible break in the
+  // line, rather than a shaded ReferenceArea like the previous Recharts
+  // version used (that primitive doesn't have a direct equivalent here,
+  // and a broken line reads just as clearly as "no data" without needing
+  // one). Just recording the gap's real boundary points (the last reading
+  // before it, the first after) isn't enough on its own — those already
+  // have real values, so the library still draws a normal connecting line
+  // between them; the break only happens if something with no value sits
+  // between the two in time.
   useEffect(() => {
     const chart = chartRef.current
     if (!chart || !rows.length) return
 
-    const gapBoundaries = new Set<number>()
-    for (const g of detectGaps(rows.map((r) => r.timeMs))) {
-      gapBoundaries.add(g.startMs)
-      gapBoundaries.add(g.endMs)
-    }
+    const gaps = detectGaps(rows.map((r) => r.timeMs))
 
     for (const c of channels) {
       const key = channelKeyOf(c)
       const series = seriesRef.current.get(key)
       if (!series) continue
 
-      const data = rows
-        .filter((r) => r.values[key] != null || gapBoundaries.has(r.timeMs))
-        .map((r) => {
-          const time = Math.floor(r.timeMs / 1000) as UTCTimestamp
-          const value = r.values[key]
-          return value == null ? { time } : { time, value }
-        })
+      const data: ({ time: UTCTimestamp; value: number } | { time: UTCTimestamp })[] = []
+      let gapIdx = 0
+      for (const r of rows) {
+        // Any gap fully behind this row (its far end already reached) gets
+        // its whitespace point inserted now, before the row itself, so
+        // times stay strictly ascending.
+        while (gapIdx < gaps.length && gaps[gapIdx].endMs <= r.timeMs) {
+          const g = gaps[gapIdx]
+          data.push({ time: Math.floor((g.startMs + g.endMs) / 2000) as UTCTimestamp })
+          gapIdx++
+        }
+        const value = r.values[key]
+        if (value != null) data.push({ time: Math.floor(r.timeMs / 1000) as UTCTimestamp, value })
+      }
+      while (gapIdx < gaps.length) {
+        const g = gaps[gapIdx]
+        data.push({ time: Math.floor((g.startMs + g.endMs) / 2000) as UTCTimestamp })
+        gapIdx++
+      }
+
       series.setData(data)
     }
 

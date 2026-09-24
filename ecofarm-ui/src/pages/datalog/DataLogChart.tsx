@@ -4,10 +4,12 @@ import {
   ColorType,
   CrosshairMode,
   LineSeries,
+  TickMarkType,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
   type MouseEventParams,
+  type Time,
 } from "lightweight-charts"
 import { RotateCcw } from "lucide-react"
 
@@ -57,6 +59,53 @@ function resolveThemeColor(cssVarName: string): string {
   ctx.fillRect(0, 0, 1, 1)
   const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data
   return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`
+}
+
+// lightweight-charts formats its own axis tick marks and crosshair time
+// label internally by default — using the *browser's* local timezone, not
+// IST — while our custom tooltip above explicitly formats via formatIst().
+// That mismatch is exactly what produced the reported bug: the tooltip
+// showed the correct IST time, but the axis label under the crosshair (and
+// every regular tick label) was off by the IST offset (+05:30) because it
+// was rendering in a different timezone entirely. Both need their own
+// formatter, forced to Asia/Kolkata, to match the tooltip and the rest of
+// this app's IST-authoritative convention.
+function toIstParts(time: Time) {
+  const date = new Date((time as UTCTimestamp) * 1000)
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "2-digit",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date)
+}
+
+function formatTickMark(time: Time, tickMarkType: TickMarkType): string {
+  const parts = toIstParts(time)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
+  switch (tickMarkType) {
+    case TickMarkType.Year:
+      return `20${get("year")}`
+    case TickMarkType.Month:
+      return `${get("month")} '${get("year")}`
+    case TickMarkType.DayOfMonth:
+      return `${get("day")} ${get("month")}`
+    case TickMarkType.TimeWithSeconds:
+      return `${get("hour")}:${get("minute")}:${get("second")}`
+    case TickMarkType.Time:
+    default:
+      return `${get("hour")}:${get("minute")}`
+  }
+}
+
+function formatCrosshairTime(time: Time): string {
+  const parts = toIstParts(time)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
+  return `${get("day")} ${get("month")} '${get("year")} ${get("hour")}:${get("minute")}`
 }
 
 interface HoverValue {
@@ -114,8 +163,14 @@ export function DataLogChart({ rows, channels, channelKeyOf, granularity }: Data
         horzLines: { color: resolveThemeColor("--border") },
       },
       crosshair: { mode: CrosshairMode.Normal },
-      timeScale: { timeVisible: true, secondsVisible: false, borderColor: resolveThemeColor("--border") },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        borderColor: resolveThemeColor("--border"),
+        tickMarkFormatter: formatTickMark,
+      },
       rightPriceScale: { borderColor: resolveThemeColor("--border") },
+      localization: { timeFormatter: formatCrosshairTime },
     })
     chartRef.current = chart
 

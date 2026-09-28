@@ -187,7 +187,7 @@ public class MqttConnectionManager {
                 msg.setQos(qos);
                 msg.setRetained(false);
                 c.publish(topic, msg);
-                log.info("MQTT → [{}] {} : {}", broker.getName(), topic, payload);
+                log.debug("MQTT → [{}] {} : {}", broker.getName(), topic, payload);
             } catch (MqttException e) {
                 log.error("MQTT: publish failed on broker '{}': {}",
                     broker.getName(), e.getMessage());
@@ -262,7 +262,7 @@ public class MqttConnectionManager {
             @Override
             public void messageArrived(String topic, MqttMessage message) {
                 String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-                log.info("MQTT ← [{}] {} : {}", broker.getName(), topic, payload);
+                log.debug("MQTT ← [{}] {} : {}", broker.getName(), topic, payload);
                 try {
                     inboundChannel.send(MessageBuilder
                         .withPayload(payload)

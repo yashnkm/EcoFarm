@@ -283,3 +283,59 @@ jobs:
           sudo /bin/systemctl status ecofarm --no-pager || true
           exit 1
           EOF
+
+      # app.log is appended to by systemd with no rotation of its own — it
+      # reached 15 GB once. Keeps the logrotate rule in version control so a
+      # rebuilt/replaced VPS gets it too. Idempotent (no-op when the file
+      # already matches) and non-fatal: a problem here must never fail or
+      # block a deploy, so it only warns.
+      - name: Ensure log rotation config on VPS
+        continue-on-error: true
+        env:
+          H: ${{ secrets.VPS_HOST }}
+          U: ${{ secrets.VPS_USER }}
+          P: ${{ secrets.VPS_PORT }}
+        run: |
+          ssh -p "$P" -o ConnectTimeout=30 "$U@$H" bash -s <<'EOF'
+          set -euo pipefail
+          CONF=/etc/logrotate.d/ecofarm
+          if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo -n"; fi
+
+          NEW=$(mktemp)
+          printf '%s\n' \
+            '/opt/ecofarm/logs/app.log {' \
+            '    daily' \
+            '    rotate 5' \
+            '    maxsize 300M' \
+            '    compress' \
+            '    delaycompress' \
+            '    missingok' \
+            '    notifempty' \
+            '    copytruncate' \
+            '}' > "$NEW"
+
+          if cmp -s "$NEW" "$CONF"; then
+            echo "logrotate config already up to date"
+            rm -f "$NEW"
+            exit 0
+          fi
+
+          # logrotate ignores config files not owned by root, so validate a
+          # root-owned copy, and require that it actually picked up our log
+          # with no parse errors — a check that silently processes nothing,
+          # or shrugs off a typo'd directive (copytruncate missing would
+          # mean rotation frees no disk), would be worse than no check.
+          STAGE=$($SUDO mktemp)
+          $SUDO install -m 644 -o root -g root "$NEW" "$STAGE"
+          rm -f "$NEW"
+          CHECK=$($SUDO logrotate -d "$STAGE" 2>&1 || true)
+          if ! grep -q 'considering log /opt/ecofarm/logs/app.log' <<< "$CHECK" || grep -q '^error:' <<< "$CHECK"; then
+            $SUDO rm -f "$STAGE"
+            echo "logrotate config failed validation — not installing:" >&2
+            echo "$CHECK" >&2
+            exit 1
+          fi
+          $SUDO install -m 644 -o root -g root "$STAGE" "$CONF"
+          $SUDO rm -f "$STAGE"
+          echo "Installed $CONF"
+          EOF

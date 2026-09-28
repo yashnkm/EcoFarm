@@ -11,12 +11,15 @@ import {
   Radio,
   ServerCrash,
   ScrollText,
+  HardDrive,
+  TriangleAlert,
 } from "lucide-react"
 
 import { adminLogsApi } from "@/api/adminLogs"
 import { healthApi } from "@/api/health"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -217,6 +220,8 @@ function HealthTab() {
         </CardContent>
       </Card>
 
+      <DiskUsageCard />
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
@@ -244,6 +249,83 @@ function HealthTab() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function formatBytes(bytes: number) {
+  const gb = bytes / 1e9
+  return gb >= 100 ? `${gb.toFixed(0)} GB` : `${gb.toFixed(1)} GB`
+}
+
+const DISK_BAR_COLOR = { OK: "bg-primary", WARNING: "bg-amber-500", CRITICAL: "bg-destructive" } as const
+const DISK_BADGE = {
+  OK: { label: "Healthy", variant: "default" },
+  WARNING: { label: "Warning", variant: "secondary" },
+  CRITICAL: { label: "Critical", variant: "destructive" },
+} as const
+
+// A full disk (an unrotated log plus an unpurged table) once went unnoticed
+// until 83% — this is the early warning for that.
+function DiskUsageCard() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["disk-health"],
+    queryFn: healthApi.disk,
+    refetchInterval: 60_000,
+  })
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+          <HardDrive className="size-4" />
+          Server Disk
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Warns at 80% full, critical at 90% — auto-refreshes every minute
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {isLoading ? (
+          <Skeleton className="h-16 w-full" />
+        ) : isError || !data ? (
+          <p className="text-sm text-muted-foreground">Couldn't read disk usage.</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">
+                <span className="font-medium">{data.usedPercent}%</span> used
+                <span className="text-muted-foreground">
+                  {" "}· {formatBytes(data.usedBytes)} of {formatBytes(data.totalBytes)} · {formatBytes(data.freeBytes)} free
+                </span>
+              </span>
+              <Badge variant={DISK_BADGE[data.level].variant}>{DISK_BADGE[data.level].label}</Badge>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuenow={data.usedPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="h-2 w-full overflow-hidden rounded-full bg-muted"
+            >
+              <div
+                className={`h-full rounded-full transition-all ${DISK_BAR_COLOR[data.level]}`}
+                style={{ width: `${Math.min(100, data.usedPercent)}%` }}
+              />
+            </div>
+            {data.level !== "OK" && (
+              <Alert variant={data.level === "CRITICAL" ? "destructive" : "default"}>
+                <TriangleAlert />
+                <AlertTitle>{data.level === "CRITICAL" ? "Disk almost full" : "Disk is filling up"}</AlertTitle>
+                <AlertDescription>
+                  Look for growing log files and large tables before it fills — at 100% the database and the
+                  backend stop working.
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

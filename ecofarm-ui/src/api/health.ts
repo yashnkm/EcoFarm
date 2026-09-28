@@ -10,6 +10,15 @@ export interface MqttHealth {
   lastError: string | null
 }
 
+export interface DiskHealth {
+  totalBytes: number
+  usedBytes: number
+  freeBytes: number
+  usedPercent: number
+  level: "OK" | "WARNING" | "CRITICAL"
+}
+
 export const healthApi = {
   mqtt: () => apiClient.get<MqttHealth[]>("/health/mqtt").then((r) => r.data),
+  disk: () => apiClient.get<DiskHealth>("/health/disk").then((r) => r.data),
 }

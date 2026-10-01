@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CommandButton } from "@/components/CommandButton"
-import { isDeviceOnline, statusBadgeProps } from "./deviceStatus"
+import { isReadingFresh, statusBadgeProps } from "./deviceStatus"
 import {
   classifyCommand,
   classifyParam,
@@ -56,14 +56,20 @@ export function SectionCard({
   onDragHandleStart,
   onDragHandleEnd,
 }: Props) {
-  // A cached value from before the device went offline is not the same
-  // thing as a live confirmed one — showing it with full confidence would
+  // A cached value from before a reading went stale is not the same thing
+  // as a live confirmed one — showing it with full confidence would
   // silently lie about whether the section is actually in that state right
-  // now. Once the device is offline, every reading-derived display in this
-  // card (climate numbers, setpoints, status badges, the section switch)
-  // falls back to "—" / Unknown instead, via this single choke point.
-  const online = isDeviceOnline(deviceStatus)
-  const getReading = (dp: DataPoint) => (online ? readings.get(`${deviceId}:${dp.key}`) : undefined)
+  // now. So every reading-derived display in this card (climate numbers,
+  // setpoints, status badges, the section switch) checks its OWN
+  // freshness rather than the device's overall status — one stuck command
+  // (e.g. a write register this device doesn't actually support) used to
+  // blank every other data point too, even ones updating normally, because
+  // they all went through this single choke point gated on device.status.
+  const freshReading = (key: string) => {
+    const r = readings.get(`${deviceId}:${key}`)
+    return isReadingFresh(r) ? r : undefined
+  }
+  const getReading = (dp: DataPoint) => freshReading(dp.key)
 
   const temp = dataPoints.find((dp) => classifyParam(dp) === "TEMP_READING")
   const humidity = dataPoints.find((dp) => classifyParam(dp) === "HUMIDITY_READING")
@@ -118,7 +124,7 @@ export function SectionCard({
   )
 
   const statusBadge = statusBadgeProps(deviceStatus)
-  const modeIsAuto = online && modeDataPoint && modeReading?.value != null ? !!modeReading.value : undefined
+  const modeIsAuto = modeDataPoint && isReadingFresh(modeReading) && modeReading?.value != null ? !!modeReading.value : undefined
 
   return (
     <Card className="flex flex-col gap-4">
@@ -269,9 +275,7 @@ export function SectionCard({
                     onIssue={onIssueCommand}
                     disabled={issuePending}
                     statusValue={
-                      online && cmd.statusDataPointKey
-                        ? readings.get(`${deviceId}:${cmd.statusDataPointKey}`)?.value
-                        : undefined
+                      cmd.statusDataPointKey ? freshReading(cmd.statusDataPointKey)?.value : undefined
                     }
                   />
                 </div>

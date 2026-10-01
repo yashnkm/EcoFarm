@@ -1,4 +1,4 @@
-import type { Device } from "@/types/api"
+import type { Device, Reading } from "@/types/api"
 
 // Shared online/offline visual language for device status, used by both
 // the dashboard tiles and the live device detail card. Deliberately only
@@ -7,6 +7,20 @@ import type { Device } from "@/types/api"
 
 export function isDeviceOnline(status: Device["status"]) {
   return status === "ONLINE"
+}
+
+// Whether to trust a live reading enough to display it is now a per-
+// reading question, not a device-wide one — one stuck command (e.g. a
+// write the device doesn't support) shouldn't blank out every other data
+// point that's still updating normally. 60s is a bit above the backend's
+// own 45s device-offline window (StatusMonitor.DEVICE_STALE_AFTER), so a
+// reading doesn't flicker to "—" moments before the backend would even
+// call the device offline.
+const READING_STALE_AFTER_MS = 60_000
+
+export function isReadingFresh(reading: Reading | undefined | null): boolean {
+  if (!reading?.time) return false
+  return Date.now() - new Date(reading.time).getTime() < READING_STALE_AFTER_MS
 }
 
 /** Left-edge tile accent — same color tokens as the status badge below, so

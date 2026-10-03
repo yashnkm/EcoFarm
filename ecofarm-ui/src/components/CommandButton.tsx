@@ -36,6 +36,14 @@ interface Props {
    */
   statusValue?: number | null
   /**
+   * True when statusValue comes from our own memory of the last value a
+   * user sent (a write-only command with no real feedback — see
+   * DataPoint#isVirtual on the backend), not a reading actually confirmed
+   * by the device. Shown with a visibly different, less confident style
+   * so it never looks the same as a real confirmed state.
+   */
+  isInternalStatus?: boolean
+  /**
    * "chip" (default): the standalone pill button used in the admin commands
    * table. "row": an inline label+value row for embedding a command inline
    * next to the reading it controls (e.g. inside a section card). "switch":
@@ -66,6 +74,7 @@ export function CommandButton({
   onIssue,
   disabled,
   statusValue,
+  isInternalStatus,
   variant = "chip",
   rowLabel,
   rowValue,
@@ -78,6 +87,10 @@ export function CommandButton({
   const isToggle = command.offValue != null
   const isOn = isToggle && statusValue != null && statusValue > 0
   const isUnknown = isToggle && (statusValue == null)
+  // Known, but only because we remembered sending it — not confirmed by
+  // the device. Gets its own muted/amber look, never the same solid
+  // green/red as a real reading, so nobody mistakes the two.
+  const isRemembered = isToggle && !isUnknown && !!isInternalStatus
 
   const handleClick = () => {
     if (command.promptForValue) {
@@ -97,7 +110,10 @@ export function CommandButton({
   }
 
   if (isToggle) {
-    const label = isUnknown ? `${command.name} — Unknown` : `${command.name} ${isOn ? "ON" : "OFF"}`
+    const stateWord = isUnknown ? "Unknown" : isOn ? "ON" : "OFF"
+    const label = isUnknown
+      ? `${command.name} — Unknown`
+      : `${command.name} ${stateWord}${isRemembered ? " (last set)" : ""}`
     const nextAction = isOn ? "OFF" : "ON"
 
     return (
@@ -109,26 +125,27 @@ export function CommandButton({
             disabled={disabled}
             className={cn(
               "flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors disabled:pointer-events-none disabled:opacity-50",
-              isOn && "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15",
-              !isUnknown && !isOn && "border-destructive/30 bg-destructive/10 hover:bg-destructive/15",
+              isRemembered && "border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15",
+              isOn && !isRemembered && "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15",
+              !isUnknown && !isOn && !isRemembered && "border-destructive/30 bg-destructive/10 hover:bg-destructive/15",
               isUnknown && "border-border bg-muted/40 hover:bg-muted/60"
             )}
           >
             <span
               className={cn(
                 "text-sm font-semibold",
-                isOn ? "text-emerald-400" : !isUnknown ? "text-destructive" : "text-muted-foreground"
+                isRemembered ? "text-amber-500" : isOn ? "text-emerald-400" : !isUnknown ? "text-destructive" : "text-muted-foreground"
               )}
             >
               {command.name}
               <span className="ml-2 text-xs font-normal text-muted-foreground">
-                {isUnknown ? "Unknown" : isOn ? "ON" : "OFF"}
+                {stateWord}{isRemembered ? " · last set" : ""}
               </span>
             </span>
             <span
               className={cn(
                 "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300",
-                isOn ? "bg-emerald-500" : !isUnknown ? "bg-destructive/50" : "bg-muted-foreground/30"
+                isRemembered ? "bg-amber-500/60" : isOn ? "bg-emerald-500" : !isUnknown ? "bg-destructive/50" : "bg-muted-foreground/30"
               )}
             >
               <span
@@ -146,8 +163,9 @@ export function CommandButton({
             onClick={handleClick}
             disabled={disabled}
             className={cn(
-              isOn && "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-400",
-              !isUnknown && !isOn && "border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive"
+              isRemembered && "border-amber-500/30 bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 hover:text-amber-500",
+              isOn && !isRemembered && "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-400",
+              !isUnknown && !isOn && !isRemembered && "border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive"
             )}
           >
             <Zap className="mr-1.5 size-3" />
@@ -162,7 +180,9 @@ export function CommandButton({
               <AlertDialogDescription>
                 {isUnknown
                   ? `Current state is unknown — this will send ${nextAction}.`
-                  : `Currently ${isOn ? "ON" : "OFF"}. This will send ${nextAction}.`}
+                  : isRemembered
+                    ? `Last set to ${isOn ? "ON" : "OFF"} by a user — not confirmed by the device. This will send ${nextAction}.`
+                    : `Currently ${isOn ? "ON" : "OFF"}. This will send ${nextAction}.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

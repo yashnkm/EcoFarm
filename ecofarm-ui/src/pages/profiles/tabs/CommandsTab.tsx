@@ -147,7 +147,10 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       description: (a, b) => naturalCompare(a.description ?? "", b.description ?? ""),
       registerNumber: (a, b) => a.registerNumber - b.registerNumber,
       functionCode: (a, b) => a.functionCode - b.functionCode,
-      statusDataPointKey: (a, b) => naturalCompare(a.statusDataPointKey ?? "", b.statusDataPointKey ?? ""),
+      statusDataPointKey: (a, b) => naturalCompare(
+        a.usesInternalStatus ? "" : a.statusDataPointKey ?? "",
+        b.usesInternalStatus ? "" : b.statusDataPointKey ?? ""
+      ),
       category: (a, b) => naturalCompare(GROUP_LABELS[classifyCommand(a)], GROUP_LABELS[classifyCommand(b)]),
       minRole: (a, b) => naturalCompare(a.minRole, b.minRole),
     }
@@ -269,7 +272,11 @@ export function CommandsTab({ profileId }: { profileId: string }) {
       functionCode: c.functionCode,
       value: c.value,
       offValue: c.offValue ?? undefined,
-      statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
+      // An internal/remembered status point isn't something to offer back
+      // as if it were a pickable real data point — it's not even in the
+      // dataPoints list (see dataPointsApi.list), so round-trip it to
+      // "None" exactly as it was before one got auto-created.
+      statusDataPointKey: c.usesInternalStatus ? NO_STATUS_POINT : (c.statusDataPointKey ?? NO_STATUS_POINT),
       confirmationRequired: c.confirmationRequired,
       minRole: c.minRole as EditValues["minRole"],
       category: c.category ?? "OTHER",
@@ -295,7 +302,9 @@ export function CommandsTab({ profileId }: { profileId: string }) {
         functionCode: c.functionCode,
         onValue: c.value,
         offValue: c.offValue!,
-        statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
+        // Not the original's internal key — a clone is a separate command
+        // and must get its own fresh internal variable, never share one.
+        statusDataPointKey: c.usesInternalStatus ? NO_STATUS_POINT : (c.statusDataPointKey ?? NO_STATUS_POINT),
         confirmationRequired: c.confirmationRequired,
         minRole: c.minRole as ToggleValues["minRole"],
       })
@@ -309,7 +318,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
         confirmationRequired: c.confirmationRequired,
         minRole: c.minRole as ValueValues["minRole"],
         category: c.category ?? "OTHER",
-        statusDataPointKey: c.statusDataPointKey ?? NO_STATUS_POINT,
+        statusDataPointKey: c.usesInternalStatus ? NO_STATUS_POINT : (c.statusDataPointKey ?? NO_STATUS_POINT),
         scaleFactor: Number(c.scaleFactor),
         offset: Number(c.offset),
         unit: c.unit ?? "",
@@ -812,7 +821,7 @@ export function CommandsTab({ profileId }: { profileId: string }) {
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
-                        {c.statusDataPointKey ?? "—"}
+                        {c.usesInternalStatus ? "—" : (c.statusDataPointKey ?? "—")}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {GROUP_LABELS[classifyCommand(c)]}

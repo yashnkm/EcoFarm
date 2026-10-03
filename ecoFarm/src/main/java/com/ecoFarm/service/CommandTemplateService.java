@@ -2,7 +2,11 @@ package com.ecoFarm.service;
 
 import com.ecoFarm.api.v1.dto.request.CommandTemplateRequest;
 import com.ecoFarm.domain.entity.CommandTemplate;
+import com.ecoFarm.domain.entity.DataPoint;
 import com.ecoFarm.domain.entity.DeviceProfile;
+import com.ecoFarm.domain.enums.ByteOrder;
+import com.ecoFarm.domain.enums.DataType;
+import com.ecoFarm.domain.enums.DisplayWidget;
 import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.repository.CommandTemplateRepository;
 import com.ecoFarm.repository.DataPointRepository;
@@ -68,7 +72,7 @@ public class CommandTemplateService {
             .minRole(req.minRole() != null ? req.minRole() : Role.OPERATOR)
             .promptForValue(Boolean.TRUE.equals(req.promptForValue()))
             .offValue(req.offValue())
-            .statusDataPointKey(req.statusDataPointKey())
+            .statusDataPointKey(resolveStatusDataPointKey(profile, null, req.statusDataPointKey()))
             .category(req.category())
             .scaleFactor(req.scaleFactor() != null ? req.scaleFactor() : BigDecimal.ONE)
             .offset(req.offset() != null ? req.offset() : BigDecimal.ZERO)
@@ -107,7 +111,7 @@ public class CommandTemplateService {
         if (req.minRole() != null) c.setMinRole(req.minRole());
         if (req.promptForValue() != null) c.setPromptForValue(req.promptForValue());
         c.setOffValue(req.offValue());
-        c.setStatusDataPointKey(req.statusDataPointKey());
+        c.setStatusDataPointKey(resolveStatusDataPointKey(c.getProfile(), c, req.statusDataPointKey()));
         c.setCategory(req.category());
         c.setScaleFactor(req.scaleFactor() != null ? req.scaleFactor() : BigDecimal.ONE);
         c.setOffset(req.offset() != null ? req.offset() : BigDecimal.ZERO);
@@ -119,6 +123,43 @@ public class CommandTemplateService {
         if (scaleFactor != null && scaleFactor.compareTo(BigDecimal.ZERO) == 0) {
             throw ApiException.badRequest("Scale factor cannot be zero");
         }
+    }
+
+    // "None" in the status-point picker doesn't mean "leave this null" —
+    // it means "there's no real feedback, so remember the last value we
+    // sent instead" (see DataPoint#isVirtual). An explicit key the user
+    // picked is used as-is; a blank one reuses this command's existing
+    // virtual point if it already has one (editing a command repeatedly
+    // must not spawn a fresh internal point every save), or creates one.
+    private String resolveStatusDataPointKey(DeviceProfile profile, CommandTemplate existing, String requestedKey) {
+        if (requestedKey != null && !requestedKey.isBlank()) {
+            return requestedKey;
+        }
+        if (existing != null && existing.getStatusDataPointKey() != null
+            && existing.getStatusDataPointKey().startsWith(DataPoint.INTERNAL_KEY_PREFIX)) {
+            return existing.getStatusDataPointKey();
+        }
+        return createVirtualDataPoint(profile).getKey();
+    }
+
+    private DataPoint createVirtualDataPoint(DeviceProfile profile) {
+        return dataPointRepository.save(DataPoint.builder()
+            .profile(profile)
+            .pollGroup(null)
+            .key(DataPoint.INTERNAL_KEY_PREFIX + UUID.randomUUID())
+            .label("(internal)")
+            .registerNumber(null)
+            .functionCode(null)
+            .dataType(DataType.BOOLEAN)
+            .wordCount(1)
+            .byteOrder(ByteOrder.BIG_ENDIAN)
+            .scaleFactor(BigDecimal.ONE)
+            .offset(BigDecimal.ZERO)
+            .writable(false)
+            .displayed(false)
+            .displayWidget(DisplayWidget.BOOLEAN_DISPLAY)
+            .virtual(true)
+            .build());
     }
 
     // A toggle's statusDataPointKey is a free-text key (matches how

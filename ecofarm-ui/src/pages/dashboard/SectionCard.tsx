@@ -274,8 +274,18 @@ export function SectionCard({
                     variant="switch"
                     onIssue={onIssueCommand}
                     disabled={issuePending}
+                    isInternalStatus={cmd.usesInternalStatus}
                     statusValue={
-                      cmd.statusDataPointKey ? freshReading(cmd.statusDataPointKey)?.value : undefined
+                      cmd.statusDataPointKey
+                        ? cmd.usesInternalStatus
+                          // An internal/remembered value doesn't refresh on
+                          // its own cadence like a polled reading does, so
+                          // Track A's 60s staleness window doesn't apply —
+                          // it should keep showing until something actually
+                          // changes it, not go stale a minute after being set.
+                          ? readings.get(`${deviceId}:${cmd.statusDataPointKey}`)?.value
+                          : freshReading(cmd.statusDataPointKey)?.value
+                        : undefined
                     }
                   />
                 </div>

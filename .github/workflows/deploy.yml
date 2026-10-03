@@ -250,7 +250,10 @@ jobs:
                   END IF;
                 END IF;
               END LOOP;
-            END $pgdo2$;'
+            END $pgdo2$;' \
+            -c "ALTER TABLE data_points ADD COLUMN IF NOT EXISTS is_virtual BOOLEAN NOT NULL DEFAULT false;" \
+            -c "ALTER TABLE data_points ALTER COLUMN register_number DROP NOT NULL;" \
+            -c "ALTER TABLE data_points ALTER COLUMN function_code DROP NOT NULL;"
 
           # Add admin subdomain to CORS allowed origins if not already present
           ADMIN_ORIGIN="https://admin.iot.chandramaautomation.com"

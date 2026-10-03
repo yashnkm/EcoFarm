@@ -11,6 +11,7 @@ import com.ecoFarm.domain.entity.*;
 import com.ecoFarm.domain.enums.CommandStatus;
 import com.ecoFarm.domain.enums.DeviceProtocol;
 import com.ecoFarm.domain.enums.DeviceStatus;
+import com.ecoFarm.domain.enums.ReadingQuality;
 import com.ecoFarm.domain.enums.Role;
 import com.ecoFarm.repository.*;
 import com.ecoFarm.shared.exception.ApiException;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -165,6 +167,16 @@ public class DeviceService {
             .orElseThrow(() -> ApiException.notFound("User not found"));
 
         int value;
+        // Non-null => write a Reading for the command's internal/virtual
+        // status point (see DataPoint#isVirtual) right after dispatch, so a
+        // write-only command with no real feedback still has something to
+        // resolve its own next toggle direction from and show on the
+        // dashboard — null for commands linked to a real status point,
+        // whose readings only ever come from an actual device poll.
+        Double internalStatusValue = null;
+        boolean tracksInternalStatus = template.getStatusDataPointKey() != null
+            && template.getStatusDataPointKey().startsWith(DataPoint.INTERNAL_KEY_PREFIX);
+
         if (template.getOffValue() != null) {
             // Toggle command — resolve direction from the linked status data
             // point's latest reading, never from anything the client sends.
@@ -174,7 +186,12 @@ public class DeviceService {
                 && readingRepository.findFirstByDeviceIdAndDataPointOrderByTimeDesc(deviceId, template.getStatusDataPointKey())
                     .map(r -> r.getValue() != null && r.getValue() > 0)
                     .orElse(false);
-            value = currentlyOn ? template.getOffValue() : template.getValue();
+            boolean willBeOn = !currentlyOn;
+            value = willBeOn ? template.getValue() : template.getOffValue();
+            // Always a plain 1/0 flag here, never the raw register value —
+            // offValue is a real register value too (e.g. 5, not 0 on this
+            // VFD), and ">0" would otherwise read every sent value as "on".
+            if (tracksInternalStatus) internalStatusValue = willBeOn ? 1.0 : 0.0;
         } else if (template.isPromptForValue()) {
             if (req.value() == null) {
                 throw ApiException.badRequest("This command requires a value");
@@ -194,6 +211,9 @@ public class DeviceService {
                 throw ApiException.badRequest("Value out of range for a single register (-32768 to 65535)");
             }
             value = raw.intValue();
+            // The engineering value itself (not the raw register write) —
+            // matches what a real status point's reading would show.
+            if (tracksInternalStatus) internalStatusValue = req.value().doubleValue();
         } else {
             // Fixed commands always send their configured value — a client
             // can never override it, even if one was supplied.
@@ -209,6 +229,21 @@ public class DeviceService {
             .value(value)
             .status(CommandStatus.PENDING)
             .build();
+
+        if (internalStatusValue != null) {
+            readingRepository.save(Reading.builder()
+                .deviceId(device.getId())
+                .dataPoint(template.getStatusDataPointKey())
+                .time(Instant.now())
+                .tenantId(device.getTenant().getId())
+                .siteId(device.getSite() != null ? device.getSite().getId() : null)
+                .gatewayId(device.getGateway().getId())
+                .value(internalStatusValue)
+                .rawValue(value)
+                .quality(ReadingQuality.GOOD)
+                .unit(template.getUnit())
+                .build());
+        }
 
         return controlCommandRepository.save(cmd);
         // MQTT dispatcher will pick this up (when built) and publish to the gateway.

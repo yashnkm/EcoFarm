@@ -29,7 +29,7 @@ public class DataPointService {
     @Transactional(readOnly = true)
     public List<DataPoint> list(UUID profileId) {
         profileService.findAvailable(profileId);
-        return repo.findByProfileId(profileId);
+        return repo.findByProfileIdAndVirtualFalse(profileId);
     }
 
     @Transactional(readOnly = true)

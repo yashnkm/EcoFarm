@@ -13,6 +13,12 @@ public interface DataPointRepository extends JpaRepository<DataPoint, UUID> {
 
     List<DataPoint> findByProfileId(UUID profileId);
 
+    /** Excludes auto-created internal points (see DataPoint#isVirtual) —
+     * every existing consumer of "list this profile's data points" (the
+     * admin editor, the live dashboard, the status-point picker) wants only
+     * real, polled points. */
+    List<DataPoint> findByProfileIdAndVirtualFalse(UUID profileId);
+
     List<DataPoint> findByPollGroupId(UUID pollGroupId);
 
     Optional<DataPoint> findByProfileIdAndKey(UUID profileId, String key);

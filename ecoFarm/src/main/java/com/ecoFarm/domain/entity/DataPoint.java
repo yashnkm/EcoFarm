@@ -39,10 +39,12 @@ public class DataPoint {
     @Column(nullable = false)
     private String label;
 
-    @Column(name = "register_number", nullable = false)
+    // Nullable: a virtual data point (see isVirtual below) has no real
+    // register — it's never polled, so there's nothing to put here.
+    @Column(name = "register_number")
     private Integer registerNumber;
 
-    @Column(name = "function_code", nullable = false)
+    @Column(name = "function_code")
     private Integer functionCode;
 
     @Enumerated(EnumType.STRING)
@@ -97,4 +99,22 @@ public class DataPoint {
 
     @Column(name = "true_label", length = 100)
     private String trueLabel;
+
+    /** A software-only point with no real register, auto-created for a
+     * command whose "status data point" is left as None — see
+     * CommandTemplateService#resolveStatusDataPointKey. Lets a write-only
+     * command (no feedback from the device) still remember the last value
+     * a user sent, reusing the exact same statusDataPointKey -> Reading
+     * lookup every real status point already uses, instead of a second
+     * parallel mechanism. Never polled, never shown in the Data Points
+     * list or the live dashboard (see DataPointService#list). */
+    @Column(name = "is_virtual", nullable = false)
+    @Builder.Default
+    private boolean virtual = false;
+
+    /** Every virtual data point's key starts with this — a plain prefix
+     * check (not a DB lookup) is enough to tell internal, remembered-not-
+     * confirmed state apart from a real device reading wherever that
+     * distinction matters (DeviceService, the mapper, the dashboard). */
+    public static final String INTERNAL_KEY_PREFIX = "__internal_";
 }

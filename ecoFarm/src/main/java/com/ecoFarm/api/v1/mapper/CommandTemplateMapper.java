@@ -2,6 +2,7 @@ package com.ecoFarm.api.v1.mapper;
 
 import com.ecoFarm.api.v1.dto.response.CommandTemplateResponse;
 import com.ecoFarm.domain.entity.CommandTemplate;
+import com.ecoFarm.domain.entity.DataPoint;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ public class CommandTemplateMapper {
             c.isPromptForValue(),
             c.getOffValue(),
             c.getStatusDataPointKey(),
+            c.getStatusDataPointKey() != null && c.getStatusDataPointKey().startsWith(DataPoint.INTERNAL_KEY_PREFIX),
             c.getCategory(),
             // Rows saved before this field existed have a null column —
             // present them as the no-op conversion rather than leaking null

@@ -206,6 +206,10 @@ export interface CommandTemplate {
   promptForValue: boolean
   offValue: number | null
   statusDataPointKey: string | null
+  // True when statusDataPointKey is an auto-created internal point (no
+  // real register) remembering the last value a user sent, not an actual
+  // device reading — see DataPoint#isVirtual on the backend.
+  usesInternalStatus: boolean
   category: "TEMPERATURE" | "FOGGING" | "OTHER" | null
   scaleFactor: number
   offset: number

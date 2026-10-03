@@ -499,6 +499,7 @@ function CommandTable({
                   command={cmd}
                   disabled={issuePending}
                   onIssue={onIssue}
+                  isInternalStatus={cmd.usesInternalStatus}
                   statusValue={cmd.statusDataPointKey ? liveReadings.get(cmd.statusDataPointKey)?.value : undefined}
                 />
               </TableCell>
